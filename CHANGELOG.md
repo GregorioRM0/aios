@@ -80,7 +80,7 @@
 
 ## 2026-10-11 — /today no longer writes an older copy over today's note
 
-`hash: `
+`hash: ` · [#207](https://github.com/The-AIOS/aios/pull/207)
 
 > **What you can now do.** Tick a box in Obsidian or close another session while `/today` is running, and keep it.
 
