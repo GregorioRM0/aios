@@ -178,7 +178,7 @@ Skills auto-load — you don't invoke them by name. Describe what you want and C
 | `pci-compliance` | `skills/aios/` | "Audit this for PCI compliance" |
 | `security-audit` | `skills/cloudflare/` | "Security-review this codebase" (guidance); "Run a full security audit" (full run, fans out subagents) |
 
-**Source folders:** `skills/aios/` (AIOS-built — 30 skills) · `skills/anthropic/` (vendored from `anthropics/skills` — 11 skills) · `skills/superpowers/` (vendored from `obra/superpowers` — 14 skills) · `skills/cloudflare/` (vendored from `cloudflare/security-audit-skill` — 1 skill) · `skills/custom/` (your own — survives `/aios:update`). Total bundled: 56. Browse `skills/_index.md` for the full registry.
+**Source folders:** `skills/aios/` (AIOS-built — 31 skills) · `skills/anthropic/` (vendored from `anthropics/skills` — 11 skills) · `skills/superpowers/` (vendored from `obra/superpowers` — 14 skills) · `skills/cloudflare/` (vendored from `cloudflare/security-audit-skill` — 1 skill) · `skills/custom/` (your own — survives `/aios:update`). Total bundled: 57. Browse `skills/_index.md` for the full registry.
 
 **Marketplace skills** (NOT in `skills/`, install via `/plugin install`): `canvas-design`/`docx`/`pdf`/`pptx`/`xlsx` (via `document-skills` plugin) · `code-review-excellence` (via `code-review@claude-plugins-official`) · `defuddle` (via Anthropic skills marketplace) · `superpowers` full marketplace (`obra/superpowers-marketplace`).
 

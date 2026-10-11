@@ -23,7 +23,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -u
 
-ROOT="${AIOS_REPO_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+# Two levels up: this file is .github/scripts/autofix.sh. One level up was .github/ itself, where
+# no count claim lives, so every run without AIOS_REPO_ROOT (CI's included) checked nothing and
+# reported "nothing to repair".
+ROOT="${AIOS_REPO_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 MODE="${1:-apply}"
 CHANGED=""
 
