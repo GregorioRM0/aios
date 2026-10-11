@@ -518,6 +518,26 @@ function spawn {
 
     $taskFile = Join-Path $env:TEMP "spawn-task-$Name.md"
     Set-Content -Path $taskFile -Value ($taskPreamble + "`n" + $Task) -Encoding UTF8
+    # An ADVISED worker on a Sonnet- or Haiku-class model gets a consult instruction: unprompted,
+    # those executors almost never call the advisor (MODEL-ROUTING.md § The advisor). Opus and
+    # Fable call it well on their own, and the instruction lowered their pass rates.
+    if ($spawnAdvisor -and ($spawnModel -match 'sonnet|haiku')) {
+        $advisorBlock = @(
+        '',
+        '# You have an advisor',
+        '',
+        'This worker runs with an advisor: a stronger model you can consult through the `advisor`',
+        'tool. It sees everything you have done so far and returns short advice. It only helps if',
+        'you call it, and workers on your model rarely do unprompted, so:',
+        '',
+        '- Call it once BEFORE substantive work, with your plan.',
+        '- Call it once BEFORE you declare the task done. Save your work first (write the file,',
+        '  commit if the task says to), so nothing is lost if the call is slow.',
+        '- Call it when you are stuck, or about to choose between two approaches.',
+        '- Ask it to keep its guidance under 80 words.'
+        ) -join "`n"
+        Add-Content -Path $taskFile -Value $advisorBlock -Encoding UTF8
+    }
 
     # In-process (in-shell) when NOT inside a Claude Code session, OR when this is an
     # AIOS-Glass-made terminal ($env:AIOS_GLASS_TERM). Glass created the terminal natively

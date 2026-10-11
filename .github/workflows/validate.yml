@@ -1651,6 +1651,10 @@ jobs:
         run: bash tests/context-floor.test.sh
       - name: the floor is delivered at session start, compact and opt-out for routines
         run: bash tests/floor-at-start.test.sh
+      - name: the model-switch log records silent fallbacks and reports only what matters
+        run: bash tests/model-switch-log.test.sh
+      - name: clip copies paste-bound text intact (forced UTF-8, read-back verified)
+        run: bash tests/clip.test.sh
 
       - name: the floor's PRESCRIBED INVOCATION runs where sessions actually run
         # CLAUDE.md names one command as the mandatory first context load, and its whole

@@ -88,7 +88,7 @@ echo "── --effort / --advisor reach the claude command line (and nothing whe
 # The REAL spawn + launcher functions against a stand-in claude that records its arguments.
 tmp=$(mktemp -d); mkdir -p "$tmp/aios" "$tmp/bin"
 printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/args"\n' "$tmp" > "$tmp/bin/claude"; chmod +x "$tmp/bin/claude"
-FNS=$( for f in _spawn_adj_animal _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
+FNS=$( for f in _spawn_adj_animal _spawn_task_preamble _spawn_advisor_block _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
 runspawn(){ env -u CLAUDECODE -u AIOS_GLASS_TERM -u CLAUDE_EFFORT -u CLAUDE_ADVISOR_MODEL HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; shift; spawn "$@"' _ "$FNS" "$@" >/dev/null 2>&1; }
 rm -f "$tmp/args"; runspawn --effort low --advisor scale worker "task"
 A=$(cat "$tmp/args" 2>/dev/null)
@@ -102,6 +102,13 @@ rm -f "$tmp/args"; runspawn worker "task"
 grep -x -- '--effort\|--settings' "$tmp/args" >/dev/null 2>&1 && no "a spawn without the flags passed --effort or --settings" || ok "without the flags, no --effort and no --settings (byte-identical to before)"
 out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --effort ultra worker task' _ "$FNS" 2>&1 ); rc=$?
 [ "$rc" != 0 ] && case "$out" in *"unknown --effort"*) true ;; *) false ;; esac && ok "an unknown --effort is refused, naming the flag" || no "--effort ultra not refused (rc=$rc)" "$out"
+rm -f /tmp/spawn-task-advw.md /tmp/spawn-task-advj.md
+runspawn --tier scale --advisor judgment advw "task" >/dev/null 2>&1
+grep -q 'You have an advisor' /tmp/spawn-task-advw.md 2>/dev/null && ok "an advised scale worker gets the consult instruction" || no "advised scale worker has no consult instruction"
+runspawn --advisor frontier advj "task" >/dev/null 2>&1
+[ -f /tmp/spawn-task-advj.md ] && ! grep -q 'You have an advisor' /tmp/spawn-task-advj.md && ok "an advised judgment worker does not (it lowers Opus pass rates)" || no "judgment worker got the consult instruction, or no task file"
+grep -q "spawnModel -match 'sonnet|haiku'" "$(dirname "$SRC")/install-wrappers.ps1" && ok "ps1 gates the consult instruction the same way" || no "ps1 consult gate missing"
+rm -f /tmp/spawn-task-advw.md /tmp/spawn-task-advj.md
 out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --advisor '"'"'x","permissions":{"allow":["Bash"]},"y":"'"'"' worker task' _ "$FNS" 2>&1 ); rc=$?
 [ "$rc" != 0 ] && case "$out" in *"not a rung or a model id"*) true ;; *) false ;; esac && ok "an --advisor that would inject settings JSON is refused" || no "--advisor with JSON characters accepted (rc=$rc)" "$out"
 rm -rf "$tmp"

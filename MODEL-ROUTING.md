@@ -26,7 +26,7 @@ work, not by importance** — "important" is what tempts you to the top rung for
 | `scale` | Claude Sonnet 5.5 | General-purpose workloads at scale, across coding and knowledge work | `medium` |
 | `fast` | Claude Haiku 5.5 | High-frequency, latency-sensitive tasks; sub-agents inside an orchestration | `low` |
 
-**Effort is the second knob, and for current models it is the one to turn first.** Claude 5-generation models always reason before replying, so *"think carefully"* in a prompt only adds latency; to get more or less thinking, change effort: `claude --effort low|medium|high|xhigh|max` (checked against the installed binary, not assumed). The column above is where to start, not a rule. `spawn` does not pass `--effort` yet, so a spawned worker runs at the binary's default; set it inside the session with `/effort`, or run `claude --effort …` directly.
+**Effort is the second knob, and for current models it is the one to turn first.** Claude 5-generation models always reason before replying, so *"think carefully"* in a prompt only adds latency; to get more or less thinking, change effort: `claude --effort low|medium|high|xhigh|max` (checked against the installed binary, not assumed). The column above is where to start, not a rule. For a spawned worker, `spawn --effort <level>` (Windows: `-Effort`); for a subagent, the Agent tool's `effort` parameter; inside a session, `/effort`. Omitted, a worker runs at the binary's default.
 
 **Fast mode is not a rung.** It is the same model, answering faster, at a higher price per token — worth it for back-and-forth work where you read every reply, wasted on an unattended worker. Toggle it with `/fast`.
 
@@ -34,6 +34,7 @@ work, not by importance** — "important" is what tempts you to the top rung for
 
 - **Check what actually ran, not what you asked for:** `/model` shows the session's current model, and each reply's model is recorded in the session transcript. Launch arguments only prove what was *requested*.
 - **Decide the behaviour for unattended work deliberately.** The setting is `/config` → *"Switch models when a message is flagged"*. Interactively, switching keeps you working; for a routine or worker whose output you will trust without watching it, you may prefer it to stop instead of finishing on a model you did not choose.
+- **Let the log tell you.** With SETUP's Hook F wired, every switch is appended to `~/.aios/model-switch.jsonl`, and `/close-session` and `/close-day` name any session that finished on a model it did not ask for.
 
 Omitting `--tier` gives you `judgment`. That is deliberate: the default should be the rung that is
 right when nobody thought about it, and under-powering a reasoning task fails silently — you get an
@@ -60,8 +61,13 @@ successor for new work; `mechanical` will keep working.
   overrides `--tier`, exports `CLAUDE_MODEL` **for that spawn's launcher only**. Never export
   `CLAUDE_MODEL` in your shell rc to achieve this; miss the revert and every future terminal is
   pinned.
-- **A subagent inside a session:** the Agent tool's `model` parameter takes the same ids.
-- **Inside a workflow:** per-agent, same ids.
+- **A subagent inside a session:** the Agent tool's `model` parameter takes the same ids, and its
+  `effort` parameter sets effort per subagent.
+- **Inside a workflow:** per-agent, same ids, and per-agent effort.
+- **Effort for a spawned worker:** `spawn --effort low|medium|high|xhigh|max name "..."` (Windows:
+  `-Effort`). An unknown level is refused rather than ignored.
+- **An advisor for a spawned worker:** `spawn --advisor <rung|model> name "..."` (Windows:
+  `-Advisor`). Read § The advisor first: on most rungs it is not worth it.
 
 ### Verify an id before you trust it
 
@@ -111,6 +117,45 @@ appears there verbatim and looks confirmed. Cost and token counts are the discri
 Every id in the table above was verified this way, against a deliberately-bogus control that
 failed as expected.
 
+## The advisor — escalating inside one worker
+
+There are two ways to spend a strong model only where it is needed, and AIOS already does one:
+
+- **Orchestrator:** a strong model holds the loop and delegates the volume down the ladder —
+  `spawn --tier`, subagents with `model`, workflow stages. This is the default AIOS shape.
+- **Advisor:** a cheaper model holds the loop and *consults* a stronger one at decision points.
+  Claude Code's advisor tool does this first-party: the worker calls a tool, Anthropic runs the
+  stronger model server-side on the whole transcript, and short advice comes back inside the same
+  request. Nothing new leaves your machine, so the containment boundary below is not engaged.
+
+**When it pays: on `scale` and `fast`.** Anthropic's published measurements put a cheaper worker
+with an Opus advisor close to the stronger model's quality, at similar or lower cost. On
+`judgment` it buys about what turning effort up buys, at roughly twice the cost, so raise effort
+first. On `frontier` the only accepted advisor is the same model: a second opinion, not an
+economy. **No rung has a default advisor**, and none should: a default would be a silent spend
+increase for every operator. Price the strong model alone at low effort before pairing anything.
+
+**It only pays if the worker calls it.** Cheaper workers under-call by default. In Anthropic's
+measurement, Sonnet and Haiku workers with an Opus advisor and no instruction consulted it on
+none of 198 questions, while the tool's definition (about 1,000 tokens) still went out with every
+request. So when `spawn --advisor` launches a Sonnet- or Haiku-class worker, it appends a short
+consult instruction to the task: consult before substantive work and before declaring done, save
+the work before that call, keep the advice short. Opus and Fable workers call it at a sensible rate
+on their own, and the same instruction lowered their pass rates, so `spawn` leaves them alone.
+
+- **`spawn --advisor <rung|model>`** (Windows: `-Advisor`). A rung resolves like `--tier`; anything
+  else is taken as a model id. It is passed to that worker only, as a settings file
+  (`advisorModel`).
+- **The advisor must rank at or above the worker's model, and a bad pairing is quiet.** The
+  session starts, prints one stderr line saying the advisor *cannot advise* that model, and runs
+  with no advisor. Read the worker's first screen, or check what ran, as § Verify an id says.
+- **`/advisor` persists.** Typed once, it is saved to your user settings and applies to every later
+  session, spawned worker and routine that loads them; subagents inherit it. Treat it as a
+  standing spend decision, not a session toggle.
+- **A Fable advisor bills usage credits** on plans where Fable does, behind a one-time consent.
+- **Routines:** one that must not pay for an advisor sets `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`, or
+  runs with `--setting-sources` excluding the user layer (the form § Verify an id prescribes).
+
 ---
 
 ## The containment boundary
@@ -128,6 +173,15 @@ discovered, because reaching for one is the natural next step after wanting a ch
 
 If you want a different model, call it as a tool (§3). That gets you the model without putting
 anyone between your session and Anthropic.
+
+**The same rule covers classifier routers.** A cheap classification model is sold as a way to pick
+the model for each task (TypeSafe's Jev is the current example). It comes in two forms, with two
+verdicts. As a **tool** the session calls (it asks "which model fits this?", then launches the
+helper itself), it is rail-class (§3): the task text leaves your machine on every call, so it is
+never always-on, and the decision it makes is one the orchestrating session already has the
+context for. As a **proxy** between Claude Code and Anthropic that picks the model per message, it
+is what this rule forbids. The first-party answer to "spend the strong model only where it is
+needed" is the advisor (§ The advisor), which needs neither.
 
 ### 2 · `spawn --model` takes Claude ids only — by design, not by accident
 
@@ -159,9 +213,20 @@ material, anything under an NDA, financial records, and personal context are usu
 
 ## Judge independence — do not let a model grade its own family
 
-**The rule:** when a model's output is being *scored*, the scorer must come from a different model
-family than the author. A judge cannot dock points for a systematic tendency it shares. Nothing
-about the score looks wrong from the inside; the bias is invisible by construction.
+**The rule has two tiers.**
+
+- **Context independence, always.** Any verifier runs in its own context, sees the output only
+  (never the builder's reasoning or traces), and grades against criteria written before the work
+  started. A critic that shares the builder's context shares its generosity toward its own work:
+  it watched the work being argued for. This holds even when the verifier is the same model.
+- **Family independence, when the score is about taste or style.** When a model's output is being
+  *scored* on quality, the scorer must come from a different model family than the author. A judge
+  cannot dock points for a systematic tendency it shares. Nothing about the score looks wrong from
+  the inside; the bias is invisible by construction.
+
+Anthropic's own published work on long-running agent harnesses gets its gains from the first tier
+(a separate evaluator with a written rubric, harsh by design) and concedes the second: a
+same-family evaluator still leans toward liking model-style output.
 
 **Why this is in a framework doc and not a footnote:** it is easy to build, it runs for months
 without complaining, and the same mistake is sitting in public. Reported by an operator who found
@@ -180,6 +245,11 @@ judge cannot be the evidence.
   arise. Where a countable proxy exists, count it.
 - **When you genuinely need a model to judge, cross the family.** That is a use for the rail in §3
   — and the reason the de-biasing and the cheap-lane happen to be the same piece of code.
+- **A verifier that inherits the builder's context is not a verifier.** For delegated or overnight
+  work, use the builder ⇄ evaluator contract in the
+  [`orchestration-ladder`](./skills/aios/orchestration-ladder/SKILL.md) skill: a `done-means` file
+  agreed before work starts, and an evaluator in its own context that *uses* the artifact (opens
+  the page, runs the command) rather than reading the diff.
 - **Never `claude -p` as the scorer of Claude-authored prose quality.** Using `claude -p` as a
   *reader* is fine and AIOS does it (`hooks/video-watch.py` captions video frames with it). The
   line is authorship: reading an artifact Claude did not write is measurement; grading one Claude
