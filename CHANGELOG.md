@@ -78,6 +78,18 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-11 — /close-session finishes an interrupted close instead of skipping it
+
+`hash: `
+
+> **What you can now do.** Re-run `/close-session` after a close that was cut off halfway, and have it finish the routing instead of reporting "already closed".
+
+**An interrupted close was taken for a finished one.** `/close-session` writes and commits its block at step 5, and the observed-context routing comes after it. A close cut off between the two (a closed terminal, a crash, a lost connection) left the block with no routing. The gate that stops duplicate closes only asked whether this session had committed work since its block, so a re-run said "already closed; no work since" and skipped the steps that never ran. A close now records its end with an invisible marker in the daily note: the last step for an interactive close, and the block itself under `--auto`. A re-run that finds a block without that marker finishes the close from the routing step, without writing a second block. Old blocks have no marker, so the first re-run on one of them finishes it once; nothing is duplicated.
+
+**Work you did not commit counts too.** Before calling a close a duplicate, the session now checks its own conversation since the previous close: a decision, a learning or an edit left for another commit makes it a second close. Uncommitted changes in the vault are deliberately not the signal, because in a vault several sessions write to they are usually someone else's.
+
+**Action required:** none.
+
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 
 `hash: 485cc93 · 21fe7af · 93f5251 · 0a9f95a · b3361cf · e629066 · 99a3bb2 · 4c8099f · 5ed1023 · 642542b · 408aa87 · 90f0751 · 1c62258 · 7e4d865 · 7c8e2e3 · 0a4cdc2` · [#192](https://github.com/The-AIOS/aios/pull/192) · [#193](https://github.com/The-AIOS/aios/pull/193) · [#196](https://github.com/The-AIOS/aios/issues/196) · [#197](https://github.com/The-AIOS/aios/issues/197) · [#198](https://github.com/The-AIOS/aios/issues/198) · [#201](https://github.com/The-AIOS/aios/pull/201) · [#202](https://github.com/The-AIOS/aios/pull/202)

@@ -113,13 +113,31 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
        WORK=$(printf '%s\n' "$RANGE" | while IFS= read -r c; do [ -n "$c" ] && git -C "$HOME/aios" log -1 --format=%s "$c"; done | grep -cvE '^session: ')
      fi
    fi
+
+   # Did that previous close FINISH? The block lands at step 5 and is committed there, but
+   # the observed-context routing (steps 6-10) comes after it. A close interrupted in between
+   # leaves a stamp and no routing, and a re-run with no new commits would read it as a
+   # duplicate and skip the very steps that never ran. So a close records its end: step 10b
+   # appends a done marker naming the same vault hash as its stamp (under --auto the block
+   # carries it, because nothing after step 5 is owed there).
+   if [ -z "$STAMPED" ]; then
+     CLOSE=first
+   elif [ "$WORK" -ge 1 ]; then
+     CLOSE=second
+   elif grep -qF "<!-- close-session-done: ${SID} @ ${STAMPED} -->" "$NOTE" 2>/dev/null; then
+     CLOSE=duplicate
+   else
+     CLOSE=resume
+   fi
+   echo "close-session gate: $CLOSE"
    ```
 
    > **Why this needed provenance rather than a better heuristic.** The first version counted every commit whose subject was not `session: `-prefixed — which correctly ignored *this* command's bookkeeping but counted **other sessions' work as mine**. In a vault written by several sessions at once that is not an edge case: measured 2026-08-13, one session had **10 non-close commits since its stamp and only 1 was its own**. A spurious re-fire would then append a duplicate on the strength of a peer's commit. Git cannot tell sessions apart on its own — same author, same committer — so `aios-commit` now stamps an `AIOS-Session:` trailer and this reads it. **Record provenance; do not infer it from a naming convention.**
 
-   - **A prior stamp exists AND `$WORK` is 0** → nothing but this command's own commits have landed. This is a **duplicate**: skip the append, skip every step below, and say so plainly (*"already closed at {HH:MM}; no work since — not duplicating"*). Under `--auto` this is the normal outcome of a re-fire and must not read as an error.
-   - **A prior stamp exists AND `$WORK` is ≥ 1** → real work landed since. This is a **legitimate second close**: proceed and append a new block. A long session that closes at noon, works on, and closes again at 18:00 is a case the gate must never block.
-   - **No prior stamp** → first close today for this session. Proceed.
+   - **`duplicate`** — a prior stamp, `$WORK` is 0, and that close finished. Nothing but this command's own commits have landed. **Commits are not the only work, though**: `$WORK` cannot see what this session did and did not commit — a decision, a learning, a finished task, a file edited but left for another commit. So before skipping, read your own conversation since that close. If it holds any such work, treat this as **`second`**. Only when it holds nothing but close requests is this a duplicate: skip the append, skip every step below, and say so plainly (*"already closed at {HH:MM}; no work since — not duplicating"*). Under `--auto` this is the normal outcome of a re-fire and must not read as an error. Do not use uncommitted vault changes as the signal: in a vault written by several sessions they are usually someone else's, and counting them brings back the duplicates this gate exists to stop.
+   - **`resume`** — a prior stamp, `$WORK` is 0, and no done marker: the previous close wrote its block and stopped before the end. Do **not** append a second block (it is already there, committed). Skip 4.7 and 5 and continue from step 6 with what this session holds; step 10b then records the end. Under `--auto` there is nothing after step 5 to finish, so just run 10b.
+   - **`second`** — a prior stamp and `$WORK` ≥ 1 → real work landed since. This is a **legitimate second close**: proceed and append a new block. A long session that closes at noon, works on, and closes again at 18:00 is a case the gate must never block.
+   - **`first`** — no prior stamp → first close today for this session. Proceed.
 
    > **Why non-close commits and not the raw HEAD.** The first version of this gate compared the stamped hash directly against the current `HEAD`, and it was **inert** — it could never once fire. Appending a block *commits* it (`aios-note-append` → `aios-commit`), so `HEAD` advances on every close, while the stamp can only record the value from *before* that commit. `stamped == HEAD` was therefore unsatisfiable by construction, the "HEAD moved → real work" branch always won, and the gate always appended. Measured on a live note: all four stamps differed from `HEAD`. **Excluding `session: `-prefixed commits is what makes the two sides comparable** — it asks "did anything happen other than me writing this block", which is the actual question. (`SID` falls back to `unknown` rather than failing: a session with no id still gets a block, degrading to always-append, because a missing block is worse than a duplicated one.)
    >
@@ -131,6 +149,8 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
    ## Session — {HH:MM} | {Topic}
    <!-- close-session: {SID} @ {VHEAD} -->
    ```
+
+   Under `--auto`, add the done marker on the next line, `<!-- close-session-done: {SID} @ {VHEAD} -->`, with the same `{VHEAD}`: under `--auto` the block is the whole close.
 
    An HTML comment renders invisibly in Obsidian and in every markdown preview, so the note stays clean for the human while carrying the identity the machine needs.
 4.7. **Ask before you write** — under `--auto` nobody is there to answer, so skip the question in **a** and the offer in **b2** — but still run **b**'s scan: if agents shipped anything, list each item in `**Comprehension:**` as *un-grasped* with an `**Open threads:**` carry. Writing *"All operator-authored"* there without the scan would erase real comprehension debt. The block written in step 5 is **committed** by the helper the moment it lands, and the helper only appends — it cannot amend a block afterwards. So every answer the block needs from the operator is gathered *now*, before step 5, and steps 8 and 9 only verify it landed — they never ask again, write a second block, or reopen the first.
@@ -164,7 +184,7 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
    >
    > **Why it is worth a flag at all.** `aios-commit` releases its lock *before* pushing (deliberately — a slow network call must not make peers wait), so two pushes genuinely race. And a rejected push does **not** self-heal: it prints *"the remote has diverged. Pull/rebase, then push"* and stops, which is correct for a human at a terminal and useless inside a cron, where nobody reads it. The vault then sits committed-but-unpushed until someone notices.
    >
-   > **This command pushes from THREE places, and the flag must reach all three** — step 5's `aios-note-append`, step 10's `aios-commit` (Mode A), and Mode B's report commit. Covering only one is worse than covering none: the wrapper's author sets the variable, believes the race is handled, and still hits it at the next site. The three-site count is asserted by `tests/close-session-nopush.test.sh`, so a fourth push site added later fails the build rather than silently escaping the flag.
+   > **This command pushes from FOUR places, and the flag must reach all four** — step 5's `aios-note-append`, step 10's `aios-commit` (Mode A), step 10b's done marker, and Mode B's report commit. Covering only one is worse than covering none: the wrapper's author sets the variable, believes the race is handled, and still hits it at the next site. `tests/close-session-nopush.test.sh` counts push sites against guards, so a push site added later without the guard fails the build rather than silently escaping the flag.
 6. Update `session-insights.md` (observation buffer — not a log):
    - **Scan existing entries first:**
      - Does this session **reinforce** an Emerging insight? → move it to Reinforced with the new date
@@ -218,6 +238,17 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
    ```
    **The `--no-push` opt-out applies here too** — this is the command's second push site, and a wrapper that set the flag for step 5 expects it to hold for the whole run (see the box at step 5).
    `aios-commit` stages ONLY the given paths via a throwaway index (working tree untouched), self-scans for secrets, and pushes with defer-on-offline. It is the one sanctioned commit path — it replaces `git add -A` everywhere.
+
+10b. **Record that this close finished** (interactive closes, and a `resume` under `--auto`). Write `<!-- close-session-done: {SID} @ {VHEAD} -->` to a temp file, with the **same `{VHEAD}` as this close's stamp**, then append it through the same helper:
+   ```bash
+   ~/aios/hooks/aios-note-append \
+     --note "$HOME/aios/vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md" \
+     --before "## Close of Day" \
+     -m "session: {HH:MM} {Topic} — done" \
+     --block-file /tmp/aios-session-done.$$.md \
+     $([ "${AIOS_CLOSE_SESSION_NO_PUSH:-}" = "1" ] && echo --no-push)
+   ```
+   Its subject starts with `session: `, so the gate never counts it as work. It goes last because it is the gate's evidence that steps 6-10 ran: written earlier, an interrupted close would read as finished, and the next run would skip what never happened.
 
 ### Session block format (Mode A)
 
