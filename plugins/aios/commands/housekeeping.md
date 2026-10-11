@@ -890,7 +890,7 @@ UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-load-audit.p
 UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-rungs.py
 ```
 
-**What it reports.** The four rungs of the ladder in this vault — both `_index.md` (rung 0) · **the floor** (rung 1: every heading in both folders *plus the last 5 `###` entries of every observed file*, which is exactly what `hooks/context-floor.py` emits) · all of `declared/` (rung 2) · everything (rung 3) — in words and estimated tokens, plus the `observed/`-to-`declared/` ratio, ending in a verdict.
+**What it reports.** The four rungs of the ladder in this vault — both `_index.md` (rung 0) · **the floor** (rung 1: every heading in both folders *plus the newest 5 `###` entries of every observed file*, which is exactly what `hooks/context-floor.py` writes) · all of `declared/` (rung 2) · everything (rung 3) — in words and estimated tokens, plus the `observed/`-to-`declared/` ratio, ending in a verdict.
 
 **Watch the floor's share, not just its size.** The floor is *bounded by design* — five entries per observed file, so it does not grow as the corpus does. That means its **share** of rung 3 falls over time, which is the ladder working. What is worth surfacing is the opposite: an observed file whose newest five entries are a large fraction of the whole floor is usually a file that needs compacting, not a floor that needs widening.
 
@@ -905,6 +905,38 @@ UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-rungs.py
 - **`observed/` has files with very low heading density** → those are the ones the floor's titles index poorly. That *is* actionable, and it is Claude-authored content, so it is Claude's to fix at the next `/aios:compact`.
 
 **Why report-only, and why here rather than in a session.** The shape changes on the timescale of months, so a per-session check would be noise; housekeeping's cadence is the right one. And the ladder's consumers — `CLAUDE.md` § Identity & Greeting, the `right-context` skill, both spawn wrappers — deliberately state **no volume at all**, only ratios. This bucket is where the numbers are allowed to live, because it is the only surface that recomputes them.
+
+#### Bucket 32: Model ladder vs Anthropic's current catalog (NEW — REPORT-ONLY, never edits)
+
+**The gap.** The ladder in `MODEL-ROUTING.md` names one model per rung, and the same ids are literals in `hooks/resolve-tier` and both spawn wrappers. When Anthropic ships a newer model in a family, nothing in the vault changes, so every worker keeps launching on the older one and nothing reports it. It has happened: the ladder once ran a full generation behind while every session reported success.
+
+**Measure, in this order:**
+
+1. Read the ladder table in `MODEL-ROUTING.md` (§ The ladder) — the model per rung.
+2. Read Anthropic's current models overview (`https://platform.claude.com/docs/en/about-claude/models/overview`; WebFetch is fine, it is a public page) and take the newest model in each family the ladder uses.
+3. For any family where the catalog is newer than the rung, **verify the newer id actually resolves** before reporting it, with the probe in `MODEL-ROUTING.md` § Verify an id (cost and token counts, never `modelUsage`, which echoes whatever you asked for).
+
+**Report:** *"Rung `{rung}` runs `{id}`; Anthropic's catalog lists `{newer id}` (resolves: yes/no)."* Then one line on what to do: run `/aios:update` first, because canonical may already have moved the rung; if it is already current, the ladder is behind upstream and that is worth reporting there (the `aios-feedback` agent files it). **Never edit the ladder from here.** Its literals live in four files that a test keeps in agreement, and a rung's model is a cost decision for every operator, so it moves in a canonical PR, not in one vault. **Unreachable catalog** (offline, sandboxed) → say so in one line and skip; never report "current" for a check that did not run.
+
+#### Bucket 33: Skill load cost — the `/skill-doctor` summary (NEW — REPORT-ONLY, never edits)
+
+**Every skill's one-line listing goes into every turn's system prompt**, used or not. Claude Code measures this itself; read its report rather than estimating:
+
+```bash
+cd ~/aios && claude -p '/skill-doctor' --tools "" --strict-mcp-config --permission-mode default --output-format json
+```
+
+It costs nothing (a local command, no model call) and prints a table per skill (source, context cost, tokens over the last 7 days, uses, last used), then counts of skills loaded but never invoked, split by owned, **claude.ai-synced** and plugin skills, then plugins not used recently. Run it from the vault so usage reflects the sessions that matter. (On some versions the interactive form has moved into `/stats`; the headless call above still prints the report.)
+
+**Report** the three "never invoked" counts and the stale-plugin list, and name the five most expensive never-used skills by context cost. **Propose** — the operator decides each: disabling a never-used **bundled** skill in `/skills` (it stays on disk and comes back with one click), turning off a never-used **synced** skill on claude.ai (deleting the local copy does nothing; the next sync restores it), disabling a stale plugin in `/plugin`. **Never delete a skill folder**, and never touch `skills/custom/` without the operator naming it: a skill used once a quarter is still a skill they wanted.
+
+#### Bucket 34: claude.ai-synced skills that collide with canonical (NEW — REPORT-ONLY, never edits)
+
+**The gap.** A skill an operator added on claude.ai syncs into every Claude Code session. When it has the same name as a skill this framework ships, both load: two descriptions compete for the same requests, and which one runs is not something either author chose.
+
+**Measure** from the same `/skill-doctor` run as Bucket 33. Take every row whose source is `claude.ai sync`, strip any `namespace:` prefix (`anthropic-skills:google-workspace` → `google-workspace`), and compare the base name against the canonical skill folders (`skills/*/<name>/SKILL.md`) and against `agents/**/<name>.md`. Compare case-insensitively, and treat `-` and `_` as the same.
+
+**Report** each collision with both sources, plus one line saying which has the newer description if that can be read. **Propose** keeping one: usually turn the synced copy off on claude.ai when the canonical one is the maintained version, or move the operator's own version into `skills/custom/<name>/` when it holds their changes (custom overrides bundled, by design). **Zero collisions** → say *"{N} synced skills, 0 collisions"* so a clean result is distinguishable from a check that did not run.
 
 ### Phase 2 — Present the packet
 
@@ -935,6 +967,9 @@ Categorize all findings into one review table:
 - File placement drift + structure grammar: {N} proposals
 - Agent-output gate health: {N} samples checked, {M} hollow gates / stale permission audits
 - Truth-surface drift: {N} lagging notes, {M} roadmap flags
+- Model ladder vs catalog: {N} rungs behind (verified ids), or "catalog unreachable"
+- Skill load cost: {N} never-invoked (owned / synced / plugin), {M} stale plugins
+- Synced-skill collisions: {N} synced skills, {M} collisions
 
 ### 🟢 Auto-applied (no approval needed)
 {Low-stakes mechanical fixes — link adds where unambiguous, snapshot timestamp updates, obvious [x] marks}
