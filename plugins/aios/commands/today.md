@@ -181,7 +181,11 @@ Fire ALL of these as direct parallel tool calls in **one single message**:
 **Daily notes:**
 - **Most recent daily note** (NOT hardcoded to yesterday's date): take the latest `YYYY-MM-DD.md` dated before today across **every** month folder under `01 - calendar/` — the same note the close-day precondition probe above already found, so reuse its answer rather than listing again. **Exclude** weekly plans (`W{N}-plan.md`, `W{N}-summary.md`) and any other non-daily files. Two months back is not "any gap": after a three-week holiday that spans a month boundary the last note is older than that, and its carries would be dropped. **Critical — this is where carry-forwards come from. If this file isn't found, carried items are silently dropped.**
   - **Smart read:** Don't read the full note. Search (`Grep`) for `### Carries forward`, `### Tomorrow priorities`, and `- [ ]` to find all unchecked items. Read from each heading with `offset` + `limit`. **Safety net:** if the search returns suspiciously few carries (0 items from a note that had 15+ tasks in its Rhythm), fall back to reading the full note — never silently return empty carries.
-- Today's daily note (if it exists — created by `/7plan` or a previous `/today` run — to detect and preserve user edits)
+- Today's daily note (if it exists — created by `/7plan` or a previous `/today` run — to detect and preserve user edits). **Fingerprint it in the same message** — the write in Message 2 replaces the whole note, so it needs to know whether the note moved in between:
+  ```bash
+  cd ~/aios && git hash-object "vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md"
+  ```
+  Keep the printed hash; Message 2 compares against it. (`git hash-object` hashes the file on disk, committed or not, and runs under this command's existing `Bash(cd ~/aios && git:*)` permission, so a scheduled run is not stopped by a prompt.)
 - This week's plan: `01 - calendar/{YYYY-MM}/{YYYY}-W{WW}-plan.md` (if it exists) — read with `limit:60` (priorities are always in the first half)
 
 **Trackers + growth:**
@@ -251,6 +255,7 @@ Place triage decisions at the top of Parking lot, not buried in Rhythm.
 - Synthesize a **daily opener** — radically candid, grounded in observed context
 - Identify the **one thing to ship**
 - Sort all tasks into energy blocks: Morning (create), Afternoon (operate), Evening (grow)
+- **Before writing in update mode, check the note did not move.** Run the same `git hash-object` as Message 1b. **Same hash** → write. **Different** → someone wrote to it since 1b: another session's block, a box ticked in Obsidian, a `/close-session` landing. Re-read the note now and merge what changed into the version you are about to write, then write. The write replaces the whole file, so writing over a note that moved deletes whatever arrived in between, and nothing reports it.
 - Write the daily note (preserving user edits if note already exists — keep checked items, meeting notes, user-added subtasks)
 - **Post-write clean pass** (run silently before commit; fix issues, don't ask):
   1. **Dedup across sections.** Scan Rhythm + Parking + Horizon + secondary-machine results (if present) + Energy note for the same task appearing in more than one place. Match by core task name (ignore emojis, source tags, carry counts). If a task is in Rhythm AND Parking → keep only Rhythm. If a review item is in the secondary machine's results AND Parking → keep only the Rhythm/Evening placement.
@@ -446,7 +451,7 @@ After writing the Radar table, scan the past 7 daily notes (`vault/01 - calendar
 
 **Performance:**
 - **Payload discipline:** never read a full file when a section suffices. Daily notes: `Grep` for the heading (`### Carries forward`, `### Evening — Grow`, `- [ ]`) then read from offset. Observed context: `limit` per file. Project context: use `_index.md` snapshots first; drill into a note only if the snapshot lacks detail.
-- **Never re-read files** after Message 1b. Message 2 is pure analysis + write.
+- **Never re-read files** after Message 1b. Message 2 is pure analysis + write. One exception: today's note itself, when its hash changed since 1b (Message 2, before the write). A stale copy is cheaper to read than to write back.
 - **Target: 4 messages total** — bootstrap, vault reads, analyze + write, commit. Under 60s end-to-end.
 - **NEVER use the Agent tool.** Direct tool calls only (`Read`, `mcp__obsidian__*`, etc.) — Agents add minutes of latency.
 - **NEVER call Google Calendar / Tasks / Slack APIs.** Pre-loaded by the pipeline executor. If it failed, tell the user to fix it — don't fall back to API calls.

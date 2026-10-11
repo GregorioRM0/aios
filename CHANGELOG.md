@@ -78,6 +78,16 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-11 — /today no longer writes an older copy over today's note
+
+`hash: `
+
+> **What you can now do.** Tick a box in Obsidian or close another session while `/today` is running, and keep it.
+
+**`/today` could undo what landed while it was thinking.** When today's note already exists (from `/7plan` or an earlier run), `/today` reads it at the start and writes the whole file back at the end, and its rules said never to re-read in between. Anything that reached the note in that window was overwritten by the older copy, with no message: a session block from `/close-session`, a box ticked by hand, another session's edit. `/today` now records the note's hash when it reads it and checks it again right before writing. If the hash changed, it re-reads the note and merges what arrived before writing. The hash comes from `git hash-object`, which already runs under the command's existing permission, so a scheduled `/today` is not stopped by a new prompt.
+
+**Action required:** none.
+
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 
 `hash: 485cc93 · 21fe7af · 93f5251 · 0a9f95a · b3361cf · e629066 · 99a3bb2 · 4c8099f · 5ed1023 · 642542b · 408aa87 · 90f0751 · 1c62258 · 7e4d865 · 7c8e2e3 · 0a4cdc2` · [#192](https://github.com/The-AIOS/aios/pull/192) · [#193](https://github.com/The-AIOS/aios/pull/193) · [#196](https://github.com/The-AIOS/aios/issues/196) · [#197](https://github.com/The-AIOS/aios/issues/197) · [#198](https://github.com/The-AIOS/aios/issues/198) · [#201](https://github.com/The-AIOS/aios/pull/201) · [#202](https://github.com/The-AIOS/aios/pull/202)
