@@ -200,6 +200,8 @@ The design.md spec is just the format. The inspiration comes from curated DESIGN
 - [bergside/awesome-design-skills](https://github.com/bergside/awesome-design-skills) (895⭐) — list of DESIGN.md + SKILL.md files for agentic tools. Useful for SKILL.md companion files.
 - [anthropics/claude-plugins-official → frontend-design](https://github.com/anthropics/claude-plugins-official/tree/main/plugins/frontend-design) — Anthropic's frontend-design plugin patterns; complementary to design.md when the operator wants generated UI code, not just tokens.
 
+**A second catalog: [Refero Styles](https://styles.refero.design)** — 2,000+ real product sites, each broken down into an AI-readable DESIGN.md in the same format (colors, type, spacing, components), with an MCP of its own. Use it to *look up a register* ("the Linear feel", "a typeset terminal on white paper") when tuning an existing system or choosing candidates; it is a reference, not a source of novelty. It is a pointer only: AIOS does not bundle it, and its terms, pricing and MCP auth are the operator's to check before connecting it.
+
 **Recommended workflow:** open VoltAgent/awesome-design-md → browse 5-10 systems → find the closest match to the operator's desired feel → fork that DESIGN.md as a starting point → adapt tokens and prose via the interview steps below. Faster + higher-quality than starting from blank.
 
 ## Skills
