@@ -23,8 +23,8 @@ work, not by importance** — "important" is what tempts you to the top rung for
 |---|---|---|---|
 | `frontier` | Claude Fable 5.1 | Your hardest problems: long-running agents in production, code migration, multi-step reasoning, and tasks needing creative thinking and full autonomy | `high` (`xhigh`/`max` for the hardest runs) |
 | `judgment` **(default)** | Claude Opus 5.5 | Reasoning-intensive work — legal, financial analysis, research, other complex domains — and production coding | `high` |
-| `scale` | Claude Sonnet 5 | General-purpose workloads at scale, across coding and knowledge work | `medium` |
-| `fast` | Claude Haiku 4.5 | High-frequency, latency-sensitive tasks; sub-agents inside an orchestration | `low` |
+| `scale` | Claude Sonnet 5.5 | General-purpose workloads at scale, across coding and knowledge work | `medium` |
+| `fast` | Claude Haiku 5.5 | High-frequency, latency-sensitive tasks; sub-agents inside an orchestration | `low` |
 
 **Effort is the second knob, and for current models it is the one to turn first.** Claude 5-generation models always reason before replying, so *"think carefully"* in a prompt only adds latency; to get more or less thinking, change effort: `claude --effort low|medium|high|xhigh|max` (checked against the installed binary, not assumed). The column above is where to start, not a rule. `spawn` does not pass `--effort` yet, so a spawned worker runs at the binary's default; set it inside the session with `/effort`, or run `claude --effort …` directly.
 

@@ -534,8 +534,8 @@ spawn() {
   case "$tier" in
     frontier)    spawn_model='claude-fable-5-1' ;;
     judgment|"") spawn_model="" ;;
-    scale)       spawn_model='claude-sonnet-5' ;;
-    fast)        spawn_model='claude-haiku-4-5-20251001' ;;
+    scale)       spawn_model='claude-sonnet-5-5' ;;
+    fast)        spawn_model='claude-haiku-5-5' ;;
     mechanical)  spawn_model='claude-sonnet-4-6' ;;   # legacy alias — do not remap
     *) echo "⚠️  spawn: unknown --tier '$tier' (use: frontier | judgment | scale | fast — 'mechanical' also still accepted)" >&2; return 1 ;;
   esac

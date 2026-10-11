@@ -306,8 +306,8 @@ function spawn {
     # running. 'scale' is its successor for new work.
     $spawnModel = switch ($Tier) {
         'frontier'   { 'claude-fable-5-1' }
-        'scale'      { 'claude-sonnet-5' }
-        'fast'       { 'claude-haiku-4-5-20251001' }
+        'scale'      { 'claude-sonnet-5-5' }
+        'fast'       { 'claude-haiku-5-5' }
         'mechanical' { 'claude-sonnet-4-6' }   # legacy alias -- do not remap
         default      { $null }                 # judgment / unset -> frontier default
     }
