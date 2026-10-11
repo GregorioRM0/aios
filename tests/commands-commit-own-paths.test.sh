@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+# ─────────────────────────────────────────────────────────────────────────────
+# /today and /aios:housekeeping commit the paths they wrote; /close-day keeps
+# its own writes apart from its sweep.
+#
+# `aios-commit --vault` commits every changed path under vault/. In a vault that
+# several sessions write at once, that includes their uncommitted, unfinished
+# work — which then shipped under "Daily plan", "Housekeeping" or "Close day",
+# attributed to the session that ran the command. Housekeeping's own Phase 4
+# said "commit the exact change — don't expand scope" two screens above its
+# `--vault`.
+#
+# Checks:
+#   1. today.md and housekeeping.md invoke aios-commit with named paths and
+#      never with --vault.
+#   2. close-day.md commits its own writes by name FIRST, then sweeps with
+#      --vault under a subject that says "Sweep" — never a --vault "Close day".
+#   3. RUN: the commit line /today prescribes is extracted, placeholders filled,
+#      and run with this repo's aios-commit against a fixture vault holding a
+#      peer's uncommitted file. The commit must contain the note and NOT the
+#      peer's file; the CONTROL runs the old --vault line on the same fixture
+#      and must sweep the peer's file in, or check 3 proves nothing.
+# ─────────────────────────────────────────────────────────────────────────────
+set -u
+cd "$(dirname "$0")/.." || exit 1
+REPO="$(pwd)"
+C="$REPO/plugins/aios/commands"
+PASS=0; FAIL=0
+ok(){ PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
+no(){ FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; [ $# -gt 1 ] && printf '       %s\n' "$2"; return 0; }
+
+echo "== commands commit their own paths =="
+
+# ── 1. today + housekeeping: named paths, no --vault ─────────────────────────
+for f in today housekeeping; do
+  calls=$(grep -E 'hooks/aios-commit ' "$C/$f.md" | grep -v '^allowed-tools:')
+  if [ -z "$calls" ]; then
+    no "$f.md: no aios-commit invocation found"
+  elif printf '%s\n' "$calls" | grep -q -- '--vault'; then
+    no "$f.md commits with --vault (sweeps other sessions' work)" "$(printf '%s\n' "$calls" | grep -- '--vault' | head -1)"
+  elif printf '%s\n' "$calls" | grep -q -- ' -- "vault/'; then
+    ok "$f.md commits named vault paths, never --vault"
+  else
+    no "$f.md commits without naming its paths" "$(printf '%s\n' "$calls" | head -1)"
+  fi
+done
+
+# ── 2. close-day: own writes by name, then a sweep that says so ──────────────
+own=$(grep -n 'aios-commit -m "Close day {date}" -- "vault/' "$C/close-day.md" | head -1 | cut -d: -f1)
+swp=$(grep -n 'aios-commit --vault -m "Sweep ' "$C/close-day.md" | head -1 | cut -d: -f1)
+[ -n "$own" ] && ok "close-day commits its own writes by name under 'Close day'" \
+  || no "close-day has no named-path 'Close day' commit"
+[ -n "$swp" ] && ok "close-day's --vault sweep has a subject that says 'Sweep'" \
+  || no "close-day has no labelled sweep"
+if [ -n "$own" ] && [ -n "$swp" ] && [ "$own" -lt "$swp" ]; then
+  ok "own writes are committed before the sweep"
+else
+  no "the sweep is not after close-day's own commit" "own=${own:-none} sweep=${swp:-none}"
+fi
+grep -q 'aios-commit --vault -m "Close day' "$C/close-day.md" \
+  && no "close-day still sweeps under 'Close day'" \
+  || ok "no --vault commit is labelled 'Close day'"
+
+# ── 3. RUN today's line against a vault with a peer's uncommitted file ───────
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+fixture(){
+  rm -rf "$TMP/home"; mkdir -p "$TMP/home/aios/vault/01 - calendar/2026-10" "$TMP/home/aios/vault/00 - notes" "$TMP/home/aios/hooks"
+  V="$TMP/home/aios"
+  git -C "$V" init -q
+  git -C "$V" config user.email t@example.com; git -C "$V" config user.name Test; git -C "$V" config commit.gpgsign false
+  # the helper resolves its siblings from the vault it lives in
+  mkdir -p "$V/hooks/git"
+  cp "$REPO/hooks/aios-commit" "$V/hooks/"; cp "$REPO/hooks/git/secret-scan.sh" "$V/hooks/git/"
+  echo seed > "$V/vault/seed.md"; git -C "$V" add -A; git -C "$V" commit -q -m init
+  echo "# today" > "$V/vault/01 - calendar/2026-10/2026-10-11.md"     # this run's write
+  echo "half done" > "$V/vault/00 - notes/peer-wip.md"                 # another session's
+}
+fill(){ printf '%s' "$1" | sed 's/^[^`]*`//; s/`.*$//; s|{YYYY-MM}|2026-10|g; s|{YYYY-MM-DD}|2026-10-11|g; s|{date}|2026-10-11|g'; }
+committed(){ git -C "$TMP/home/aios" show --name-only --format= HEAD; }
+runline(){ env -u CLAUDE_CODE_SESSION_ID HOME="$TMP/home" sh -c "$1 --no-push" >"$TMP/out" 2>&1; }
+
+line=$(grep -m1 'aios-commit -m "Daily plan {date}" -- ' "$C/today.md")
+if [ -z "$line" ]; then
+  no "today.md: no named-path 'Daily plan' commit to run"
+else
+  cmd=$(fill "$line")
+  # --no-push goes before the paths separator
+  cmd=$(printf '%s' "$cmd" | sed 's| -- | --no-push -- |')
+  fixture
+  env -u CLAUDE_CODE_SESSION_ID HOME="$TMP/home" sh -c "$cmd" >"$TMP/out" 2>&1
+  files=$(committed)
+  if printf '%s\n' "$files" | grep -q '2026-10-11.md' && ! printf '%s\n' "$files" | grep -q 'peer-wip'; then
+    ok "RUN: today's commit holds the note and not the peer's file"
+  else
+    no "RUN: today's commit is wrong" "committed: $(printf '%s' "$files" | tr '\n' ' ') · $(tail -2 "$TMP/out")"
+  fi
+  git -C "$TMP/home/aios" ls-files --others --exclude-standard | grep -qx 'vault/00 - notes/peer-wip.md' \
+    && ok "RUN: the peer's file is left uncommitted for its owner" \
+    || no "RUN: the peer's file did not stay uncommitted"
+
+  fixture
+  runline 'cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Daily plan 2026-10-11"'
+  committed | grep -q 'peer-wip' \
+    && ok "CONTROL: the old --vault line sweeps the peer's file in" \
+    || no "CONTROL: the old --vault line did not sweep the peer's file — check 3 proves nothing" "$(tail -2 "$TMP/out")"
+fi
+
+printf '\n  %d passed, %d failed\n' "$PASS" "$FAIL"
+[ "$FAIL" -eq 0 ]

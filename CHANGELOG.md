@@ -78,6 +78,16 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-11 — /today and /aios:housekeeping commit only what they wrote; /close-day labels its sweep
+
+`hash: `
+
+> **What you can now do.** Run `/today` or `/aios:housekeeping` while other sessions are working, without their unfinished files being committed under "Daily plan" or "Housekeeping".
+
+**Three commands committed the whole vault.** `/today`, `/aios:housekeeping` and `/close-day` committed with `aios-commit --vault`, which takes every changed file under `vault/`. In a vault that several sessions write at once, that included their uncommitted, half-done work. It was published under the command's subject and attributed to the session that ran it. `/aios:housekeeping` even said, a few lines above, to commit the exact change and not expand scope. `/today` and `/aios:housekeeping` now name the paths they wrote. `/close-day` keeps its sweep, because collecting the day's loose edits is part of its job, but makes two commits: its own writes by name under "Close day", then the sweep under a subject that says it is a sweep.
+
+**Action required:** none.
+
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 
 `hash: 485cc93 · 21fe7af · 93f5251 · 0a9f95a · b3361cf · e629066 · 99a3bb2 · 4c8099f · 5ed1023 · 642542b · 408aa87 · 90f0751 · 1c62258 · 7e4d865 · 7c8e2e3 · 0a4cdc2` · [#192](https://github.com/The-AIOS/aios/pull/192) · [#193](https://github.com/The-AIOS/aios/pull/193) · [#196](https://github.com/The-AIOS/aios/issues/196) · [#197](https://github.com/The-AIOS/aios/issues/197) · [#198](https://github.com/The-AIOS/aios/issues/198) · [#201](https://github.com/The-AIOS/aios/pull/201) · [#202](https://github.com/The-AIOS/aios/pull/202)
