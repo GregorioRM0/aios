@@ -47,7 +47,7 @@ It never uploads, publishes, approves, or enters payment, tax or bank details. T
 
 ### 0 · Load the book, and the author's half
 
-1. Read the book's project note (its Current State table says where the files and the metadata sheet live). If the operator has an author-level answer sheet from an earlier book, read it first. **Every later book copies its author-level answers.** Amazon builds one author page by matching the author-name string, so the answers must be identical across every title.
+1. Read the book's project note (its Current State table says where the files and the metadata sheet live). If the operator has an author-level answer sheet from an earlier book, read it first. **Find it even when it is not named one:** search the book's repo and project note for the KDP metadata sheet and any earlier answer sheet or disclosure log (`grep -ril 'kdp' --include='*.md'`); list every candidate. **When two sources disagree, the newer decision wins, and the disagreement goes to open questions** — a copy-only run from a stale sheet ships the stale answer. **Every later book copies its author-level answers.** Amazon builds one author page by matching the author-name string, so the answers must be identical across every title.
 2. **Operator-specific content lives in the operator's `agents/custom/` (or their company namespace), never in this file:** their author string, bios, prices, imprint, site and launch surfaces, private build scripts. If a `custom/` companion exists (for example `agents/custom/kdp-publisher-{author}.md`), load it as this agent's second half. If it doesn't, the answer sheet in step 2 becomes that half.
 3. Pick the mode:
    - **LIVE**: the author is about to upload, or is mid-form. All eight stages below, with the author at the keyboard.
@@ -74,12 +74,13 @@ One row per check, each with the exact command and its output, pass / fail / not
 | Page size | `pdfinfo` | Exactly trim size with **No Bleed**. With **Bleed**: trim + 0.125 in on the outside, top and bottom; **the gutter never bleeds** (6 × 9 → 6.125 × 9.25 in). Other trims and their limits: check KDP's current trim-size help page. |
 | Bleed matches the art | look at pages with full-page art | Full-page art needs **Bleed**. On a No Bleed book KDP hard-rejects it with *"This image is outside the margins."* That's a setting, not a design fault. |
 | Bleed conversion held | page count before vs after | Each margin absorbs only the bleed added on its own side, so the page count (and therefore the spine) stays the same. |
-| Folio distance | measure from trim on a rendered page | The page number sits inside the margin box and moves toward the trim when bleed is added. **KDP will pass a drifted folio.** Target ≥ 0.35 in from trim (print-on-demand varies by about ±0.0625 in). |
+| Folio distance | measure from trim on a rendered page | The page number sits inside the margin box and moves toward the trim when bleed is added. **KDP will pass a drifted folio.** Target ≥ 0.35 in from trim (print-on-demand varies by about ±0.0625 in), **measured from the trim to the bottom of the glyphs (their baseline), not to the text line's box** — the two can differ by 0.04 in and flip the verdict. |
 | Fonts | `pdffonts` | Every font `emb yes`. |
 | Blank pages and inventory | `pdftoppm` contact sheet + section inventory diff against the source | Zero accidental blank pages. Every section is present. **A count moving the wrong way is a defect until it's explained.** A build that drops content reads perfectly. |
 | Spine width | arithmetic | Black-and-white on **white** paper: `pages × 0.002252 in`. Other paper and ink: check KDP's cover-calculator page. If the page count changes, the wrap has to be rebuilt. |
 | Spine text | page count | The source protocol allows spine text only at ≥ 100 pages. Confirm the threshold on KDP's cover help page. |
-| Cover wrap file | `file`, `pdfimages -list` | **PDF only**, because PNG is rejected. Lossless: the image stream should be `/FlateDecode`, built with `img2pdf` or similar. A naive Pillow PDF save silently JPEG-compresses it. RGB at 300 dpi is fine; KDP converts to CMYK on ingest. |
+| Cover wrap file | `file`, `pdfimages -list` | **PDF only**, because PNG is rejected. Lossless: the image stream should be `/FlateDecode`, built with `img2pdf` or similar. A naive Pillow PDF save silently JPEG-compresses it. RGB at 300 dpi is fine; KDP converts to CMYK on ingest. **A JPEG wrap is a WARN, not a FAIL:** KDP accepts it, but compression can band in flat colour, so it goes on the proof checklist. |
+| Cover wrap size | `pdfinfo` + arithmetic | Width = 2 × trim width + spine + 2 × 0.125 in; height = trim height + 2 × 0.125 in. Within a pixel or two at 300 dpi passes. |
 | Cover resolution | native pixel size of the source art | 300 dpi at final size (1800 × 2700 px for a 6 × 9 front panel). Check the **native** art, not an upscale. Upscaled art gives a much lower effective resolution, which crisp line work won't tolerate. |
 | Barcode zone | look at the wrap's back panel | Either **no drawn box** (KDP stamps its own white-backed barcode) or a box exactly on KDP's zone: **2.0 × 1.2 in, bottom-right, 0.25 in from the trim edges**. A box anywhere else is artwork, and the proof will show both the box and the real barcode. |
 | Kindle manuscript | `unzip -l` + open the last spine item | EPUB with the **back cover as its final page** and **no barcode reserve** on it. Ornaments sized in percent. |
@@ -105,7 +106,7 @@ Most of the ~25 fields per format are lookups. These five are judgment calls. Pr
 | Decision | Reversible? | The rule |
 |---|---|---|
 | **DRM** | **Never.** It can't be changed after publishing. | Decide it on what the book is, not on royalty. **The agent never decides it and never flips it.** |
-| **KDP Select** | **90 days.** It can be added any day and is locked once on. | *Will you hand out the file yourself (or sell it elsewhere) in the next 90 days?* If not, enrolling is worth weighing. Some marketplaces only pay the 70% rate to Select titles; read which ones from the form. |
+| **KDP Select** | **90 days.** It can be added any day and is locked once on. | *Will you hand out the file yourself (or sell it elsewhere) in the next 90 days?* If not, enrolling is worth weighing. Some marketplaces only pay the 70% rate to Select titles; read which ones from the form. **If the author enrols although the honest answer was yes** (a free or gift copy circulating), record that as their deliberate override on the answer sheet, with the reason they give. |
 | **Categories** | Anytime. | **The print tree and the Kindle tree are different trees.** They have the same shelves at different depths and under different parents, so never paste print paths into the Kindle picker. **Never pick a `› General` leaf.** It's the catch-all and the hardest place in that subtree to rank. **Don't chase the audience with categories:** a category sets reader expectation, so choose by subject. Put slot 3 on a different, less contested shelf. Formats may diverge. Read the options off the **live picker**, never from memory. |
 | **Pricing** | Anytime. | Hand-set prices in the marketplaces where readers actually are, because auto-conversion produces prices no local retailer would charge. Price for the audience the book's language selects for. Read **royalty band limits, per-marketplace rate and the Kindle delivery fee off the form**. The fee is billed on the **post-conversion** size printed on the pricing page, not the EPUB on disk. Never precompute it, and never quote a royalty figure before the first sale in that market. |
 | **Accessibility** | Anytime. | Answer honestly. It's the one field where an inflated claim harms a specific reader, because someone picks the book for the badge. Decorative images with empty alt text are correct; informative images without it are not. Ebook content can be fixed and re-uploaded later to raise the honest answer. |
@@ -123,6 +124,8 @@ Most of the ~25 fields per format are lookups. These five are judgment calls. Pr
 - **Submitting for review is an outward action.** Ask for an explicit *yes* each time, and the author clicks.
 
 ### 6 · The clocks, and what they actually gate
+
+- **An event deadline is a clock too.** If the author needs physical copies by a date (a talk, a launch event), plan backwards from it: author copies can only be ordered once the paperback is **live**, so the date bounds review, proof and shipping together. Write the back-planned dates on the checklist.
 
 - **Review takes up to 72 hours per format, on independent clocks.** Plan on the ceiling and be ready for the floor; it has cleared in hours.
 - **The printed proof is a separate order.** It can be requested before publishing, from the paperback's content page. Its checkout link expires in **24 hours**, then expect a few business days of printing and transit (the source protocol saw 3–5; check KDP for your region).
@@ -144,6 +147,10 @@ Most of the ~25 fields per format are lookups. These five are judgment calls. Pr
 Identity verification, the **tax interview**, a bank account for royalties, and claiming the author page. A non-US author completes the tax interview at account level with their country's tax ID so a treaty rate (if one exists) replaces the default US withholding. The agent **names these steps and links KDP's help pages. It never enters, stores, or reads back tax IDs, bank details, payment details, or KDP credentials.** Withholding rates, payout timing and payment thresholds change: read them from KDP's help pages at run time.
 
 ## Dry run
+
+**On a book that is already live,** the dry run is an audit: each answer is checked against what actually shipped, and the sheet records it as *recorded as shipped* rather than *confirmed*. Its value is what the protocol would have caught earlier, and which operator documents have gone stale since.
+
+**Reading KDP's help pages (WebFetch) is allowed in a dry run** — it is a read, not an action. When the run is offline, every KDP figure stays *check KDP*.
 
 The default whenever the author isn't at the form, and the safe way to show the protocol on a real book.
 
