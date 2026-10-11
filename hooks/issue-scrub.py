@@ -158,14 +158,13 @@ def kebab_words(slug):
 
 
 def public_names(root):
-    """The framework's own PUBLIC identity: its GitHub org and repo names, from the update tracker
-    and from the repo links CONTRIBUTING.md publishes. A vault lists the framework's org as a
-    company, so without this a cross-repo reference (`<org>/aios#8`) came out as `a company/aios#8`."""
-    names = set()
-    text = read_text(os.path.join(root, ".aios-update")) + "\n" + read_text(os.path.join(root, "CONTRIBUTING.md"))
-    for org, repo in re.findall(r"github\.com[:/]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?(?=[\s/)#\]`'\"]|$)", text):
-        names.update({_pkey(org), _pkey(repo)})
-    return names
+    """The framework's own PUBLIC org name, so a cross-repo reference (`<org>/aios#8`) is not turned
+    into `a company/aios#8` (a vault lists the framework's org as a company). Narrow on purpose:
+    only org names, only from CONTRIBUTING.md -- a Tier-1 file identical in every vault. Never from
+    .aios-update, which an operator or a fork can point at a private org; and never repo names,
+    which are generic words (`site`, `org`) that could equal a private name."""
+    text = read_text(os.path.join(root, "CONTRIBUTING.md"))
+    return {_pkey(org) for org in re.findall(r"github\.com/([A-Za-z0-9_.-]+)/[A-Za-z0-9_.-]+", text)}
 
 
 def _pkey(name):
