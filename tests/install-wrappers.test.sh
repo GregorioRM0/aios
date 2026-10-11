@@ -84,6 +84,27 @@ rm -rf "$tmp"
 [ "$out" = "ALI" ] && ok "emphasis row skipped, backticked uppercase row used" || no "got '$out', expected ALI"
 
 echo ""
+echo "── --effort / --advisor reach the claude command line (and nothing when omitted) ──"
+# The REAL spawn + launcher functions against a stand-in claude that records its arguments.
+tmp=$(mktemp -d); mkdir -p "$tmp/aios" "$tmp/bin"
+printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/args"\n' "$tmp" > "$tmp/bin/claude"; chmod +x "$tmp/bin/claude"
+FNS=$( for f in _spawn_adj_animal _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
+runspawn(){ env -u CLAUDECODE -u AIOS_GLASS_TERM -u CLAUDE_EFFORT -u CLAUDE_ADVISOR_MODEL HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; shift; spawn "$@"' _ "$FNS" "$@" >/dev/null 2>&1; }
+rm -f "$tmp/args"; runspawn --effort low --advisor scale worker "task"
+A=$(cat "$tmp/args" 2>/dev/null)
+printf '%s\n' "$A" | grep -x -- '--effort' >/dev/null && printf '%s\n' "$A" | grep -x low >/dev/null && ok "--effort low reaches claude as --effort low" || no "--effort did not reach claude" "$A"
+SET=$(printf '%s\n' "$A" | grep -A1 -x -- '--settings' | tail -1)
+[ -n "$SET" ] && grep -q '"advisorModel":"claude-sonnet-5-5"' "$SET" 2>/dev/null && ok "--advisor scale reaches claude as a settings file naming claude-sonnet-5-5" || no "--advisor did not reach claude" "settings: $SET"
+rm -f "$tmp/args"; runspawn --advisor claude-opus-5-5 worker "task"
+SET=$(grep -A1 -x -- '--settings' "$tmp/args" 2>/dev/null | tail -1)
+[ -n "$SET" ] && grep -q '"advisorModel":"claude-opus-5-5"' "$SET" && ok "--advisor <model id> is passed through as given" || no "--advisor model id not passed"
+rm -f "$tmp/args"; runspawn worker "task"
+grep -x -- '--effort\|--settings' "$tmp/args" >/dev/null 2>&1 && no "a spawn without the flags passed --effort or --settings" || ok "without the flags, no --effort and no --settings (byte-identical to before)"
+out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --effort ultra worker task' _ "$FNS" 2>&1 ); rc=$?
+[ "$rc" != 0 ] && case "$out" in *"unknown --effort"*) true ;; *) false ;; esac && ok "an unknown --effort is refused, naming the flag" || no "--effort ultra not refused (rc=$rc)" "$out"
+rm -rf "$tmp"
+
+echo ""
 echo "── --profile: an unknown profile fails in spawn(), before any launcher exists ──"
 # Validate in spawn(), not in the launcher: a typo'd profile must not open a worker with
 # the full default MCP set (which would read as the flag being ignored). Extract only the
@@ -105,6 +126,14 @@ echo "── --profile: the mechanism is wired end to end (static) ──"
 grep -q 'CLAUDE_MCP_PROFILE' "$SRC" && ok "launcher exports CLAUDE_MCP_PROFILE for the spawn" || no "CLAUDE_MCP_PROFILE never exported"
 grep -q -- '--strict-mcp-config --mcp-config' "$SRC" && ok "_claude_with_respawn passes --strict-mcp-config + --mcp-config" || no "the strict flag pair is missing"
 grep -q '"${mcp_args\[@\]}"' "$SRC" && ok "mcp_args reach the claude invocation" || no "mcp_args built but never passed"
+
+echo "── -Effort / -Advisor: the Windows twin is wired end to end (static; the Windows lane runs it) ──"
+PS1="$(dirname "$SRC")/install-wrappers.ps1"
+grep -q "ValidateSet('low','medium','high','xhigh','max')\] \[string\] \$Effort" "$PS1" && ok "ps1 spawn validates -Effort to the five levels" || no "ps1 -Effort missing or unvalidated"
+grep -q "\$effortArgs = @('--effort', \$env:CLAUDE_EFFORT)" "$PS1" && ok "ps1 passes CLAUDE_EFFORT as --effort" || no "ps1 never passes --effort"
+grep -q "\$advisorArgs = @('--settings', \$advFile)" "$PS1" && ok "ps1 passes the advisor as a settings file" || no "ps1 never passes the advisor"
+grep -q '\$modelArgs + \$effortArgs + \$advisorArgs' "$PS1" && ok "ps1 effort/advisor args reach the claude invocation" || no "ps1 args built but never passed"
+grep -q 'CLAUDE_ADVISOR_MODEL = .\$spawnAdvisor' "$PS1" && ok "ps1 new-window path carries the advisor" || no "ps1 new-window path drops the advisor"
 
 echo "── RESULT: $PASS passed, $FAIL failed  (bash $BASH_VERSION) ──"
 [ "$FAIL" = "0" ] || exit 1

@@ -193,6 +193,17 @@ function Invoke-ClaudeWithRespawn {
     # pin rather than an inherit. tests/model-routing.test.sh fails if the two disagree.
     $modelToUse = if ($env:CLAUDE_MODEL) { $env:CLAUDE_MODEL } else { 'claude-opus-5-5[1m]' }
     $modelArgs = @('--model', $modelToUse)
+    # Effort and advisor (optional; set by spawn -Effort/-Advisor or an inbox request). Unset ->
+    # no flags, byte-identical to before. The advisor goes through a settings FILE: the claude
+    # .cmd shim mangles quotes inside an argument, so inline JSON is not safe here.
+    $effortArgs = @()
+    if ($env:CLAUDE_EFFORT) { $effortArgs = @('--effort', $env:CLAUDE_EFFORT) }
+    $advisorArgs = @()
+    if ($env:CLAUDE_ADVISOR_MODEL) {
+        $advFile = Join-Path $env:TEMP "aios-advisor-$Name.json"
+        Set-Content -Path $advFile -Value ('{"advisorModel":"' + $env:CLAUDE_ADVISOR_MODEL + '"}') -Encoding ASCII
+        $advisorArgs = @('--settings', $advFile)
+    }
     # Resolve the claude EXECUTABLE explicitly (not via function lookup) to
     # avoid recursion if the operator NAMES their session "claude" in USER.md --
     # then `function claude { Invoke-ClaudeWithRespawn ... }` is defined and a
@@ -215,7 +226,7 @@ function Invoke-ClaudeWithRespawn {
     }
     if (-not $claudeExe) { $claudeExe = $claudeCmds[0].Source }
     while ($true) {
-        $claudeArgs = @() + $modelArgs + $resumeArgs + @('--remote-control', '--name', $Name)
+        $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $resumeArgs + @('--remote-control', '--name', $Name)
         if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
             $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
         }
@@ -292,7 +303,12 @@ function spawn {
         # -Model <id> overrides -Tier; pins an explicit/specialist model (e.g.
         # claude-fable-5) per-spawn with NO global env mutation (set for the call
         # only, then restored below).
-        [string] $Model
+        [string] $Model,
+        # -Effort low|medium|high|xhigh|max -- the worker's effort (Claude Code's --effort).
+        [ValidateSet('low','medium','high','xhigh','max')] [string] $Effort,
+        # -Advisor <rung|model> -- an advisor model for the worker; a rung resolves like -Tier,
+        # anything else is a model id. No rung has a default advisor. MODEL-ROUTING § Advisor.
+        [string] $Advisor
     )
 
     # Tier -> model id. $null = no override -> frontier default (judgment). Every id
@@ -313,6 +329,14 @@ function spawn {
     }
     # -Model overrides -Tier: pin an explicit model outside the tier ladder.
     if ($Model) { $spawnModel = $Model }
+    $spawnAdvisor = switch ($Advisor) {
+        ''         { $null }
+        'frontier' { 'claude-fable-5-1' }
+        'judgment' { 'claude-opus-5-5' }
+        'scale'    { 'claude-sonnet-5-5' }
+        'fast'     { 'claude-haiku-5-5' }
+        default    { $Advisor }
+    }
 
     # Empty name -> generate adj-animal handle + print onboarding tip
     if ([string]::IsNullOrEmpty($Name)) {
@@ -491,14 +515,13 @@ function spawn {
     # enough -- a Glass terminal inherits it when the IDE was launched from a Claude session.
     if ((-not $env:CLAUDECODE) -or $env:AIOS_GLASS_TERM) {
         # In-process path: set CLAUDE_MODEL for the call only, then restore (no leak).
-        if ($spawnModel) {
-            $prevModel = $env:CLAUDE_MODEL
-            $env:CLAUDE_MODEL = $spawnModel
-            try { Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile }
-            finally { $env:CLAUDE_MODEL = $prevModel }
-        } else {
-            Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile
-        }
+        # Set the per-spawn variables for the call only, then restore them (no leak).
+        $prev = @{ M = $env:CLAUDE_MODEL; E = $env:CLAUDE_EFFORT; A = $env:CLAUDE_ADVISOR_MODEL }
+        if ($spawnModel)   { $env:CLAUDE_MODEL = $spawnModel }
+        if ($Effort)       { $env:CLAUDE_EFFORT = $Effort }
+        if ($spawnAdvisor) { $env:CLAUDE_ADVISOR_MODEL = $spawnAdvisor }
+        try { Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile }
+        finally { $env:CLAUDE_MODEL = $prev.M; $env:CLAUDE_EFFORT = $prev.E; $env:CLAUDE_ADVISOR_MODEL = $prev.A }
         return
     }
 
@@ -514,9 +537,13 @@ function spawn {
     # Inject the model into the new shell's env before it launches (mirrors the
     # in-process path). Empty when no --tier override -> frontier default.
     $modelStmt = if ($spawnModel) { "`$env:CLAUDE_MODEL = '$spawnModel'" } else { '' }
+    $effortStmt = if ($Effort) { "`$env:CLAUDE_EFFORT = '$Effort'" } else { '' }
+    $advisorStmt = if ($spawnAdvisor) { "`$env:CLAUDE_ADVISOR_MODEL = '$spawnAdvisor'" } else { '' }
     $inner = @"
 . `$PROFILE
 $modelStmt
+$effortStmt
+$advisorStmt
 Set-Location '$($PWD.Path)'
 Invoke-ClaudeWithRespawn -Name '$Name' -BootstrapFile '$taskFile'
 "@

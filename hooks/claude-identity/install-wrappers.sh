@@ -214,6 +214,17 @@ _claude_with_respawn() {
     fi
   fi
 
+  # Effort and advisor (optional, set by `spawn --effort/--advisor` or an inbox request). Unset
+  # -> no flags at all, so a spawn that omits them is byte-identical to before. The advisor goes
+  # through a settings FILE, not inline JSON: on Windows the claude shim mangles quotes inside an
+  # argument, and one form for both platforms keeps them testable against each other.
+  local -a effort_args=() advisor_args=()
+  [ -n "$CLAUDE_EFFORT" ] && effort_args=(--effort "$CLAUDE_EFFORT")
+  if [ -n "$CLAUDE_ADVISOR_MODEL" ]; then
+    local _adv="${TMPDIR:-/tmp}/aios-advisor-$name.json"
+    printf '{"advisorModel":"%s"}\n' "$CLAUDE_ADVISOR_MODEL" > "$_adv" && advisor_args=(--settings "$_adv")
+  fi
+
   export CLAUDE_AGENT_NAME="$name"
   export CLAUDE_RESPAWN_CAPABLE=1
   # A spawned worker is an INDEPENDENT, named session — NOT a sub-agent child. But it
@@ -238,9 +249,9 @@ _claude_with_respawn() {
     # CLI — see detect_primary_session; this guard now covers only the explicit
     # "claude" session-name case.) Safe for all primary names.
     if [ -n "$bootstrap" ]; then
-      command claude "${model_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name" "$bootstrap"
+      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name" "$bootstrap"
     else
-      command claude "${model_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name"
+      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name"
     fi
     local exit_code=$?
 
@@ -461,7 +472,10 @@ spawn() {
   # explicit/specialist model per-spawn (e.g. `--model claude-fable-5`) with NO
   # global env mutation. Strip the flags first, THEN parse positionals so
   # `spawn name task` is byte-identical to before when no flag is passed.
-  local tier="" model="" profile=""
+  # --effort low|medium|high|xhigh|max — the worker's effort (Claude Code's --effort).
+  # --advisor <rung|model> — an advisor model for the worker (a rung name resolves like --tier;
+  # anything else is a model id). No rung has a default advisor. MODEL-ROUTING § Advisor.
+  local tier="" model="" profile="" effort="" advisor=""
   local -a _args=()
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -471,6 +485,10 @@ spawn() {
       --model=*)   model="${1#*=}"; shift ;;
       --profile)   profile="$2"; shift 2 ;;
       --profile=*) profile="${1#*=}"; shift ;;
+      --effort)    effort="$2"; shift 2 ;;
+      --effort=*)  effort="${1#*=}"; shift ;;
+      --advisor)   advisor="$2"; shift 2 ;;
+      --advisor=*) advisor="${1#*=}"; shift ;;
       *)           _args+=("$1"); shift ;;
     esac
   done
@@ -545,6 +563,23 @@ spawn() {
   # no global ~/.zshrc export (that hack risked leaving every future terminal
   # pinned to the model if the revert was ever missed).
   [ -n "$model" ] && spawn_model="$model"
+
+  local spawn_effort=""
+  case "$effort" in
+    "") ;;
+    low|medium|high|xhigh|max) spawn_effort="$effort" ;;
+    *) echo "⚠️  spawn: unknown --effort '$effort' (use: low | medium | high | xhigh | max)" >&2; return 1 ;;
+  esac
+  local spawn_advisor=""
+  case "$advisor" in
+    "") ;;
+    frontier) spawn_advisor='claude-fable-5-1' ;;
+    judgment) spawn_advisor='claude-opus-5-5' ;;
+    scale)    spawn_advisor='claude-sonnet-5-5' ;;
+    fast)     spawn_advisor='claude-haiku-5-5' ;;
+    -*)       echo "⚠️  spawn: --advisor needs a rung or a model id" >&2; return 1 ;;
+    *)        spawn_advisor="$advisor" ;;
+  esac
 
   # --profile <name> — load ONLY the MCP servers declared in
   # ~/.aios/mcp-profiles/<name>.json. Fail loudly here rather than in the launcher:
@@ -647,6 +682,8 @@ spawn() {
 [ -f "$_rc" ] && source "$_rc"
 ${spawn_model:+export CLAUDE_MODEL='$spawn_model'}
 ${spawn_profile:+export CLAUDE_MCP_PROFILE='$spawn_profile'}
+${spawn_effort:+export CLAUDE_EFFORT='$spawn_effort'}
+${spawn_advisor:+export CLAUDE_ADVISOR_MODEL='$spawn_advisor'}
 cd ~/aios 2>/dev/null
 _claude_with_respawn '$name' 'Read $task_file and follow the instructions inside.'
 LAUNCHER
@@ -817,11 +854,14 @@ APPLESCRIPT
     # In-shell path. A literal `VAR=val cmd` assignment-prefix must be WRITTEN
     # literally — an EXPANDED `${x:+VAR=val}` is not re-parsed as an assignment
     # (the shell would try to run `VAR=val` as a command). So branch explicitly.
-    if [ -n "$spawn_model" ]; then
-      CLAUDE_MODEL="$spawn_model" _claude_with_respawn "$name" "Read $task_file and follow the instructions inside."
-    else
+    # A subshell scopes every per-spawn variable to this one worker, so none leaks into the
+    # operator's shell (the reason the old branch used an assignment prefix).
+    (
+      [ -n "$spawn_model" ]   && export CLAUDE_MODEL="$spawn_model"
+      [ -n "$spawn_effort" ]  && export CLAUDE_EFFORT="$spawn_effort"
+      [ -n "$spawn_advisor" ] && export CLAUDE_ADVISOR_MODEL="$spawn_advisor"
       _claude_with_respawn "$name" "Read $task_file and follow the instructions inside."
-    fi
+    )
   fi
 }
 
