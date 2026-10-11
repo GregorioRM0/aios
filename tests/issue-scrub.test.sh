@@ -158,10 +158,15 @@ u="$(printf 'caf\303\251 \342\200\224 na\303\257ve\n' | $PYBIN "$H" --root "$F" 
 echo "── names written the way GitHub renders them, not the way a regex reads them ──"
 # The security review's bypass class: text that renders as a name on GitHub while matching no
 # pattern -- a zero-width character inside it, HTML entities, intraword emphasis, fullwidth letters.
-for v in "Zed$(printf '\342\200\213')ekiah" "Z&#101;dekiah" "Zede**kiah**" "$(printf '\357\274\272')edekiah"; do
+for v in "Zede<b></b>kiah" "Zede<!-- -->kiah" "Zed$(printf '\342\200\213')ekiah" "Z&#101;dekiah" "Zede**kiah**" "$(printf '\357\274\272')edekiah"; do
   out=$(printf 'reported by %s today\n' "$v" | $PYBIN "$H" --root "$F" --term Zedekiah 2>/dev/null)
   case "$out" in *edekiah*|*kiah*) no "a rendered name survived: $(printf '%s' "$v" | od -c | head -1)" "$out" ;; *) ok "redacted: $(printf '%s' "$v" | LC_ALL=C tr -c '[:print:]' '?')" ;; esac
 done
+
+# The other side of the same rule: a name STORED in another form (decomposed accents) must still
+# match the normalised draft.
+out=$(printf 'thanks to Jos\303\251 for the repro\n' | $PYBIN "$H" --root "$F" --term "$(printf 'Jose\314\201')" 2>/dev/null)
+case "$out" in *Jos*) no "a name stored decomposed (NFD) did not match the composed text" "$out" ;; *) ok "a name stored decomposed still matches the composed draft" ;; esac
 
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

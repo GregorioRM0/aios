@@ -226,6 +226,14 @@ def load_terms(root, extra):
     return terms
 
 
+def norm(text):
+    """The rendered form: entities decoded, NFKC, format (invisible) characters removed. Applied to
+    the draft AND to every name and quote it is matched against -- normalising only one side is a
+    bypass of its own (a name stored decomposed or fullwidth would never match the normalised text)."""
+    text = unicodedata.normalize("NFKC", html.unescape(text))
+    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+
+
 def load_shingles(root):
     """10-word runs from the operator's private context files, for verbatim-quote detection."""
     files = [os.path.join(root, "USER.md"), os.path.join(root, "INTENT.md")]
@@ -240,7 +248,7 @@ def load_shingles(root):
                 continue
         except OSError:
             continue
-        words = [w.lower() for w in WORD.findall(read_text(f))]
+        words = [w.lower() for w in WORD.findall(norm(read_text(f)))]
         for i in range(len(words) - SHINGLE + 1):
             shingles.add(" ".join(words[i:i + SHINGLE]))
     return shingles
@@ -260,6 +268,7 @@ class Scrubber:
     def __init__(self, terms, shingles, fw_names):
         self.counts = {k: 0 for k in ("hidden", "paths", "vault", "links", "quotes", "names", "emails", "ids", "secrets")}
         self.removed = []
+        terms = {norm(t): r for t, r in terms.items() if norm(t).strip()}
         self.terms = terms
         self.shingles = shingles
         self.fw = fw_names
@@ -273,17 +282,16 @@ class Scrubber:
     def _spread(term):
         # Markdown emphasis inside a word still renders as the word: `Jo**hn**` shows "John" on
         # GitHub. Allow up to three emphasis/code marks between any two characters of a name.
-        return r"[*_~`]{0,3}".join(re.escape(ch) for ch in term)
+        # Inline HTML renders the same way (`Jo<b></b>hn`, `Jo<!-- -->hn`), so a short tag counts too.
+        return r"(?:[*_~`]|<[^<>\n]{0,40}>){0,3}".join(re.escape(ch) for ch in term)
 
     def canon(self, text):
         """Make the text read the way GitHub will render it, BEFORE matching. Otherwise a name split
         by a zero-width character, written as HTML entities (`J&#111;hn`) or in compatibility forms
         (fullwidth letters) passes every pattern here and still renders as the name."""
         before = text
-        text = html.unescape(text)
-        text = unicodedata.normalize("NFKC", text)
-        hidden = sum(1 for ch in text if unicodedata.category(ch) == "Cf")
-        text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+        hidden = sum(1 for ch in unicodedata.normalize("NFKC", html.unescape(text)) if unicodedata.category(ch) == "Cf")
+        text = norm(text)
         if text != before:
             self.counts["hidden"] += max(1, hidden)
             self.removed.append(("hidden", "entities / invisible or compatibility characters normalised"))
@@ -344,7 +352,7 @@ class Scrubber:
         if not self.term_re:
             return text
         def repl(m):
-            bare = re.sub(r"[*_~`]", "", m.group(0)).lower()
+            bare = re.sub(r"<[^<>\n]{0,40}>|[*_~`]", "", m.group(0)).lower()
             return self._hit("names", m.group(0), self.lower.get(bare, "<name redacted>"))
         return self.term_re.sub(repl, text)
 
