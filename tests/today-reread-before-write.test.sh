@@ -80,7 +80,9 @@ else
 fi
 # Condition → action, as a pair: the same hash leads to the write, a different one to the re-read.
 # Checking only that both phrases exist would pass with the two branches swapped.
-pairs_ok(){ grep -q '\*\*Same hash\*\* → write\. \*\*Different\*\* → [^.]*\..*Re-read the note now' "$1"; }
+# The different-hash branch must re-read, MERGE what arrived, and hash AGAIN before writing —
+# a re-read followed by writing the old copy would lose the very edits this exists to keep.
+pairs_ok(){ grep -q '\*\*Same hash\*\* → write\. \*\*Different\*\* → [^.]*\..*Re-read the note now, merge what changed into the version you are about to write, hash it again, and write only when that hash still matches' "$1"; }
 sed -n "${chk:-1},${wr:-1}p" "$SPEC" > "$TMP/check.txt"
 pairs_ok "$TMP/check.txt" \
   && ok "same hash → write; different → re-read and merge" \
@@ -93,6 +95,17 @@ else
     && no "MUTANT: swapping the branches still passes — the pairing check proves nothing" \
     || ok "MUTANT: swapping the branches is caught"
 fi
+for m in 's/merge what changed into the version you are about to write, //' \
+         's/hash it again, and write only when that hash still matches what you merged from/write the version prepared from Message 1b/'; do
+  sed "$m" "$TMP/check.txt" > "$TMP/mut.txt"
+  if cmp -s "$TMP/check.txt" "$TMP/mut.txt"; then
+    no "MUTANT could not be built ($m)"
+  elif pairs_ok "$TMP/mut.txt"; then
+    no "MUTANT passes: $m"
+  else
+    ok "MUTANT caught: $(printf '%s' "$m" | cut -c1-48)…"
+  fi
+done
 grep -q 'as the call \*\*immediately before\*\* `write_note`' "$TMP/check.txt" \
   && ok "the re-check is the call right before the write (smallest window)" \
   || no "the re-check is not pinned to right before the write"
