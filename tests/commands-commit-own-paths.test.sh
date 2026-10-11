@@ -32,18 +32,34 @@ no(){ FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; [ $# -gt 1 ] && printf '     
 echo "== commands commit their own paths =="
 
 # ── 1. today + housekeeping: named paths, no --vault ─────────────────────────
+TMP0="$(mktemp -d)"
+# Prints every aios-commit invocation in <file> that uses --vault or names no `-- "vault/` path.
+bad_calls(){
+  grep -E 'hooks/aios-commit ' "$1" | grep -v '^allowed-tools:' | while IFS= read -r l; do
+    case "$l" in
+      *--vault*) printf '%s\n' "$l" ;;
+      *' -- "vault/'*) : ;;
+      *) printf '%s\n' "$l" ;;
+    esac
+  done
+}
 for f in today housekeeping; do
-  calls=$(grep -E 'hooks/aios-commit ' "$C/$f.md" | grep -v '^allowed-tools:')
-  if [ -z "$calls" ]; then
+  bad=$(bad_calls "$C/$f.md")
+  if [ -z "$(grep -E 'hooks/aios-commit ' "$C/$f.md" | grep -v '^allowed-tools:')" ]; then
     no "$f.md: no aios-commit invocation found"
-  elif printf '%s\n' "$calls" | grep -q -- '--vault'; then
-    no "$f.md commits with --vault (sweeps other sessions' work)" "$(printf '%s\n' "$calls" | grep -- '--vault' | head -1)"
-  elif printf '%s\n' "$calls" | grep -q -- ' -- "vault/'; then
-    ok "$f.md commits named vault paths, never --vault"
+  elif [ -n "$bad" ]; then
+    no "$f.md has an aios-commit call that sweeps or names no paths" "$(printf '%s\n' "$bad" | head -1)"
   else
-    no "$f.md commits without naming its paths" "$(printf '%s\n' "$calls" | head -1)"
+    ok "$f.md: every aios-commit call names vault paths, none uses --vault"
   fi
 done
+
+# The check is per call: one good call must not vouch for a bad one beside it.
+cp "$C/today.md" "$TMP0/today-mut.md"
+printf '\n- `cd ~/aios && ~/aios/hooks/aios-commit -m "Daily plan {date}"`\n' >> "$TMP0/today-mut.md"
+[ -n "$(bad_calls "$TMP0/today-mut.md")" ] \
+  && ok "MUTANT: a pathless call added beside a good one is caught" \
+  || no "MUTANT: a pathless call beside a good one passes"
 
 # ── 2. close-day: own writes by name, then a sweep that says so ──────────────
 own=$(grep -n 'aios-commit -m "Close day {date}" -- "vault/' "$C/close-day.md" | head -1 | cut -d: -f1)
@@ -62,7 +78,7 @@ grep -q 'aios-commit --vault -m "Close day' "$C/close-day.md" \
   || ok "no --vault commit is labelled 'Close day'"
 
 # ── 3. RUN today's line against a vault with a peer's uncommitted file ───────
-TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
+TMP="$(mktemp -d)"; trap 'rm -rf "$TMP" "$TMP0"' EXIT
 fixture(){
   rm -rf "$TMP/home"; mkdir -p "$TMP/home/aios/vault/01 - calendar/2026-10" "$TMP/home/aios/vault/00 - notes" "$TMP/home/aios/hooks"
   V="$TMP/home/aios"

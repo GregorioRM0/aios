@@ -261,7 +261,7 @@ Place triage decisions at the top of Parking lot, not buried in Rhythm.
 
 ### Message 3 — Commit + push
 - `cd ~/aios && ~/aios/hooks/aios-commit -m "Daily plan {date}" -- "vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md"`, and after the note, every other path this run wrote (a refreshed `vault/00 - notes/projects/_index.md`, for instance).
-- **Name the paths; never `--vault`.** `--vault` commits every changed file in the vault, and at morning time that includes whatever other sessions and the operator have open and not yet committed. Their half-done work would be published under "Daily plan" and attributed to this session. `/close-day` is the one command that sweeps, and it does it in a commit of its own.
+- **Name the paths; never `--vault`.** `--vault` commits every changed file in the vault, and at morning time that includes whatever other sessions and the operator have open and not yet committed. Their half-done work would be published under "Daily plan" and attributed to this session. `/close-day` is the one command that sweeps, and it does it in a commit of its own. Naming paths separates files, not lines: a file this run wrote goes in whole, so a peer's unsaved edit inside it goes too. For today's note that changes nothing, since `/today` writes the whole note anyway.
 
 ## First run handling
 
