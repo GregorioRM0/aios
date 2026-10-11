@@ -230,8 +230,16 @@ def norm(text):
     """The rendered form: entities decoded, NFKC, format (invisible) characters removed. Applied to
     the draft AND to every name and quote it is matched against -- normalising only one side is a
     bypass of its own (a name stored decomposed or fullwidth would never match the normalised text)."""
-    text = unicodedata.normalize("NFKC", html.unescape(text))
-    return "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+    # To a FIXED POINT: one form can decode into another (`&amp;#101;` -> `&#101;` -> `e`; a
+    # fullwidth `＆` becomes `&` only after NFKC and can then start an entity). A single pass
+    # leaves text that GitHub renders one step further than this matched.
+    for _ in range(8):
+        nxt = unicodedata.normalize("NFKC", html.unescape(text))
+        nxt = "".join(ch for ch in nxt if unicodedata.category(ch) != "Cf")
+        if nxt == text:
+            break
+        text = nxt
+    return text
 
 
 def load_shingles(root):
@@ -283,7 +291,8 @@ class Scrubber:
         # Markdown emphasis inside a word still renders as the word: `Jo**hn**` shows "John" on
         # GitHub. Allow up to three emphasis/code marks between any two characters of a name.
         # Inline HTML renders the same way (`Jo<b></b>hn`, `Jo<!-- -->hn`), so a short tag counts too.
-        return r"(?:[*_~`]|<[^<>\n]{0,40}>){0,3}".join(re.escape(ch) for ch in term)
+        # An empty markdown link (`Zede[](x)kiah`) renders as nothing, so it counts as a mark too.
+        return r"(?:[*_~`]|<[^<>\n]{0,40}>|\[\]\([^()\n]{0,80}\)){0,3}".join(re.escape(ch) for ch in term)
 
     def canon(self, text):
         """Make the text read the way GitHub will render it, BEFORE matching. Otherwise a name split
@@ -352,11 +361,22 @@ class Scrubber:
         if not self.term_re:
             return text
         def repl(m):
-            bare = re.sub(r"<[^<>\n]{0,40}>|[*_~`]", "", m.group(0)).lower()
+            bare = re.sub(r"<[^<>\n]{0,40}>|\[\]\([^()\n]{0,80}\)|[*_~`]", "", m.group(0)).lower()
             return self._hit("names", m.group(0), self.lower.get(bare, "<name redacted>"))
         return self.term_re.sub(repl, text)
 
     def run(self, text):
+        # Scrub until a further pass finds nothing: a redaction can join two fragments into a new
+        # match, and the output must be safe to scrub again with the same result (idempotent).
+        for _ in range(4):
+            before = len(self.removed)
+            out = self._once(text)
+            if out == text and len(self.removed) == before:
+                return out
+            text = out
+        return text
+
+    def _once(self, text):
         text = self.canon(text)
         for rx in SECRET_RES:
             text = self.sub(rx, text, "secrets", "<secret redacted>")
