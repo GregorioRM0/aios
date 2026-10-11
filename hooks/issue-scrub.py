@@ -157,15 +157,33 @@ def kebab_words(slug):
     return slug.replace("-", " ").replace("_", " ").strip()
 
 
+def public_names(root):
+    """The framework's own PUBLIC identity: its GitHub org and repo names, from the update tracker
+    and from the repo links CONTRIBUTING.md publishes. A vault lists the framework's org as a
+    company, so without this a cross-repo reference (`<org>/aios#8`) came out as `a company/aios#8`."""
+    names = set()
+    text = read_text(os.path.join(root, ".aios-update")) + "\n" + read_text(os.path.join(root, "CONTRIBUTING.md"))
+    for org, repo in re.findall(r"github\.com[:/]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?(?=[\s/)#\]`'\"]|$)", text):
+        names.update({_pkey(org), _pkey(repo)})
+    return names
+
+
+def _pkey(name):
+    # "The-AIOS", "the_aios" and "The AIOS" (a folder name split into words) are one name.
+    return re.sub(r"[\s_-]+", "", name.lower())
+
+
 def load_terms(root, extra):
     """Return {term: placeholder} from the operator's own files. Missing files are fine."""
     terms = {}
+    public = public_names(root)
 
     def add(term, role, explicit=False):
         term = (term or "").strip().strip("`*\"' ")
         # The length floor and stoplist filter noise out of names MINED from vault tables. A name
         # the operator passed by hand (--term / --terms-file) is a decision, never filtered.
-        if not term or (not explicit and ("{{" in term or len(term) < 3 or term.lower() in STOP)):
+        if not term or (not explicit and ("{{" in term or len(term) < 3 or term.lower() in STOP
+                                          or _pkey(term) in public)):
             return
         terms.setdefault(term, role)
 

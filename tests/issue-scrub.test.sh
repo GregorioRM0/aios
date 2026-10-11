@@ -200,5 +200,12 @@ for v in "Z$(printf '\320\265')dekiah" "Z$(printf '\303\251')dekiah"; do
   [ "$rc" = 3 ] && ok "a look-alike or accented spelling is refused: $(printf '%s' "$v" | LC_ALL=C tr -c '[:print:]' '?')" || no "look-alike spelling passed (rc=$rc)"
 done
 
+echo "── the framework's own org and repo names are public, never redacted ──"
+PUB="$T/pubroot"; mkdir -p "$PUB/vault/00 - notes/context/ventures/The-AIOS" "$PUB/vault/00 - notes/context/ventures/acmecorp"
+printf 'repo=git@github.com:The-AIOS/aios.git\nhash=x\n' > "$PUB/.aios-update"
+out=$(printf 'The twin is The-AIOS/aios#8 and acmecorp is a client.\n' | $PYBIN "$H" --root "$PUB" 2>/dev/null); rc=$?
+case "$out" in *"The-AIOS/aios#8"*) ok "a cross-repo reference to the framework's org survives" ;; *) no "the framework's org was redacted (rc=$rc)" "$out" ;; esac
+case "$out" in *acmecorp*) no "a client name survived beside it" "$out" ;; *) ok "a client in the same sentence is still redacted" ;; esac
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

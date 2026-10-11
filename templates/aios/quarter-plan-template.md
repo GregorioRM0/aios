@@ -41,8 +41,11 @@ review: '{{last Friday of the quarter, YYYY-MM-DD}}'
 {{Fronts, projects, or lanes deliberately run at maintenance this quarter, each with one line on why. Naming them is what makes the objectives above honest.}}
 - {{front}} — {{why it is B- this quarter}}
 
+## Pressure test
+{{The leading objective, inverted: how this quarter fails, the most likely failure, and the one to prevent first. Plus any objective that breaks one of INTENT.md's tradeoff rules, named plainly.}}
+
 ## Open questions for the operator
-{{Every `baseline: confirm`, every instrument the coach could not find, every objective the coach was unsure belonged in the three. Cleared before `status: set`.}}
+{{Every `baseline: confirm` and `target: confirm`, every instrument the coach could not find or had to choose between, every `key: none (propose)`, every objective the coach was unsure belonged in the three. Cleared before `status: set`.}}
 
 ## Review — {{last Friday of the quarter}}
 <!-- Written at scoring only. Leave empty until then. -->

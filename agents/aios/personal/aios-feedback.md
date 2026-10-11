@@ -48,6 +48,7 @@ A fix shipped for a bug nobody reproduced can break working code, so this step i
 - If the signal is *"something's off"* rather than a specific failure, run `onboarding-aios`'s install-doctor checklist first. A stale install, an unloaded hook, or a plugin cache behind source is not a framework bug, and the operator is better served by the repair.
 - Re-run the smallest sequence that shows it. Where you can, add a **control**: the same steps with one thing changed, working. A control is worth more than a paragraph of description.
 - The body states exactly one of: *reproduced on {OS}, AIOS {version}, Claude Code {version}* or *not reproduced; reported as observed once*. Never write *"this happens"* without one of those.
+- **Observed only on another platform or in CI** (a Windows-runner failure seen from a Mac, say): write *not reproduced locally; observed in {where}, {link or run id}*, and add what you could verify here by inspection (the file, the line, the rule). That is a full answer, not a gap.
 
 ### Step 2: Route by what was observed, not by layer
 Use CONTRIBUTING § *Which repo?* and its *what you observed* table. Read it from the repo; do not paraphrase it from memory. In short:
@@ -68,9 +69,11 @@ Search terms are the framework's own words (command names, hook names, error str
 2. **CHANGELOG:** grep `CHANGELOG.md` for the same words. Compare the entry's date with the `synced=` line of `.aios-update`. An entry **newer** than `synced=` means the fix exists and the operator has not pulled it: recommend `/aios:update` and do not file. An entry **older** than `synced=` that claims to fix this means a regression: file, and cite the entry.
 3. **Earlier drafts:** `vault/03 - export/aios-feedback/` for this operator's own unsent drafts.
 
-Verdict, one line: *new* · *twin exists (#N)* · *already fixed in an unpulled update*. For a twin, the default is a **comment on it carrying the new evidence** (new platform, new repro, a control), after the same confirmation as Step 6. Never a bare "+1".
+Verdict, one line: *new* · *twin exists (#N)* · *related, closed (cite it)* · *already fixed in an unpulled update*. **Related, closed** is a closed issue of the same class seen from another angle (the damage was fixed; this is about the guard, say): file a new issue and cite it in the body. For a twin, the default is a **comment on it carrying the new evidence** (new platform, new repro, a control), after the same confirmation as Step 6. Never a bare "+1".
 
 ### Step 4: Draft to the form
+**Write every reference to another repo's issue in full** (`{owner}/{repo}#N`) or in prose (*issue 8 on the canonical repo*). A bare `#N` links to issue N **of the repo the issue is filed on**, so on a fork or a test repo it silently points at the wrong thing.
+
 `gh issue create` bypasses issue forms, so the body reproduces the form's fields as `###` headings, the way GitHub renders a form-filed issue. Use the target repo's own form when it has one: canonical ships `.github/ISSUE_TEMPLATE/operator_report.yml`; check the target with `gh api repos/{target}/contents/.github/ISSUE_TEMPLATE` (or, if it has none, the org's `.github` repo). Unknown target or no form → use the sections below.
 
 - **Title:** `type(scope): one line`, matching the repo's commit style (`fix(close-session): …`, `feat(spawn-inbox): …`, `docs(setup): …`).
@@ -93,7 +96,8 @@ Verdict, one line: *new* · *twin exists (#N)* · *already fixed in an unpulled 
 Write the draft to `$TMPDIR`, never into the vault, then:
 
 ```bash
-UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/issue-scrub.py "$TMPDIR/aios-feedback-draft.md" --out "$TMPDIR/aios-feedback-final.md"
+D="$HOME/.aios/aios-feedback"; mkdir -p "$D"   # one fixed folder: $TMPDIR differs between sandboxed and unsandboxed calls
+UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/issue-scrub.py "$D/draft.md" --out "$D/final.md"
 ```
 
 It replaces home paths with `~/…`; paths into `00 - notes` / `01 - calendar` / `02 - assets` / `03 - export` / `04 - backups`, vault wikilinks, and verbatim runs from `USER.md`, `INTENT.md` or `context/` with placeholders; and names it loads from the vault (session names, companies, ventures, clients, contacts, the operator's own name and email) with roles such as *the operator*, *a client*, *a company*. Emails, Slack and Drive links, Slack ids, phone numbers and token-shaped strings go too. Pass `--term "<name>"` for any person or organization mentioned in this session that the vault does not hold.
@@ -116,10 +120,11 @@ Creating an issue or a comment is an outward, public action. It stops for an exp
 4. On *edit*: apply the edit, re-run the scrubber with `--check` (exit `1` means the edit reintroduced something; scrub again and show again), and ask again. The approved bytes are the sent bytes.
 5. Only a literal yes runs:
    ```bash
-   gh issue create --repo {target} --title "{title}" --body-file "$TMPDIR/aios-feedback-final.md" [--label {existing label}]
+   gh issue create --repo {target} --title "{title}" --body-file "$HOME/.aios/aios-feedback/final.md" [--label {existing label}]
    ```
    or `gh issue comment {N} --repo {target} --body-file …` for a twin. Print the URL it returns.
-6. **If `gh` is not installed or not authenticated**, do not run `gh auth login` or any refresh flow for the operator. Put the scrubbed body on the clipboard with `~/aios/hooks/clip "$TMPDIR/aios-feedback-final.md"` (it forces UTF-8 and verifies the paste; exit `2` means no clipboard here, so give the file path instead) and give the operator the new-issue URL to open themselves: `https://github.com/{target}/issues/new?title={url-encoded title}`. Add `&template=operator_report.yml` only when you confirmed in Step 4 that the target ships that form.
+6. **An invalid token or an x509 error from inside a sandbox is the sandbox, not the account.** A sandboxed shell cannot reach the keyring or the system certificates, so `gh` reports *"the token in keyring is invalid"* or a certificate error even when the operator is signed in. Re-run the same `gh` command unsandboxed before concluding anything, and never suggest `gh auth refresh` on the strength of a sandboxed failure.
+7. **If `gh` is not installed or not authenticated** (checked unsandboxed), do not run `gh auth login` or any refresh flow for the operator. Put the scrubbed body on the clipboard with `~/aios/hooks/clip "$HOME/.aios/aios-feedback/final.md"` (it forces UTF-8 and verifies the paste; exit `2` means no clipboard here, so give the file path instead) and give the operator the new-issue URL to open themselves: `https://github.com/{target}/issues/new?title={url-encoded title}`. Add `&template=operator_report.yml` only when you confirmed in Step 4 that the target ships that form.
 
 ### Step 7: Record
 - The issue URL goes in this session's report, so `/close-session` records it as shipped.
