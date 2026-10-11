@@ -26,7 +26,8 @@ Mid-week or when something feels off — the avoidance detector. Honest scan of 
 2. Read `00 - notes/context/observed/session-insights.md` — patterns over time
 3. Read recent daily notes from `01 - calendar/{YYYY-MM}/` (current month) and `01 - calendar/{YYYY-MM-1}/` (previous month if needed)
 4. Read `00 - notes/context/observed/ecosystem.md` — declared priorities vs. actual activity
-5. Cross-reference what's declared important vs. what's actually getting worked on
+5. If a quarter note exists for the current quarter (glob `01 - calendar/*/{YYYY}-Q{N}-plan.md`), read it — it is the clearest declared surface: an objective whose cited keys/project notes show no activity is drift; its `B- this quarter` list is intentional, not drift.
+6. Cross-reference what's declared important vs. what's actually getting worked on
 
 ## Output
 

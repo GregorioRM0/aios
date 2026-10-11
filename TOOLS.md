@@ -65,6 +65,8 @@ Say `spawn {name}` to launch a named tab dedicated to that role, or `/agent {nam
 | `consultant` | Strategic advisory, frameworks, recommendations | strategy |
 | `content-scheduler` | Plan and queue content calendar from vault insights | communication |
 | `content-writer` | Draft posts for LinkedIn, X, Substack in your voice | communication |
+| `kdp-publisher` | Take a finished book to live Amazon KDP listings: pre-flight the files, fill the answer sheet, name the irreversible decisions; a dry run uploads nothing | communication |
+| `explainer` | Build the cheapest thing that makes you understand a mechanism — usually one interactive HTML walk, anchored to source | communication |
 | `crisis-mode` | Emergency / incident-response framing — calm, structured, actionable | personal |
 | `deck-builder` | End-to-end slide-deck construction via `batch_update_presentation` — design discovery → outline → nano-banana imagery → live Google Slides build → human polish handoff | communication |
 | `decision-journaler` | Structured decision capture (verdict / diagnosis / options / reasoning / confidence / revisit-if) | personal |
@@ -77,7 +79,9 @@ Say `spawn {name}` to launch a named tab dedicated to that role, or `/agent {nam
 | `market-researcher` | McKinsey-style market intelligence (Porter's Five Forces, etc.) | strategy |
 | `meeting-prepper` | Prepare context-rich briefings for meetings | communication |
 | `onboarding-aios` | Knows the whole AIOS map; walks you through it when lost | personal |
+| `aios-feedback` | Turn something you noticed about AIOS into one scrubbed, de-duplicated issue on the right repo; files only after you say yes | personal |
 | `protocol-steward` | Governance, open-source strategy, licensing + trademark posture for open protocols/standards — lead without vendor-capture | strategy |
+| `okr-coach` | Draft the quarter's ≤3 objectives from your vault as a draft you edit; score them once at quarter end | strategy |
 | `report-drafter` | Draft status reports and board updates | communication |
 | `sales-crm-updater` | Sync deal updates to Monday/CRM | sales |
 | `sales-lead-hunter` | Explore leads, qualify, score, draft outreach | sales |
@@ -133,6 +137,7 @@ Skills auto-load — you don't invoke them by name. Describe what you want and C
 | `data-presentation` | `skills/aios/` | "How should I present this data?" — chart selection, table layout |
 | `infographic-builder` | `skills/aios/` | "Make an infographic / one-pager / visualize this note or report" — themed self-contained HTML |
 | `voice-gate` | `skills/aios/` | "Does this sound AI-written?" / "Check this before I publish it" — grades tells by density, bursts and position against your own baseline; reports, never rewrites |
+| `motion-lab` | `skills/aios/` | "Make a loop / a logo sting / a launch film" — motion as code, every frame a function of t, reviewed by measurement (contract, seam, pops, determinism, audio), exported to MP4/GIF |
 | `vault-migrations` | `skills/aios/` | "Dissolve this folder" / "Restructure the vault" / "Rename this everywhere" — bulk moves without loss: dry-run, inventory verification, wiki-link safety |
 
 ### Documents & files (all via Anthropic's `document-skills` plugin — `/plugin install`)

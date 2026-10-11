@@ -12,6 +12,7 @@ This bundle is what makes AIOS not just a productivity OS but a thinking partner
 | [[journal-prompter]] | Generate reflection prompts from your sessions + observed patterns. Useful when you want depth but don't know what to ask yourself |
 | [[growth-companion]] | Listen. Witness. Surface where growth IS happening from your observed context. Anti-sycophancy by design. Spanish-aware. |
 | [[onboarding-aios]] | Day-N AIOS orientation. Reads how long you've been on AIOS, surfaces the relevant cheatsheet/command/milestone for where you actually are |
+| [[aios-feedback]] | Report something about AIOS upstream: routes to the right repo, de-duplicates, scrubs your vault out of the draft, and files only after you say yes |
 | [[decision-journaler]] | Proactive Decision Journal — works through a significant decision via inversion + pre-mortem + tradeoff-rule pressure-test before you commit |
 | [[crisis-mode]] | Heavy-day emergency handler — stabilize first, triage type, sequence the response (not parallel), route to specialist, bridge to growth-companion when stable |
 

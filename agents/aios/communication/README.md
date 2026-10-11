@@ -9,6 +9,7 @@ The largest bundle — covers everything that ships externally on your behalf or
 | Agent | What it does |
 |---|---|
 | [[content-writer]] | Draft posts for LinkedIn, Twitter/X, Substack in your voice — pulls from observed patterns, voice signals, recent vault context |
+| [[kdp-publisher]] | Ship a finished book to Amazon KDP — pre-flight the files, fill the answer sheet once per author, name the irreversible decisions, walk paperback then Kindle, run post-publish + errata. Prepares and checks; never uploads or submits |
 | [[content-scheduler]] | Plan and queue content calendar from vault insights. Runs Monday — surfaces themes from the week's signals |
 | [[email-drafter]] | Draft professional emails matching your voice + the recipient's context |
 | [[deck-builder]] | Build presentations end-to-end via the AIOS 6-phase process: design discovery → outline → images → live-MCP Slides → polish → validation |
@@ -16,6 +17,7 @@ The largest bundle — covers everything that ships externally on your behalf or
 | [[report-drafter]] | Draft status reports and board updates from vault activity — pulls from project notes + daily notes |
 | [[design-md-author]] | Author `design.md` files per Google's spec — interview-driven, validates via `npx @google/design.md lint`, optional Stitch upload |
 | [[animation-composer]] | Own the deck-animation component library — audit, build-to-house-contract, mine sources for gaps; headless-verified; final placement stays the operator's call |
+| [[explainer]] | Build the cheapest format that makes a reader understand a mechanism — plain-English spine, a diagram, one interactive HTML walk by default, a silent film only on request. Anchored to source, verified by a fresh-reader check; writes a discardable file and stops |
 
 ## When to install
 

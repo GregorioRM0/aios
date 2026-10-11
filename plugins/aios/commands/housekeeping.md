@@ -938,6 +938,12 @@ It costs nothing (a local command, no model call) and prints a table per skill (
 
 **Report** each collision with both sources, plus one line saying which has the newer description if that can be read. **Propose** keeping one: usually turn the synced copy off on claude.ai when the canonical one is the maintained version, or move the operator's own version into `skills/custom/<name>/` when it holds their changes (custom overrides bundled, by design). **Zero collisions** → say *"{N} synced skills, 0 collisions"* so a clean result is distinguishable from a check that did not run.
 
+#### Bucket 35: Discardable views — explainers and quarter notes (NEW — propose-only)
+
+**Explainers are views, not records.** Each carries `<meta name="aios-discardable" content="true">` and an `aios-explainer-source` meta naming what it explains. **Scan** `vault/03 - export/**/*.html` for the discardable meta. **Propose deleting** each one older than 30 days (by the date in its filename, else git's last commit), listing its path and source; the source stays canonical and the explainer can be rebuilt with `/agent explainer <source>`. **Never** touch an HTML file without the meta, and keep any the operator has linked from a note (grep for its filename first). **Zero found** → say *"0 discardable explainers"*, so a clean result reads differently from a check that did not run.
+
+**Quarter notes stay derived.** A `01 - calendar/*/{YYYY}-Q{N}-plan.md` (the `okr-coach` agent's one file per quarter) holds objectives and key results, never tasks. **Flag** any `- [ ]` in one: work belongs in project notes and the daily note, and a quarter note that grows checkboxes has become a second planning system. Propose moving each item to its project note.
+
 ### Phase 2 — Present the packet
 
 Categorize all findings into one review table:
@@ -970,6 +976,7 @@ Categorize all findings into one review table:
 - Model ladder vs catalog: {N} rungs behind (verified ids), or "catalog unreachable"
 - Skill load cost: {N} never-invoked (owned / synced / plugin), {M} stale plugins
 - Synced-skill collisions: {N} synced skills, {M} collisions
+- Discardable views: {N} explainers past 30 days, {M} checkboxes in quarter notes
 
 ### 🟢 Auto-applied (no approval needed)
 {Low-stakes mechanical fixes — link adds where unambiguous, snapshot timestamp updates, obvious [x] marks}

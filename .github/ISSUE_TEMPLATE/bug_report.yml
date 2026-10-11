@@ -1,0 +1,81 @@
+name: Bug report
+description: Something in the framework isn't behaving as documented
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report. Before you start: search [existing issues](https://github.com/The-AIOS/aios/issues) so we don't double up.
+
+  - type: input
+    id: aios-version
+    attributes:
+      label: AIOS version
+      description: Output of `grep '"version"' ~/.claude/plugins/marketplaces/the-aios/plugins/aios/.claude-plugin/plugin.json` (or the commit SHA if you're on `main`).
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows (WSL)
+        - Windows (native)
+    validations:
+      required: true
+
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`.
+      placeholder: "1.x.x"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you observe? Include the command you ran or the session context.
+      placeholder: |
+        Ran `/aios:today` and ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-expected
+    attributes:
+      label: What did you expect?
+      description: The behavior you expected, per documentation or prior sessions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal repro
+      description: Smallest sequence of steps that reproduces this. Include relevant vault state (anonymized) if it matters.
+      render: shell
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or error output
+      description: Paste any error messages, hook output, or transcript snippets. Redact secrets.
+      render: shell
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Confirmation
+      options:
+        - label: I've searched existing issues and this isn't a duplicate
+          required: true
+        - label: I've redacted any secrets, tokens, or personal data
+          required: true

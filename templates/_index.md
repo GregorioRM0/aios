@@ -4,7 +4,7 @@ tags:
   - index
   - MOC
 created: '2026-03-05'
-updated: '2026-06-02'
+updated: '2026-10-11'
 type: index
 ---
 # Templates — Index
@@ -45,6 +45,9 @@ Templates for the standard files used across the vault. Each template includes s
 | [[meeting-prep-template]] | `vault/03 - export/meetings/{YYYY-MM-DD}-{slug}-prep.md` | High-stakes meeting prep — disambiguation, two-path flow (demo vs discovery), materials checklist, post-call routing |
 | [[agent-template]] | `agents/custom/{name}.md` | Specialized task agent — purpose, tools, instructions, constraints |
 | [[roadmap-template]] | one file for the push → graduates to `vault/00 - notes/roadmaps/` (folder born at graduation — [[vault-grammar]] § 7) | **Opt-in** keyed roadmap for a big multi-project push — one prioritized truth surface with stable keys; wired to the ship-time truth-flip contract (CLAUDE.md § Discipline) via `type: roadmap` frontmatter. *(Not `reflections/` — a live roadmap is lifecycle, reflections are records.)* |
+| [[quarter-plan-template]] | `vault/01 - calendar/{YYYY-MM}/{YYYY}-Q{N}-plan.md` (first month of the quarter) | **Opt-in** quarter objectives — ≤3 objectives, KRs that name their instrument and cite keys/project notes, an intentional B- list, a once-a-quarter Review; zero checkboxes (a derived surface, not a second planning system). Drafted and scored by the [[okr-coach]] agent |
+| [[kdp-answer-sheet-template]] | next to the book — its project note's folder or the book repo (`{slug}-kdp-answer-sheet.md`) | The KDP form answers per format: author-level (identical on every title) + per-book (files with hashes, print options, Kindle differences, categories, pricing, the five irreversible decisions, release log). Filled by the [[kdp-publisher]] agent |
+| [[errata-template]] | next to the book (`ERRATA.md`) | Post-publication corrections ledger — class, status, and the re-upload disposition rule. Instantiated by [[kdp-publisher]] on the first correction |
 | [[vault-grammar]] | read in place (not copied) | **Reference, not fill-in** — the vault structure grammar: record vs lifecycle species, `_archived/` retirement, folder naming, what a rename owes the graph. Consulted before archiving/renaming/restructuring; `/aios:housekeeping` (Bucket 21) audits against its checklist; the `vault-migrations` skill executes the changes |
 
 ### Operator extensions
