@@ -20,12 +20,16 @@ about 8,200 tokens, once per new interactive session (cached across its turns), 
 for the whole floor. INTENT ships whole rather than "rule sections" picked by heading: headings
 vary per vault, and INTENT is the one file that governs what a session may do.
 
-WHO. Opt-out by default for anything that is not a person's interactive session:
-  - routines: CLAUDE_CODE_ENTRYPOINT is sdk-* (headless `claude -p` and the SDKs) -> skip
-  - spawned workers: CLAUDE_AGENT_NAME is set and is not a primary in USER.md's Identity table
-    -> skip (they load what their task needs; most never needed the operator's whole contract)
-  - AIOS_FLOOR_AT_START=1 opts any session in; AIOS_FLOOR_AT_START=0 opts any session out.
-  - source "resume": skip -- the resumed transcript already holds what was delivered.
+WHO. The floor exists so every session starts with the highest intelligence -- the right
+information at the right time -- so the default is delivery, not opt-in:
+  - every INTERACTIVE session (CLAUDE_CODE_ENTRYPOINT=cli), named or not, including workers
+    another session spawned through the inbox -> the compact floor
+  - ROUTINES (CLAUDE_CODE_ENTRYPOINT=sdk-*: headless `claude -p` and the SDKs) -> INTENT.md
+    alone, about 6,700 tokens: they commit and send with nobody watching, so the trust contract
+    is the one thing they must carry; titles and the map are for a session that can go look
+  - AIOS_FLOOR_AT_START=0 opts any session out (a worker that truly needs nothing);
+    AIOS_FLOOR_AT_START=1 gives any session the compact floor
+  - source "resume": nothing -- the resumed transcript already holds what was delivered
 
 Exit 0 always and print nothing on any failure: a context hook must never stop a session from
 starting. Wired per SETUP §10 Hook E. Guarded by tests/floor-at-start.test.sh.
@@ -49,32 +53,25 @@ FLOOR = os.path.join(HERE, "context-floor.py")
 MAX_BYTES = 60 * 1024  # a ceiling, not the budget: past it, deliver the map and pointer only
 
 
-def primaries(root):
-    """Session names the operator lists as primaries in USER.md's Identity table."""
-    try:
-        text = open(os.path.join(root, "USER.md"), encoding="utf-8").read()
-    except OSError:
-        return set()
-    m = re.search(r"(?ms)^## Identity\s*$(.*?)(?=^## |\Z)", text)
-    if not m:
-        return set()
-    return set(re.findall(r"^\|\s*`([^`|]+)`\s*\|", m.group(1), re.M))
-
-
-def wanted(data, env, root):
+def mode(data, env):
+    """'compact', 'intent' or None -- what this session receives."""
     flag = env.get("AIOS_FLOOR_AT_START", "")
     if flag == "0":
-        return False
+        return None
     if flag == "1":
-        return True
+        return "compact"
     if (data.get("source") or "") == "resume":
-        return False
+        return None
     if (env.get("CLAUDE_CODE_ENTRYPOINT") or "").startswith("sdk"):
-        return False
-    name = env.get("CLAUDE_AGENT_NAME", "")
-    if name and name not in primaries(root):
-        return False
-    return True
+        return "intent"
+    return "compact"
+
+
+def intent_text(root):
+    try:
+        return open(os.path.join(root, "INTENT.md"), encoding="utf-8").read().strip()
+    except OSError:
+        return "(no INTENT.md in this vault -- assume nothing is pre-authorised)"
 
 
 def compact(root, session_id):
@@ -106,10 +103,7 @@ def compact(root, session_id):
         for block in cf.newest(es, cf.DEFAULT_RECENT):
             titles.append("  %s: %s" % (fn, block[0].lstrip("#").strip()))
 
-    try:
-        intent = open(os.path.join(root, "INTENT.md"), encoding="utf-8").read().strip()
-    except OSError:
-        intent = "(no INTENT.md in this vault -- assume nothing is pre-authorised)"
+    intent = intent_text(root)
 
     out = ["CONTEXT FLOOR (compact, delivered at session start by hooks/floor-at-start.py)",
            "",
@@ -136,9 +130,15 @@ def main():
             data = json.load(sys.stdin)
         except ValueError:
             data = {}
-        if not wanted(data, os.environ, ROOT):
+        m = mode(data, os.environ)
+        if m is None:
             return
-        text = compact(ROOT, data.get("session_id") or "")
+        if m == "intent":
+            text = ("INTENT.md -- the trust contract, delivered at session start by "
+                    "hooks/floor-at-start.py. This run is unattended: nobody is present to approve "
+                    "anything outside it.\n\n" + intent_text(ROOT))
+        else:
+            text = compact(ROOT, data.get("session_id") or "")
         if text:
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart",
                                                      "additionalContext": text}}))

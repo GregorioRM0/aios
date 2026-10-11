@@ -44,7 +44,10 @@ hook startup CLAUDE_CODE_ENTRYPOINT=cli | $PYBIN -c 'import json,sys; d=json.loa
   && ok "SessionStart output is the hook JSON shape" || no "bad SessionStart JSON"
 
 echo "-- who gets it --"
-[ -n "$(hook startup CLAUDE_CODE_ENTRYPOINT=sdk-cli)" ] && no "a routine (sdk) got the floor" || ok "routines (CLAUDE_CODE_ENTRYPOINT=sdk-*) are skipped"
+R=$(hook startup CLAUDE_CODE_ENTRYPOINT=sdk-cli | ctx)
+case "$R" in *intent-marker-xyz*) ok "a routine (sdk-*) gets INTENT.md" ;; *) no "a routine got no INTENT" ;; esac
+printf '%s' "$R" | grep -E 'Pattern 7|context-floor-s1' >/dev/null && no "a routine got titles or the map" "routines get INTENT alone" || ok "…and INTENT alone, no titles or map"
+case "$(hook startup CLAUDE_CODE_ENTRYPOINT=cli CLAUDE_AGENT_NAME=some-worker | ctx)" in *"patterns.md: Pattern 7"*) ok "a named worker (not a primary) gets the compact floor" ;; *) no "a named worker was skipped" ;; esac
 [ -n "$(hook resume CLAUDE_CODE_ENTRYPOINT=cli)" ] && no "a resume got it again" || ok "a resume is skipped (the transcript already holds it)"
 [ -n "$(hook compact CLAUDE_CODE_ENTRYPOINT=cli)" ] && ok "after a compaction it is delivered again" || no "not delivered after compaction"
 [ -n "$(hook startup CLAUDE_CODE_ENTRYPOINT=cli CLAUDE_AGENT_NAME=lead)" ] && ok "a USER.md primary gets it" || no "primary skipped"
