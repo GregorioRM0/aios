@@ -99,8 +99,10 @@ for sh in $SHELLS; do
   check "$ME" duplicate "" "a peer's commit is not my work (precise path still holds)"
 
   # Owed closes: an EARLIER unfinished close must not be hidden by a LATER finished one.
-  owedchk(){ local got; got=$(env HOME="$TMP/home" FIXNOTE="$NOTEF" CLAUDE_CODE_SESSION_ID="$1" "$sh" "$TMP/gate.sh" 2>/dev/null \
-               | sed -n 's/^close-session owed: //p' | tr -d ' '); [ "$got" = "$2" ] && ok "$sh: $3" || no "$sh: $3" "owed expected '$2', got '$got'"; }
+  # The line must be PRINTED: an absent line reads as "nothing owed" and would pass vacuously.
+  owedchk(){ local raw got; raw=$(env HOME="$TMP/home" FIXNOTE="$NOTEF" CLAUDE_CODE_SESSION_ID="$1" "$sh" "$TMP/gate.sh" 2>/dev/null \
+               | grep '^close-session owed:'); got=$(printf '%s' "$raw" | sed 's/^close-session owed://' | tr -d ' ')
+             [ -n "$raw" ] && [ "$got" = "$2" ] && ok "$sh: $3" || no "$sh: $3" "owed expected '$2', got '${raw:-<no owed line>}'"; }
   setup; hA=$(head_); stamp "$ME" "$hA"; work "$ME"
   check "$ME" second "" "interrupted close A, then committed work → second"
   owedchk "$ME" "$hA" "…and the gate lists A as owed, for the new close to settle"
