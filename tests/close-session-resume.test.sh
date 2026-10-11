@@ -98,8 +98,20 @@ for sh in $SHELLS; do
   setup; h=$(head_); stamp "$ME" "$h"; done_ "$ME" "$h"; work "$PEER"
   check "$ME" duplicate "" "a peer's commit is not my work (precise path still holds)"
 
+  # Owed closes: an EARLIER unfinished close must not be hidden by a LATER finished one.
+  owedchk(){ local got; got=$(env HOME="$TMP/home" FIXNOTE="$NOTEF" CLAUDE_CODE_SESSION_ID="$1" "$sh" "$TMP/gate.sh" 2>/dev/null \
+               | sed -n 's/^close-session owed: //p' | tr -d ' '); [ "$got" = "$2" ] && ok "$sh: $3" || no "$sh: $3" "owed expected '$2', got '$got'"; }
+  setup; hA=$(head_); stamp "$ME" "$hA"; work "$ME"
+  check "$ME" second "" "interrupted close A, then committed work → second"
+  owedchk "$ME" "$hA" "…and the gate lists A as owed, for the new close to settle"
+  hB=$(head_); stamp "$ME" "$hB"; done_ "$ME" "$hB"
+  check "$ME" resume "" "B finished but A never did → resume, NOT duplicate (A's routing is still owed)"
+  done_ "$ME" "$hA"
+  check "$ME" duplicate "" "once B's close also marks A → duplicate"
+  owedchk "$ME" "" "…and nothing is owed"
+
   # The mutant: the old rule — any stamp with no work is a duplicate.
-  sed 's|^elif grep -qF "<!-- close-session-done:.*then$|elif true; then|' "$TMP/gate.sh" > "$TMP/gate-old.sh"
+  sed 's|^elif \[ -z "\$OWED" \]; then$|elif true; then|' "$TMP/gate.sh" > "$TMP/gate-old.sh"
   if cmp -s "$TMP/gate.sh" "$TMP/gate-old.sh"; then
     no "$sh: MUTANT could not be built" "the done-marker check is no longer one line in the gate"
   else
@@ -137,6 +149,15 @@ grep -q '\*\*`resume`\*\*.*Under `--auto`, write nothing and no marker' "$SPEC" 
 grep -q '^10b\. .*interactive closes only' "$SPEC" \
   && ok "10b is for interactive closes only" \
   || no "10b still runs for an --auto resume"
+grep -q '^10b\. .*one such line for each hash the gate listed in `close-session owed:`' "$SPEC" \
+  && ok "10b settles every owed close, not only its own" \
+  || no "10b marks only its own close — an earlier unfinished one stays hidden"
+grep -q 'Under `--auto`, add the done marker.*one more such line for each hash in `close-session owed:`' "$SPEC" \
+  && ok "an --auto block settles every owed close too" \
+  || no "an --auto block marks only its own close"
+grep -q '\*\*Owed closes\.\*\*.*puts \*\*the whole session.s\*\* observations in its Tier A candidates' "$SPEC" \
+  && ok "an --auto close that settles a debt carries the whole session's observations" \
+  || no "an --auto close marks owed closes without carrying their observations"
 
 # ── the producers write exactly what the gate reads ─────────────────────────
 # Each producer's literal is taken from the spec, filled in, written to a note,
