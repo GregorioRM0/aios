@@ -23,7 +23,7 @@ fi
 # top-level `- **…**` bullets with indented facets. The tool therefore matched
 # nothing and exited 2 — which reads as "nothing to do", not "I cannot see your
 # data" — so BOTH of /close-day's compounding steps silently did nothing.
-# Reported by Luigi Matrone / ALI, 2026-08-08. Invisible from the author's vault,
+# Reported by an operator, 2026-08-08. Invisible from the author's vault,
 # whose buffer uses headings.
 #
 # Scenarios 1 and 2 MUST fail (exit 2) against the pre-fix implementation.

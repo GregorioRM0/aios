@@ -37,7 +37,7 @@ Gather evidence across **every bucket enumerated below — no skipping, and the 
 
 > #### ⚖️ The measurement contract — governs EVERY bucket, not just Bucket 28
 >
-> Bucket 28 already mandates this and was, until 2026-08-11, the only bucket that did. The other buckets said "scan" and "cite specifics" — prose, not a contract — and that gap is measurable: an operator running the full sweep produced **five wrong findings in one night**, each caught only by checking the artifact instead of the signal. Reported by Luigi Matrone / ALI, 2026-08-08. Three rules, and they are cheap:
+> Bucket 28 already mandates this and was, until 2026-08-11, the only bucket that did. The other buckets said "scan" and "cite specifics" — prose, not a contract — and that gap is measurable: an operator running the full sweep produced **five wrong findings in one night**, each caught only by checking the artifact instead of the signal. Reported by an operator, 2026-08-08. Three rules, and they are cheap:
 >
 > 1. **A finding a scanner produced is a HYPOTHESIS until an artifact confirms it.** Re-verify by a second, different means before reporting. (Real miss: a wiki-link scan read filenames only, ignored frontmatter `aliases:` and case-insensitivity, and reported 175 broken refs that all resolved.)
 > 2. **Never classify a result by keyword-matching its output when an exit code exists. Read the exit code.** (Real miss: `grep -qi fail` over test output reported **five passing tests as failures** — they printed the string `0 failed`. `$?` was 0 on all ten.)
