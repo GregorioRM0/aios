@@ -97,6 +97,11 @@ $PYBIN "$H" --print "$TMP/m" | cmp -s - "$FF" \
   && ok "the file is byte-identical to --print" || no "file and --print differ" "two deliveries of one floor must agree"
 tail -n 1 "$FF" | grep -q '^=== END OF FLOOR -- ' && ok "the file ends on the END marker" || no "file has no END marker" ""
 printf '%s' "$MAP" | grep -qF "$FF" && ok "the map names the file" || no "the map does not name the file" ""
+# Sessions piped the map through head or tail, or redirected it, and worked from it as if it were
+# the floor (measured 10-03 -> 10-11). Each END of the map must say it is only the map and name the file.
+FIRST=$(printf '%s\n' "$MAP" | head -n 2); LAST=$(printf '%s\n' "$MAP" | tail -n 1)
+case "$FIRST" in *"ONLY THE MAP"*"$FF"*) ok "the map's first lines say it is only the map, and name the file" ;; *) no "head of the map can be mistaken for the floor" "$FIRST" ;; esac
+case "$LAST" in *"ONLY THE MAP"*"$FF"*) ok "the map's last line says it again, for a tail" ;; *) no "tail of the map can be mistaken for the floor" "$LAST" ;; esac
 MB=$(printf '%s' "$MAP" | wc -c | tr -d ' '); FB=$(wc -c < "$FF" | tr -d ' ')
 [ "$MB" -lt 4000 ] && [ "$FB" -gt 20000 ] && ok "the map is small ($MB B) where the floor is not ($FB B)" \
   || no "map $MB B / floor $FB B" "the map must stay readable in one tool result"
