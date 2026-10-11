@@ -47,6 +47,22 @@ $PYBIN -c 'import json,sys; print(json.dumps({"tool_name":"Write","tool_input":{
 [ -z "$(prompt prompt elsewhere)" ] && ok "a Write outside the inbox records nothing" || no "a non-inbox write was fingerprinted"
 
 echo "-- never in the way --"
+echo "-- a text re-sent after the 14-day window is labelled again --"
+# record() used to skip a fingerprint logged at ANY age while is_bus_prompt() trusts only 14 days,
+# so a re-send after the window was never re-logged and stayed unlabelled.
+OLDTXT='weekly digest for the team please'
+$PYBIN - "$AIOS_BUS_LOG" "$OLDTXT" <<'PY'
+import json,sys,time,hashlib,re
+norm=lambda t: re.sub(r"\s+"," ",t).strip().lower()
+fp=hashlib.sha256(norm(sys.argv[2])[:2000].encode()).hexdigest()[:24]
+with open(sys.argv[1],"a",encoding="utf-8") as f:
+    f.write(json.dumps({"at":int(time.time())-15*86400,"fp":fp,"to":"worker","action":"send","via":"session-write","head":norm(sys.argv[2])})+"\n")
+PY
+[ -z "$(prompt prompt "$OLDTXT")" ] && ok "control: a 15-day-old record alone does not label it" || no "control: an expired record still labels"
+printf '{"tool_name":"Write","tool_input":{"file_path":"%s","content":"{\\"action\\":\\"send\\",\\"name\\":\\"worker\\",\\"prompt\\":\\"%s\\"}"}}' \
+  "$T/.aios/spawn-inbox/worker.json" "$OLDTXT" | $PYBIN "$B" --hook
+case "$(prompt prompt "$OLDTXT")" in *'spawn inbox'*) ok "re-sent after the window: recorded again and labelled" ;; *) no "a re-send after 14 days stayed unlabelled" ;; esac
+
 out=$(printf 'not json' | $PYBIN "$P" --tool); rc=$?
 [ "$rc" = 0 ] && [ -z "$out" ] && ok "a malformed payload: exit 0, silent" || no "malformed payload rc=$rc out=$out"
 out=$(printf '{}' | $PYBIN "$P" --prompt); [ -z "$out" ] && ok "an empty prompt: silent" || no "empty prompt labelled"
