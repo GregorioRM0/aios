@@ -86,7 +86,7 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
    service at a time, only the ones they want. Nothing is lost by waiting; the offer is stronger.
 7. Install the **spawn wrapper** — `bash ~/aios/hooks/claude-identity/install-wrappers.sh` (or `.ps1` on Windows), then re-source the shell rc. **You run it** — it writes the operator's shell profile, so expect a permission prompt and say so in one sentence; never hand them the command to paste.
    > **The interview runs this a second time, on purpose — do not "deduplicate" it.** The installer reads `USER.md` to detect which session names are primary, and `USER.md` does not exist yet at this point in the sequence; the interview writes it at its Step 1 and re-runs the installer immediately after. This run gives the operator a working `spawn` during setup; that run makes it identity-aware. The script is idempotent (timestamped backup → strip prior banner → append fresh), so running it twice is free — and unlike the Obsidian registration above, neither run is redundant.
-8. Wire the **universal hooks** to `~/.claude/settings.json` **yourself, with your file-edit tool** (merge into what is there; keep every existing key): `UserPromptSubmit` → `inject-datetime` (real clock in every prompt) + `statusLine` → `claude-identity.sh cache | context-monitor.py` (rate-limit cache writer + context display) + **Hook D, provenance** (marks text you did not write: tool results from email/chat/docs/web/Forum, prompts the spawn inbox typed) + **Hook E, the floor at session start** (a compact context floor delivered to every new session). See §10 below for exact JSON — **on Windows, use §10's Windows block as written**, not the macOS commands with words swapped: the Windows prerequisites install neither `pwsh` nor a working `python3`, so both names fail there.
+8. Wire the **universal hooks** to `~/.claude/settings.json` **yourself, with your file-edit tool** (merge into what is there; keep every existing key): `UserPromptSubmit` → `inject-datetime` (real clock in every prompt) + `statusLine` → `claude-identity.sh cache | context-monitor.py` (rate-limit cache writer + context display) + **Hook D, provenance** (marks text you did not write: tool results from email/chat/docs/web/Forum, prompts the spawn inbox typed) + **Hook E, the floor at session start** (a compact context floor delivered to every new session) + **Hook F, the model-switch log** (one line whenever a session's model changes under it). See §10 below for exact JSON — **on Windows, use §10's Windows block as written**, not the macOS commands with words swapped: the Windows prerequisites install neither `pwsh` nor a working `python3`, so both names fail there.
 9. **Do NOT ask the multi-account question here.** It used to live at this step (*"Do you use more than
    one Anthropic account?"*, plus a launchd install). On day one the operator has not hit a 5h/7d cap, so
    the question has no meaning yet and cannot be answered — it is the most expert-coded moment in the
@@ -106,7 +106,7 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
 
 > ⚠️ **Two copies of this sequence exist in this file** — the Claude-facing block above and the operator-facing "The Setup" section below. They just drifted: the connectors step and the interview's duration were corrected in one and not the other, so a first-timer read a promise the executor no longer made. **Change both, or change neither.** They cannot be merged — one is instructions to execute, the other is a human reading what is about to happen to them — but they answer the same questions and must not disagree.
 
-**Defaults to pick without asking** (unless operator overrides): vault path = `~/aios/`, private repo name = `{username}/aios`, substrate for company = GitHub, wrappers + hooks A, B, D and E always install (no opt-out — they're load-bearing). **Always ask, never assume**: anything that writes the operator's own words or commits them to a choice only they can make. **Deliberately NOT on this list any more:** Google email, task sources (Slack / GitHub / Linear / Monday), per-connector installs, and the multi-account-Anthropic question. Those are not assumptions to make — they are questions asked at the **wrong time**, and this list was what mandated asking them during setup. Every one of them now has a named owner later in the flow (interview Step 11 for connectors, the Day-7 check-in for multi-account), so asking here is not thoroughness, it is duplication that costs a newcomer their confidence. Show diffs before writing to `USER.md` / `INTENT.md` / `vault/00 - notes/context/declared/*` / `~/.claude/settings.json`.
+**Defaults to pick without asking** (unless operator overrides): vault path = `~/aios/`, private repo name = `{username}/aios`, substrate for company = GitHub, wrappers + hooks A, B, D, E and F always install (no opt-out — they're load-bearing). **Always ask, never assume**: anything that writes the operator's own words or commits them to a choice only they can make. **Deliberately NOT on this list any more:** Google email, task sources (Slack / GitHub / Linear / Monday), per-connector installs, and the multi-account-Anthropic question. Those are not assumptions to make — they are questions asked at the **wrong time**, and this list was what mandated asking them during setup. Every one of them now has a named owner later in the flow (interview Step 11 for connectors, the Day-7 check-in for multi-account), so asking here is not thoroughness, it is duplication that costs a newcomer their confidence. Show diffs before writing to `USER.md` / `INTENT.md` / `vault/00 - notes/context/declared/*` / `~/.claude/settings.json`.
 
 **Be gentle, not exhaustive.** The operator should feel walked by the hand, not interrogated. One question at a time, sensible defaults, defer anything that risks interrupting the in-flight session (account capture is the canonical example — always deferred).
 
@@ -577,6 +577,18 @@ Labels **inform** the model; they are not a lock. A send, create or share return
 }
 ```
 
+**Hook F — the model-switch log.** A flagged message can move a session to an older model for the rest of its run, and a worker nobody is watching then finishes its job on a model nobody chose, with nothing in its launch arguments to say so (`MODEL-ROUTING.md`). `hooks/model-switch-log.py` appends one line per switch to `~/.aios/model-switch.jsonl` (session, name, from, to, the model requested, why), which `/close-session` and `/close-day` read back. It writes nothing else and never blocks.
+
+```json
+{
+  "hooks": {
+    "PostModelSwitch": [
+      { "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/model-switch-log.py", "timeout": 10 } ] }
+    ]
+  }
+}
+```
+
 **On Windows — the same hooks, in the form that actually runs there.** Two names in the blocks above do not exist on a stock Windows install, and a setup session will otherwise find that out by trial:
 
 - **`pwsh`** is PowerShell 7, which the Windows prerequisites above never install. Use **`powershell`** (Windows PowerShell 5.1, present on every Windows 10/11) for these hooks — `inject-datetime.ps1`, `skills/setup.ps1` and `install-wrappers.ps1` all parse and run under 5.1. *(The spawn-wrapper installer is the one exception to "always `powershell`": it writes the profile of the PowerShell that runs it, so on a machine that has PowerShell 7 it runs under `pwsh` — see §9.)*
@@ -610,6 +622,9 @@ Write **absolute paths with forward slashes** (resolve them once with `cygpath -
     ],
     "SessionStart": [
       { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/floor-at-start.py\"", "timeout": 60 } ] }
+    ],
+    "PostModelSwitch": [
+      { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/model-switch-log.py\"", "timeout": 10 } ] }
     ]
   },
   "statusLine": {
