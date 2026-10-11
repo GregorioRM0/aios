@@ -52,7 +52,7 @@ for a in $(find agents/aios -name '*.md' 2>/dev/null | sort); do
          | sed -nE 's/^- `([a-z0-9][a-z0-9-]*)`.*/\1/p')
   [ -z "$decl" ] && continue
   for d in $decl; do
-    printf '%s\n' "$avail" | grep -qx "$d" || {
+    printf '%s\n' "$avail" | grep -x "$d" >/dev/null || {
       no "$(basename "$a" .md) declares '$d', which no bundled source provides" \
          "the agent receives nothing and still answers — no error is raised"
       bad=$((bad+1)); }
@@ -83,7 +83,7 @@ hits=$(cd "$T" && {
   c=0
   for a in $(find agents -name '*.md'); do
     for d in $(awk '/^## Skills/{f=1;next} f&&/^## /{exit} f' "$a" | sed -nE 's/^- `([a-z0-9][a-z0-9-]*)`.*/\1/p'); do
-      printf '%s\n' "$av" | grep -qx "$d" || c=$((c+1))
+      printf '%s\n' "$av" | grep -x "$d" >/dev/null || c=$((c+1))
     done
   done
   echo "$c"; })

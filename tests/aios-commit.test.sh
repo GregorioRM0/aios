@@ -48,7 +48,7 @@ R=$(newrepo); ( cd "$R"; mkdir -p "vault/00 - notes" .glass vault/.obsidian
   echo a2>>"vault/00 - notes/n.md"; echo b2>.glass/state.json; echo c2>vault/.obsidian/workspace.json
   "$AC" --vault -m "vault" --no-push >/dev/null 2>&1
   S=$(git show --stat --format='' HEAD)
-  echo "$S" | grep -q "vault/00 - notes/n.md" && ! echo "$S" | grep -q "\.glass" && ! echo "$S" | grep -q "workspace.json" ) \
+  echo "$S" | grep "vault/00 - notes/n.md" >/dev/null && ! echo "$S" | grep "\.glass" >/dev/null && ! echo "$S" | grep "workspace.json" >/dev/null ) \
   && ok "--vault: space-path in, .glass + workspace.json out" || no "--vault scope wrong"
 rm -rf "$R"
 
@@ -73,7 +73,7 @@ echo "── aios-note-append: appends at end when marker absent ──"
 R=$(newrepo); ( cd "$R"; printf 'only a header\n' > note.md; git add -A; git commit -qm init
   printf '\n## Session B\nbody\n' > blk.md
   "$ANA" --note note.md --before "## Close of Day" -m "s" --no-push --block-file blk.md >/dev/null 2>&1
-  tail -3 note.md | grep -q "## Session B" ) && ok "note-append falls back to end-append" || no "end-append failed"
+  tail -3 note.md | grep "## Session B" >/dev/null ) && ok "note-append falls back to end-append" || no "end-append failed"
 rm -rf "$R"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ R=$(newrepo); ( cd "$R"; echo v1>f; git add -A; git commit -qm init; echo v2>f
   S=$(date +%s)
   OUT=$("$AC" -m "unusable lock" --no-push -- f 2>&1); E=$(date +%s)
   # fast (well under the 60s spin) AND names the real cause, never a phantom pid
-  [ $((E-S)) -lt 20 ] && echo "$OUT" | grep -q "NOT contention" && ! echo "$OUT" | grep -q "held by pid" ) \
+  [ $((E-S)) -lt 20 ] && echo "$OUT" | grep "NOT contention" >/dev/null && ! echo "$OUT" | grep "held by pid" >/dev/null ) \
   && ok "unusable lock path: fails <20s naming the real cause, no phantom pid" \
   || no "still spins to 'lock timeout (held by pid ?)' — classification regressed"
 rm -rf "$R"
@@ -301,10 +301,10 @@ R=$(mktemp -d "${TMPDIR:-/tmp}/ac-idx.XXXXXX")
   || no "fixture did not build the desynced index — the assertions below prove nothing"
 
 OUT=$( cd "$R" && "$AC" --vault --no-push -m "should not commit" 2>&1 )
-printf '%s' "$OUT" | grep -q 'do not differ from HEAD' \
+printf '%s' "$OUT" | grep 'do not differ from HEAD' >/dev/null \
   && ok "--vault names the contradiction instead of claiming there is nothing" \
   || no "--vault printed a bare 'nothing to commit' over a state it could not explain: $OUT"
-printf '%s' "$OUT" | grep -q 'git reset' \
+printf '%s' "$OUT" | grep 'git reset' >/dev/null \
   && ok "…and prescribes the remedy" || no "no remedy offered"
 ( cd "$R" && [ "$(git rev-list --count HEAD)" = "1" ] ) \
   && ok "…and commits nothing" || no "it committed something it should not have"
@@ -314,7 +314,7 @@ printf '%s' "$OUT" | grep -q 'git reset' \
   && ok "the prescribed 'git reset' clears it and preserves the working tree" \
   || no "the advice in the message does not work — worse than no advice"
 OUT=$( cd "$R" && "$AC" --vault --no-push -m "noop" 2>&1 )
-printf '%s' "$OUT" | grep -q 'no vault changes to commit' \
+printf '%s' "$OUT" | grep 'no vault changes to commit' >/dev/null \
   && ok "genuinely clean still prints the plain message" || no "clean case regressed: $OUT"
 
 # CONTROL: machine-local noise is excluded by the sweep, so it must not trigger the warning —
@@ -324,7 +324,7 @@ printf '%s' "$OUT" | grep -q 'no vault changes to commit' \
   && echo '{"a":1}' > vault/.obsidian/workspace.json && git add vault/.obsidian/workspace.json \
   && echo '{}' > vault/.obsidian/workspace.json ) >/dev/null 2>&1
 OUT=$( cd "$R" && "$AC" --vault --no-push -m "noise" 2>&1 )
-printf '%s' "$OUT" | grep -q 'no vault changes to commit' \
+printf '%s' "$OUT" | grep 'no vault changes to commit' >/dev/null \
   && ok "a desynced EXCLUDED path does not trigger the warning (same scope both sides)" \
   || no "excluded machine-local noise raised the warning: $OUT"
 

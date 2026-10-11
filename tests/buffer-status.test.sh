@@ -284,7 +284,7 @@ echo "── the doctrine it enforces is actually written down ──"
 grep -qF 'class: behavioural' CLAUDE.md && ok "CLAUDE.md carries the entry contract" || no "CLAUDE.md never shows the class line"
 grep -qF 'Most method findings fold or drop' CLAUDE.md && ok "CLAUDE.md states the pressure valve" || no "the fold/drop valve is undocumented"
 for f in plugins/aios/commands/close-session.md plugins/aios/commands/close-day.md; do
-  grep -qF 'class: method' "$f" || grep -qF 'class:method' "$f" \
+  grep -qF 'class: method' "$f" || grep -F 'class:method' "$f" >/dev/null \
     && ok "$(basename "$f") disposes by class" || no "$(basename "$f") never mentions the method class"
 done
 

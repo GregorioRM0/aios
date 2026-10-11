@@ -92,7 +92,7 @@ guard=$(grep -oE "closest\('button,input[^']*'\)" "$A" | head -1)
 [ -n "$guard" ] && ok "interactive guard present: ${guard:0:58}…" \
   || no "clicks are only guarded against links" "a form control, embedded player or iframe demo would advance the slide the first time anyone used it"
 for el in button input iframe; do
-  printf '%s' "$guard" | grep -qF "$el" && ok "guards $el" || no "does not guard $el"
+  printf '%s' "$guard" | grep -F "$el" >/dev/null && ok "guards $el" || no "does not guard $el"
 done
 
 echo "-- 4. the frontmatter says the setting is a build-time DEFAULT --"

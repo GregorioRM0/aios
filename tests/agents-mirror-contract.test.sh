@@ -106,10 +106,10 @@ echo "-- 5. the backstop (/close-day) checks the SILENT direction too --"
 # word occurs elsewhere. A guard satisfied by a weaker signal than the one it names is
 # not measuring the thing it claims to measure.
 sec=$(awk '/^### Agents-can-handle reconciliation/{f=1;next} f&&/^#{2,3} /{exit} f' "$D")
-printf '%s' "$sec" | grep -qiE 'surfaces cannot see them|no dispatch target' \
+printf '%s' "$sec" | grep -iE 'surfaces cannot see them|no dispatch target' >/dev/null \
   && ok "close-day's reconcile section reports the under-count to the operator" \
   || no "close-day only handles the over-count" "the silent direction needs a check that runs unprompted"
-printf '%s' "$sec" | grep -qF 'spawn ingest' \
+printf '%s' "$sec" | grep -F 'spawn ingest' >/dev/null \
   && ok "the backstop names the near-miss it must catch" \
   || no "the backstop is abstract" "'bindable' without the failing form is not actionable at 22:00"
 

@@ -60,7 +60,7 @@ tmp=$(mktemp -d); mkdir -p "$tmp/aios"
 printf '## Identity\n\n| Name | Role |\n|------|------|\n| my name | primary |\n' > "$tmp/aios/USER.md"
 msg=$( { HOME="$tmp" detect_primary_session >/dev/null; } 2>&1 )
 rm -rf "$tmp"
-echo "$msg" | grep -q 'using "aios"' && ok "rejection is reported on stderr" || no "fell back SILENTLY — the operator can only notice by missing their function"
+echo "$msg" | grep 'using "aios"' >/dev/null && ok "rejection is reported on stderr" || no "fell back SILENTLY — the operator can only notice by missing their function"
 
 echo "── but an EXAMPLE row is skipped upstream, so it must NOT announce a rejection ──"
 tmp=$(mktemp -d); mkdir -p "$tmp/aios"

@@ -36,7 +36,7 @@ for f in CLAUDE.md AGENTS.md; do
   line=$(grep -m1 'uv run ~/aios/hooks/context-floor.py' "$f" 2>/dev/null)
   if [ -z "$line" ]; then
     no "$f prescribes the floor command" "no 'uv run …context-floor.py' line found"
-  elif printf '%s' "$line" | grep -q 'UV_CACHE_DIR'; then
+  elif printf '%s' "$line" | grep 'UV_CACHE_DIR' >/dev/null; then
     ok "$f prescribes it with UV_CACHE_DIR"
   else
     no "$f prescribes it WITHOUT UV_CACHE_DIR" \

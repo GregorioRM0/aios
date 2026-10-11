@@ -92,20 +92,20 @@ grep -q 'Known limit' "$SPEC" && ok "the DIVERGED limit is stated, not implied" 
 # words that "backups are never auto-restored".
 BM=$(awk '/upstream != baseline.*both sides moved/{f=1} f&&/^2\.7\./{exit} f' "$SPEC")
 [ -n "$BM" ] && ok "both-moved branch extracted" || no "could not extract the both-moved branch" "anchors moved"
-printf '%s' "$BM" | grep -qiE 'never be reported as a plain success|SAY SO' \
+printf '%s' "$BM" | grep -iE 'never be reported as a plain success|SAY SO' >/dev/null \
   && ok "the branch forbids a silent success report" \
   || no "a replaced file can still be reported as success" "the operator learns weeks later, from behaviour"
-printf '%s' "$BM" | grep -qF 'backup path' \
+printf '%s' "$BM" | grep -F 'backup path' >/dev/null \
   && ok "the report names the backup path" || no "the backup path is not required in the report"
 # the three legitimate homes, so the report ROUTES instead of only informing
 for home in 'Command personalizations' 'INTENT.md' 'working_style.md'; do
-  printf '%s' "$BM" | grep -qF "$home" && ok "routes to: $home" \
+  printf '%s' "$BM" | grep -F "$home" >/dev/null && ok "routes to: $home" \
     || no "does not route to $home" "a loud replace that teaches nothing is only a louder loss"
 done
-printf '%s' "$BM" | grep -qiE 'same file for every operator' \
+printf '%s' "$BM" | grep -iE 'same file for every operator' >/dev/null \
   && ok "states WHY, so the operator does not read it as a bug" \
   || no "no reason given for the replace" "without it the operator reasonably assumes a defect"
-printf '%s' "$BM" | grep -qiE 'PR to canonical' \
+printf '%s' "$BM" | grep -iE 'PR to canonical' >/dev/null \
   && ok "offers the universal-rule route (PR), not just the personal ones" \
   || no "does not mention upstreaming" "a good rule stuck in one vault is a loss too"
 

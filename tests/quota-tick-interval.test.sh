@@ -67,8 +67,8 @@ if [ "$out" = "30 30 30" ]; then ok "unusable input degrades to the slow lane"; 
   no "unusable input degrades to the slow lane" "got: $out"; fi
 
 # 5. The call site must feed it the worst of the two windows, not just the 5h.
-if grep -A2 'kick_watcher(' "$CACHE_PY" | grep -q 'max(' \
-   && grep -A2 'kick_watcher(' "$CACHE_PY" | grep -q 'seven_day_pct'; then
+if grep -A2 'kick_watcher(' "$CACHE_PY" | grep 'max(' >/dev/null \
+   && grep -A2 'kick_watcher(' "$CACHE_PY" | grep 'seven_day_pct' >/dev/null; then
   ok "kick passes the worst of the 5h and 7d numbers"
 else
   no "kick passes the worst of the 5h and 7d numbers" \

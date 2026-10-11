@@ -81,7 +81,7 @@ R="$TMP/r2x"; newrepo "$R"; printf '%s\n' "$TOKEN" > "$R/f"
 # the same for the pre-commit hook (a human commit with AIOS_HUMAN=1): scanner present, no +x
 R="$TMP/r2px"; newrepo "$R"; printf '%s\n' "$TOKEN" > "$R/g"; git -C "$R" add g
 out=$(cd "$R" && AIOS_HUMAN=1 bash "$H/git/pre-commit" 2>&1); rc=$?
-{ [ "$rc" != 0 ] && printf '%s' "$out" | grep -q 'BLOCKED'; } && ok "2px. pre-commit with a scanner that lost +x still scans (and blocks a staged token)" || no "2px. pre-commit skipped a non-executable scanner" "rc=$rc out=$out"
+{ [ "$rc" != 0 ] && printf '%s' "$out" | grep 'BLOCKED' >/dev/null; } && ok "2px. pre-commit with a scanner that lost +x still scans (and blocks a staged token)" || no "2px. pre-commit skipped a non-executable scanner" "rc=$rc out=$out"
 R="$TMP/r2py"; newrepo "$R"; echo clean > "$R/g"; git -C "$R" add g
 ( cd "$R" && AIOS_HUMAN=1 bash "$H/git/pre-commit" >/dev/null 2>&1 ); [ $? = 0 ] && ok "2py. …and lets a clean staged file through" || no "2py. pre-commit refused a clean staged file"
 R="$TMP/r2y"; newrepo "$R"; echo clean > "$R/f"
@@ -118,17 +118,17 @@ for which in diff ls; do
   R="$TMP/r4-$which"; mkvault "$R"
   [ "$which" = diff ] && echo m >> "$R/vault/n.md" || echo new > "$R/vault/new.md"
   out=$(cd "$R" && FAIL_ON=$which PATH="$SHIM:$PATH" "$TMP/new/aios-commit" --vault --no-push -m "x" 2>&1); rc=$?
-  { [ "$rc" != 0 ] && printf '%s' "$out" | grep -q 'could not read the repo' && [ "$(commits "$R")" = 2 ]; } \
+  { [ "$rc" != 0 ] && printf '%s' "$out" | grep 'could not read the repo' >/dev/null && [ "$(commits "$R")" = 2 ]; } \
     && ok "4$which. NEW: the sweep's $which call fails → refused, named, nothing committed" || no "4$which. NEW: failed $which call misread" "rc=$rc out=$out"
   if [ "$HAVE_OLD" = 1 ]; then
     out=$(cd "$R" && FAIL_ON=$which PATH="$SHIM:$PATH" "$TMP/old/aios-commit" --vault --no-push -m "x" 2>&1); rc=$?
     if [ "$which" = diff ]; then
       # old: the failed diff yields no paths; the status cross-check then blames a desynced index
       # ("do not differ from HEAD") — exit 0, nothing committed, and no word that git failed
-      { [ "$rc" = 0 ] && [ "$(commits "$R")" = 2 ] && ! printf '%s' "$out" | grep -qi 'fail'; } \
+      { [ "$rc" = 0 ] && [ "$(commits "$R")" = 2 ] && ! printf '%s' "$out" | grep -i 'fail' >/dev/null; } \
         && ok "4${which}o. OLD: a failed diff exited 0 with nothing committed and no mention of the failure (the defect, reproduced)" || no "4${which}o. old code did not show the defect" "rc=$rc out=$out"
     else
-      { [ "$rc" = 0 ] && [ "$(commits "$R")" = 2 ] && ! printf '%s' "$out" | grep -qi 'fail'; } \
+      { [ "$rc" = 0 ] && [ "$(commits "$R")" = 2 ] && ! printf '%s' "$out" | grep -i 'fail' >/dev/null; } \
         && ok "4${which}o. OLD: a failed ls-files exited 0, left the new file out, and never mentioned the failure (the defect, reproduced)" || no "4${which}o. old code did not show the defect" "rc=$rc out=$out"
     fi
   fi

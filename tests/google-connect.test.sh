@@ -114,7 +114,7 @@ if grep -q 'quantumdrive' "$FIXDIR/connector.json"; then
   OUT="$(bash "$FIXDIR/connect.sh" --print-apis 2>&1)"; RC=$?
   if [ "$RC" -eq 0 ]; then
     no "an unmapped group produced a SUCCESSFUL API list" "$OUT"
-  elif printf '%s' "$OUT" | grep -q 'quantumdrive'; then
+  elif printf '%s' "$OUT" | grep 'quantumdrive' >/dev/null; then
     ok "unmapped group fails loudly and names the group"
   else
     no "it failed, but without naming the offending group" "$OUT"
@@ -303,12 +303,12 @@ BASH_BIN="$(command -v bash)"
 OUTPUT="$(PATH="$NOGC" "$BASH_BIN" "$SCRIPT" 2>&1)"; RC=$?
 if [ "$RC" -eq 0 ]; then
   no "ran to completion with no gcloud on PATH"
-elif printf '%s' "$OUTPUT" | grep -q 'gcloud is not installed'; then
+elif printf '%s' "$OUTPUT" | grep 'gcloud is not installed' >/dev/null; then
   ok "no gcloud → clean refusal naming gcloud"
 else
   no "refused, but not because of gcloud" "$OUTPUT"
 fi
-printf '%s' "$OUTPUT" | grep -q 'cloud.google.com/sdk' \
+printf '%s' "$OUTPUT" | grep 'cloud.google.com/sdk' >/dev/null \
   && ok "and points at the installer" || no "refusal offers no way forward"
 
 BIN="$TMP/anon"; mk_gcloud "$BIN" anon ""
@@ -316,7 +316,7 @@ export GCLOUD_LOG="$TMP/anon.log"; : > "$GCLOUD_LOG"; export STUB_DOMAIN=gmail.c
 run "$BIN"
 if [ "$RC" -eq 0 ]; then
   no "proceeded while gcloud was unauthenticated"
-elif printf '%s' "$OUTPUT" | grep -q 'gcloud auth login'; then
+elif printf '%s' "$OUTPUT" | grep 'gcloud auth login' >/dev/null; then
   ok "unauthenticated gcloud → refusal naming \`gcloud auth login\`"
 else
   no "refused but never named the fix" "$OUTPUT"
@@ -330,28 +330,28 @@ echo "── 4b. --dry-run refuses too, and says nothing was created ──"
 # mid-setup makes anyone wonder if they are now half-configured, so both
 # refusals say plainly that nothing was created.
 OUTPUT="$(PATH="$NOGC" "$BASH_BIN" "$SCRIPT" --dry-run 2>&1)"; RC=$?
-{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep -q 'gcloud is not installed'; } \
+{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep 'gcloud is not installed' >/dev/null; } \
   && ok "--dry-run with no gcloud → refuses, naming gcloud" \
   || no "--dry-run skipped the missing-gcloud preflight" "it would print a plan that cannot run" 
-printf '%s' "$OUTPUT" | grep -qi 'nothing has been created' \
+printf '%s' "$OUTPUT" | grep -i 'nothing has been created' >/dev/null \
   && ok "and says nothing was created" || no "refusal leaves the operator wondering if they are half-configured"
 # the hint must be actionable for THIS platform, not a bare doc URL when a one-liner exists
 if [ "$(uname -s)" = Darwin ] && command -v brew >/dev/null 2>&1; then
-  printf '%s' "$OUTPUT" | grep -q 'brew install --cask google-cloud-sdk' \
+  printf '%s' "$OUTPUT" | grep 'brew install --cask google-cloud-sdk' >/dev/null \
     && ok "macOS + brew → the hint is the one-liner" \
     || no "on a Mac with brew the hint is still a doc URL" "$OUTPUT"
 else
-  printf '%s' "$OUTPUT" | grep -q 'cloud.google.com/sdk' \
+  printf '%s' "$OUTPUT" | grep 'cloud.google.com/sdk' >/dev/null \
     && ok "hint points at the installer for this platform" || no "no install hint at all"
 fi
 
 BIN="$TMP/anon2"; mk_gcloud "$BIN" anon ""
 export GCLOUD_LOG="$TMP/anon2.log"; : > "$GCLOUD_LOG"; export STUB_DOMAIN=gmail.com STUB_ENABLED=""
 run "$BIN" --dry-run
-{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep -q 'gcloud auth login'; } \
+{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep 'gcloud auth login' >/dev/null; } \
   && ok "--dry-run while logged out → refuses, naming \`gcloud auth login\`" \
   || no "--dry-run skipped the authentication preflight" "$OUTPUT"
-printf '%s' "$OUTPUT" | grep -qi 'nothing has been created' \
+printf '%s' "$OUTPUT" | grep -i 'nothing has been created' >/dev/null \
   && ok "and says nothing was created" || no "logged-out refusal does not reassure"
 grep -qE 'projects create|services enable' "$GCLOUD_LOG" \
   && no "mutated despite refusing" || ok "no mutating call on either refusal"
@@ -365,7 +365,7 @@ if grep -qE 'projects create|services enable' "$GCLOUD_LOG"; then
 else
   ok "--dry-run issued no mutating gcloud call"
 fi
-printf '%s' "$OUTPUT" | grep -q 'would enable' && ok "--dry-run still reports what it would do" \
+printf '%s' "$OUTPUT" | grep 'would enable' >/dev/null && ok "--dry-run still reports what it would do" \
   || no "--dry-run printed no plan" "$OUTPUT"
 
 echo "── 6. the full run enables every derived API in ONE call ──"
@@ -386,19 +386,19 @@ EOF
 [ -z "$MISSED" ] && ok "all $NAPIS APIs passed to gcloud" || no "never enabled:$MISSED"
 
 echo "── 7. the account type decides which clicks are shown ──"
-printf '%s' "$OUTPUT" | grep -q 'Test user' \
+printf '%s' "$OUTPUT" | grep 'Test user' >/dev/null \
   && ok "consumer account → test-user step shown" || no "consumer account: no test-user step"
-printf '%s' "$OUTPUT" | grep -q '7 days' \
+printf '%s' "$OUTPUT" | grep '7 days' >/dev/null \
   && ok "consumer account → the 7-day Testing clock is named" || no "consumer: 7-day clock not named"
 BIN="$TMP/ws"; mk_gcloud "$BIN" authed ""
 export GCLOUD_LOG="$TMP/ws.log"; : > "$GCLOUD_LOG"; export STUB_DOMAIN=example.com STUB_ENABLED=""
 run "$BIN"
-if printf '%s' "$OUTPUT" | grep -q 'Internal'; then
+if printf '%s' "$OUTPUT" | grep 'Internal' >/dev/null; then
   ok "workspace account → Internal audience"
 else
   no "workspace account was not routed to Internal" "$OUTPUT"
 fi
-printf '%s' "$OUTPUT" | grep -q '7 days' \
+printf '%s' "$OUTPUT" | grep '7 days' >/dev/null \
   && no "workspace account shown the 7-day clock, which cannot apply to it" \
   || ok "workspace account not warned about a trap it cannot hit"
 
@@ -408,7 +408,7 @@ export GCLOUD_LOG="$TMP/exist.log"; : > "$GCLOUD_LOG"; export STUB_DOMAIN=gmail.
 run "$BIN"
 if grep -q 'projects create' "$GCLOUD_LOG"; then
   no "created a second project while one already existed"
-elif printf '%s' "$OUTPUT" | grep -q 'aios-workspace-260101-1234'; then
+elif printf '%s' "$OUTPUT" | grep 'aios-workspace-260101-1234' >/dev/null; then
   ok "existing project surfaced instead of creating another"
 else
   no "neither reused nor reported the existing project" "$OUTPUT"
@@ -431,11 +431,11 @@ cat > "$TMP/good.json" <<'J'
 {"installed":{"client_id":"x.apps.googleusercontent.com","client_secret":"s","project_id":"p1"}}
 J
 run "$BIN" --finish --project-id p1 --client "$TMP/web.json"
-{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep -qi 'desktop'; } \
+{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep -i 'desktop' >/dev/null; } \
   && ok "a Web client is rejected, naming Desktop as the fix" \
   || no "Web client accepted (this surfaces later as redirect_uri_mismatch)" "$OUTPUT"
 run "$BIN" --finish --project-id p1 --client "$TMP/wrongproj.json"
-{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep -q 'other-project'; } \
+{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep 'other-project' >/dev/null; } \
   && ok "a client from another project is rejected, naming both projects" \
   || no "wrong-project client accepted (this surfaces later as 403 org_internal)" "$OUTPUT"
 run "$BIN" --finish --project-id p1 --client "$TMP/good.json"
@@ -448,10 +448,10 @@ elif [ -f "$TMP/creds/client_secret.json" ]; then
 else
   no "accepted but wrote no credential file"
 fi
-printf '%s' "$OUTPUT" | grep -q 'claude mcp add' \
+printf '%s' "$OUTPUT" | grep 'claude mcp add' >/dev/null \
   && ok "--finish prints the registration command" || no "--finish printed no registration command"
 # the registration it prints must come from the manifest, not a second copy
-printf '%s' "$OUTPUT" | grep -q -- '--permissions' \
+printf '%s' "$OUTPUT" | grep -- '--permissions' >/dev/null \
   && ok "the printed registration carries the manifest's permissions" \
   || no "printed registration has no --permissions — it is not manifest-derived"
 
@@ -460,16 +460,16 @@ BIN="$TMP/ver"; mk_gcloud "$BIN" authed ""
 export GCLOUD_LOG="$TMP/ver.log"; : > "$GCLOUD_LOG"; export STUB_DOMAIN=gmail.com
 export STUB_ENABLED="$(printf '%s\n' "$APIS" | head -3)"
 run "$BIN" --verify --project-id p1
-{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep -q 'gmail.googleapis.com'; } \
+{ [ "$RC" -ne 0 ] && printf '%s' "$OUTPUT" | grep 'gmail.googleapis.com' >/dev/null; } \
   && ok "a partially-enabled project fails and names what is missing" \
   || no "missing APIs not reported" "$OUTPUT"
-printf '%s' "$OUTPUT" | grep -q 'gcloud services enable' \
+printf '%s' "$OUTPUT" | grep 'gcloud services enable' >/dev/null \
   && ok "and prints the command that fixes it" || no "no remediation command"
 export STUB_ENABLED="$APIS"
 run "$BIN" --verify --project-id p1
-{ [ "$RC" -eq 0 ] && printf '%s' "$OUTPUT" | grep -q "all $NAPIS APIs enabled"; } \
+{ [ "$RC" -eq 0 ] && printf '%s' "$OUTPUT" | grep "all $NAPIS APIs enabled" >/dev/null; } \
   && ok "a fully-enabled project verifies clean" || no "clean project did not verify" "$OUTPUT"
-printf '%s' "$OUTPUT" | grep -qi 'cannot be read back' \
+printf '%s' "$OUTPUT" | grep -i 'cannot be read back' >/dev/null \
   && ok "verify states what it CANNOT check rather than implying full coverage" \
   || no "verify implies it checked the consent screen, which no API exposes"
 
@@ -501,7 +501,7 @@ chmod +x "$CRLF/python3"
 
 # HARNESS ASSERTIONS. Both of them exist because a broken injector reports the
 # hoped-for answer just as convincingly as a fixed script.
-if PATH="$CRLF:$PATH" python3 -c 'print("drive")' 2>/dev/null | grep -q $'\r'; then
+if PATH="$CRLF:$PATH" python3 -c 'print("drive")' 2>/dev/null | grep $'\r' >/dev/null; then
   ok "harness: the shim really emits CRLF"
 else
   no "harness: the shim emits no CR" "this entire section would prove nothing"
@@ -546,7 +546,7 @@ else
   OUT_MUT="$(PATH="$CRLF:$PATH" bash "$MUT/connect.sh" --print-apis 2>&1)"; RCM=$?
   if [ "$RCM" -ne 0 ]; then
     ok "control: without the strip, CRLF python3 breaks the derivation"
-    printf '%s' "$OUT_MUT" | grep -q 'no Google API is mapped' \
+    printf '%s' "$OUT_MUT" | grep 'no Google API is mapped' >/dev/null \
       && ok "control: and it fails exactly as #142 describes — mapped groups called unmapped" \
       || no "control: it failed, but not through the unmapped path" "$OUT_MUT"
   else

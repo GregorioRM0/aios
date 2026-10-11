@@ -106,7 +106,7 @@ q=$(awk '/^### Step 1 —/,/^### Step 2 —/' "$F" | grep -cE '^[0-9]+\. \*\*')
 # Slack/GitHub question MOVED to Step 11 — and the first version of this check matched that table,
 # reading the record of the removal as the removal being undone. A guard that cannot tell a thing
 # from its changelog will fire on every honest edit.
-if awk '/^### Step 1 —/,/^### Step 2 —/' "$F" | grep -E '^[0-9]+\. ' | grep -qiE 'slack|github|calendar \+ tasks'; then
+if awk '/^### Step 1 —/,/^### Step 2 —/' "$F" | grep -E '^[0-9]+\. ' | grep -iE 'slack|github|calendar \+ tasks' >/dev/null; then
   no "a connector question is back in Step 1 (numbered question line)"
 else
   ok "no connector question among Step 1's numbered questions"
@@ -198,7 +198,7 @@ CB_STEPS=$(printf '%s\n' "$CLAUDE_BLOCK" | grep -cE '^[0-9]+\. ')
 if printf '%s\n' "$CLAUDE_BLOCK" \
      | grep -E '^[0-9]+[a-z]?\. ' \
      | grep -viE 'do not|don.t|never|no longer|used to' \
-     | grep -qF 'invoke `/aios:mcps-setup`'; then
+     | grep -F 'invoke `/aios:mcps-setup`' >/dev/null; then
   no "SETUP.md still invokes /aios:mcps-setup as a numbered step" "connectors belong to interview Step 11, after the first /today"
 else
   ok "SETUP.md does not invoke the connectors pass during setup"
@@ -258,7 +258,7 @@ fi
 #      none of it. An echo on the no-op branch breaks that promise on every terminal
 #      install — the common case.
 PRE=$(awk '/^### Pre-step/,/^### Step 0/' "$F")
-if printf '%s\n' "$PRE" | grep -qE 'echo "path-portability: (already at|symlink already)'; then
+if printf '%s\n' "$PRE" | grep -E 'echo "path-portability: (already at|symlink already)' >/dev/null; then
   no "the Pre-step path check speaks on a no-op branch" \
      "it runs twice on the terminal path; the Pre-step promises the operator reads none of it"
 else
@@ -352,7 +352,7 @@ GBAD=$(awk '/^```/{f=!f;next} f' "$F" | grep -inE 'the graphical app|the desktop
 
 # 6b — the tour must not offer the agents as though taking it is how you get them.
 TOUR=$(awk '/^### Step 0/,/^### Step 1/' "$F" | awk '/^```/{f=!f;next} f')
-printf '%s\n' "$TOUR" | grep -qiE 'your agent team' \
+printf '%s\n' "$TOUR" | grep -iE 'your agent team' >/dev/null \
   && no "the Step 0 tour offers 'your agent team' as a tour extra" \
         "the same message already said the agents ship built; Step 4 is orientation, not acquisition" \
   || ok "the Step 0 tour does not sell the operator agents they already have"
@@ -378,7 +378,7 @@ fi
 #      '+ role-specific selections' line: star counts and @-scoped package names an
 #      operator cannot evaluate, in the register this change removes from first-run.
 S8=$(awk '/^### Step 8 —/,/^### Step 8\.5/' "$F" | awk '/^```/{f=!f;next} f')
-printf '%s\n' "$S8" | grep -qE '/plugin (marketplace add|install)|⭐' \
+printf '%s\n' "$S8" | grep -E '/plugin (marketplace add|install)|⭐' >/dev/null \
   && no "Step 8's spoken copy reads marketplace commands aloud" \
         "useful output for the executor, not for a first-timer; keep it as reference prose" \
   || ok "Step 8's spoken copy names no marketplace commands"
@@ -403,7 +403,7 @@ printf '%s\n' "$S8" | grep -qE '/plugin (marketplace add|install)|⭐' \
 PRE=$(awk '/^### Pre-step/,/^### Step 0/' "$F")
 
 # 7a — the liveness check is the whole difference between detection and a guess.
-printf '%s\n' "$PRE" | grep -qF 'os.kill(d["pid"], 0)' \
+printf '%s\n' "$PRE" | grep -F 'os.kill(d["pid"], 0)' >/dev/null \
   && ok "surface detection liveness-checks the announced pid" \
   || no "surface detection does not liveness-check" "a surface file outlives its process; glass.json was measured present-and-dead"
 
@@ -412,8 +412,8 @@ printf '%s\n' "$PRE" | grep -qF 'os.kill(d["pid"], 0)' \
 #       made it pass on a stubbed walk, because `p = parent(p)` survives inside a
 #       loop replaced by `if False:` — the helper existing is not the walk running.
 #       Both halves are required now: the climb AND the reassignment.
-if printf '%s\n' "$PRE" | grep -qF 'while p and p != 1' \
-   && printf '%s\n' "$PRE" | grep -qF 'p = parent(p)'; then
+if printf '%s\n' "$PRE" | grep -F 'while p and p != 1' >/dev/null \
+   && printf '%s\n' "$PRE" | grep -F 'p = parent(p)' >/dev/null; then
   ok "surface detection walks this session's own ancestry"
 else
   no "surface detection does not walk ancestry" "a live surface elsewhere on the machine did not launch this session"
@@ -434,7 +434,7 @@ done
 
 # 7e — Glass must never be offered to an operator detected THROUGH Glass.
 S85=$(awk '/^### Step 8\.5/,/^### Step 9/' "$F")
-printf '%s\n' "$S85" | grep -qiE 'ENTRY=glass' \
+printf '%s\n' "$S85" | grep -iE 'ENTRY=glass' >/dev/null \
   && ok "Step 8.5 handles the already-in-Glass case explicitly" \
   || no "Step 8.5 does not branch on ENTRY=glass" "it would walk an operator through installing the panel they are looking at"
 
@@ -464,7 +464,7 @@ grep -qE '`3-light`.*what Core actually runs|### `3-light`' "$F" \
 #      An operator answering "just do it" in minute four is talking about tidying
 #      files, not about email going out in their name.
 S3=$(awk '/^### Step 3 —/,/^### Step 4/' "$F")
-printf '%s\n' "$S3" | grep -qiE 'pin anything irreversible|irreversible or outward-facing to draft' \
+printf '%s\n' "$S3" | grep -iE 'pin anything irreversible|irreversible or outward-facing to draft' >/dev/null \
   && ok "3-light pins irreversible and outward-facing actions to draft regardless of the answer" \
   || no "3-light applies one global answer to everything" "a minute-four yes about tidying files would authorise outbound mail in the operator's name"
 
@@ -522,7 +522,7 @@ grep -qF 'pending-day7-checkin' "$T" \
 #      thing: test has no >= operator, so it errored and fell through to "pending",
 #      which means the check-in would have stayed silent forever while looking like
 #      it was merely waiting. This is the fail-silent shape, so it is asserted.
-if grep -E '^- `Bash\(' "$T" | grep -qE '\[ "\$t" \\?>= "\$d" \]'; then
+if grep -E '^- `Bash\(' "$T" | grep -E '\[ "\$t" \\?>= "\$d" \]' >/dev/null; then
   no "/today compares dates with a non-existent test operator" "[ >= ] prints 'binary operator expected' and falls through — the check-in never fires"
 else
   ok "/today's Day-7 date comparison uses a real operator"
@@ -533,7 +533,7 @@ fi
 # Scoped past the sentence that RECORDS the correction. The unscoped version fired
 # on '*(It used to say "SETUP §11 leaves this marker" …)*' — the note explaining the
 # fix. Match only an un-hedged claim.
-if grep -F 'SETUP §11 leaves this marker' "$T" | grep -qvE 'used to say|no longer|outlived'; then
+if grep -F 'SETUP §11 leaves this marker' "$T" | grep -vE 'used to say|no longer|outlived' >/dev/null; then
   no "/today still credits SETUP §11 with writing the quota marker" "that step was deleted in this PR; the writer is now the Day-7 flow"
 else
   ok "the quota marker's writer is named correctly"
@@ -566,17 +566,17 @@ grep -qiE 'Arrived through the App|assume the toolchain is present' SETUP.md \
 # ─────────────────────────────────────────────────────────────────────────────
 DET=$(awk '/^## Detection/,/^## Steps/' "$F")
 
-printf '%s\n' "$DET" | grep -qiE 'show me the full tour|came back for the tour' \
+printf '%s\n' "$DET" | grep -iE 'show me the full tour|came back for the tour' >/dev/null \
   && ok "Detection recognises the returning-for-the-tour case by its trigger phrase" \
   || no "the tour phrase this command promises has no landing in Detection" "a returning operator gets offered a re-run of their identity instead"
 
-printf '%s\n' "$DET" | grep -qiE 'Depth only|Steps \*\*4 · 5 · 8\.5 · 9\*\*' \
+printf '%s\n' "$DET" | grep -iE 'Depth only|Steps \*\*4 · 5 · 8\.5 · 9\*\*' >/dev/null \
   && ok "the returning tour runs Depth only, skipping Core" \
   || no "the returning tour does not state that Core is skipped" "it would re-ask identity, context and trust"
 
 # and the surface must be re-detected, since a terminal operator who later
 # installed the App is the common case rather than the exotic one.
-printf '%s\n' "$DET" | grep -qiE 'detect it again|ENTRY still governs' \
+printf '%s\n' "$DET" | grep -iE 'detect it again|ENTRY still governs' >/dev/null \
   && ok "the returning tour re-detects the surface rather than assuming it" \
   || no "the returning tour assumes the original surface" "an operator who set up in a terminal and later installed the App is the ordinary case"
 

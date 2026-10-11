@@ -68,14 +68,14 @@ echo "── 3. no-input is not an error ──"
 echo "── 4. a blocked run names the offending line ──"
 printf 'a\nsec = GOCSPX%s%s\nb\n' "$DASH" "$A" > "$TMP/loud.txt"
 out=$("$SCAN" "$TMP/loud.txt" 2>&1 >/dev/null)
-printf '%s' "$out" | grep -q "GOCSPX" && ok "error output quotes the match" || no "error output does not show what matched"
+printf '%s' "$out" | grep "GOCSPX" >/dev/null && ok "error output quotes the match" || no "error output does not show what matched"
 
 echo "── 5. a DIRECTORY argument is scanned recursively (aios-commit stages whole trees) ──"
 mkdir -p "$TMP/tree/deeper"
 printf 'clean\n' > "$TMP/tree/ok.txt"
 printf 'sec = GOCSPX%s%s\n' "$DASH" "$A" > "$TMP/tree/deeper/leak.txt"
 out=$("$SCAN" "$TMP/tree" 2>&1 >/dev/null); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "deeper/leak.txt" && ok "secret inside a directory argument is caught and named" || no "directory argument passed" "a whole subtree entered the commit unscanned (exit=$rc)"
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "deeper/leak.txt" >/dev/null && ok "secret inside a directory argument is caught and named" || no "directory argument passed" "a whole subtree entered the commit unscanned (exit=$rc)"
 mkdir -p "$TMP/cleantree" && printf 'nothing here\n' > "$TMP/cleantree/a.txt"
 "$SCAN" "$TMP/cleantree" >/dev/null 2>&1
 [ $? -eq 0 ] && ok "clean directory argument passes" || no "clean directory blocked" "false positive on a directory"
@@ -87,7 +87,7 @@ echo "── 6. directory edge cases: leading dash, newline in a filename, symli
 mkdir -p "$TMP/edge/-dashdir"
 printf 'sec = GOCSPX%s%s\n' "$DASH" "$A" > "$TMP/edge/-dashdir/leak.txt"
 out=$( cd "$TMP/edge" && "$SCAN" -dashdir 2>&1 >/dev/null ); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "leak.txt" \
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "leak.txt" >/dev/null \
   && ok "directory whose name starts with '-' is scanned (diagnostic names the file)" \
   || no "'-dashdir' not detected as a leak" "exit=$rc; first line: $(printf '%s' "$out" | head -1)"
 mkdir -p "$TMP/edge/-cleandash" && printf 'clean\n' > "$TMP/edge/-cleandash/ok.txt"
@@ -95,17 +95,17 @@ mkdir -p "$TMP/edge/-cleandash" && printf 'clean\n' > "$TMP/edge/-cleandash/ok.t
 mkdir -p "$TMP/nl" && printf 'sec = GOCSPX%s%s\n' "$DASH" "$A" > "$TMP/nl/leak
 .txt"
 out=$("$SCAN" "$TMP/nl" 2>&1 >/dev/null); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && ok "filename containing a newline is still scanned" || no "newline filename passed" "the path split in two and both halves were dropped (exit=$rc)"
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && ok "filename containing a newline is still scanned" || no "newline filename passed" "the path split in two and both halves were dropped (exit=$rc)"
 # git commits a symlink as its link TEXT (mode 120000), so a token in a link target lands in the repo.
 # Every positive case requires BLOCKED plus the link's name: an enumeration error also exits 1.
 mkdir -p "$TMP/sym" && ln -s "GOCSPX${DASH}${A}" "$TMP/sym/leaklink"
 out=$("$SCAN" "$TMP/sym" 2>&1 >/dev/null); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "symlink .*leaklink" && ok "a symlink under a directory whose target text is a secret is caught and named" || no "symlink target passed" "git stores the link text verbatim (exit=$rc)"
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "symlink .*leaklink" >/dev/null && ok "a symlink under a directory whose target text is a secret is caught and named" || no "symlink target passed" "git stores the link text verbatim (exit=$rc)"
 out=$("$SCAN" "$TMP/sym/leaklink" 2>&1 >/dev/null); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "symlink .*leaklink" && ok "a symlink passed as a direct ARGUMENT is scanned by its link text" || no "direct symlink argument passed" "exit=$rc"
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "symlink .*leaklink" >/dev/null && ok "a symlink passed as a direct ARGUMENT is scanned by its link text" || no "direct symlink argument passed" "exit=$rc"
 mkdir -p "$TMP/edge2" && ln -s "GOCSPX${DASH}${A}" "$TMP/edge2/-link"
 out=$( cd "$TMP/edge2" && "$SCAN" -link 2>&1 >/dev/null ); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "symlink .*-link" && ok "a symlink whose name starts with '-' is read (readlink not handed an option)" || no "'-link' passed" "readlink read the name as an option and the failure was swallowed (exit=$rc)"
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "symlink .*-link" >/dev/null && ok "a symlink whose name starts with '-' is read (readlink not handed an option)" || no "'-link' passed" "readlink read the name as an option and the failure was swallowed (exit=$rc)"
 mkdir -p "$TMP/sym2/real" && printf 'clean\n' > "$TMP/sym2/real/a.txt" && ln -s real "$TMP/sym2/linkdir"
 "$SCAN" "$TMP/sym2" >/dev/null 2>&1; [ $? -eq 0 ] && ok "a benign symlink to a directory does not block" || no "benign symlink blocked" "false positive on link text"
 printf 'sec = GOCSPX%s%s\n' "$DASH" "$A" > "$TMP/sym2/real/secret.txt"
@@ -114,7 +114,7 @@ printf 'sec = GOCSPX%s%s\n' "$DASH" "$A" > "$TMP/sym2/real/secret.txt"
 # later benign link, must still be attributed to the right link (and not shift the mapping).
 mkdir -p "$TMP/sym3" && ln -s "$(printf 'x\nGOCSPX%s%s' "$DASH" "$A")" "$TMP/sym3/nlink" && ln -s clean "$TMP/sym3/zlast"
 out=$("$SCAN" "$TMP/sym3" 2>&1 >/dev/null); rc=$?
-[ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "symlink .*nlink" && ! printf '%s' "$out" | grep -q "unbound" && ok "a link target containing a newline is caught and attributed to the right link" || no "newline in link target" "mapping shifted or unbound variable (exit=$rc)"
+[ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "symlink .*nlink" >/dev/null && ! printf '%s' "$out" | grep "unbound" >/dev/null && ok "a link target containing a newline is caught and attributed to the right link" || no "newline in link target" "mapping shifted or unbound variable (exit=$rc)"
 # Only the link TARGET is git content: a checkout that itself lives under a token-shaped
 # directory must not turn every benign link into a hit.
 mkdir -p "$TMP/GOCSPX${DASH}${A}/repo/real" && ln -s real "$TMP/GOCSPX${DASH}${A}/repo/linkdir"
@@ -126,7 +126,7 @@ if command -v git >/dev/null 2>&1; then
   ( cd "$R" && "$SCAN" dir >/dev/null 2>&1 ); [ $? -eq 0 ] && ok "an ignored file under the directory does not block" || no "ignored .env blocked the commit" "git would never add it"
   printf 'sec = GOCSPX%s%s\n' "$DASH" "$A" > "$R/dir/tracked.txt"
   out=$( cd "$R" && "$SCAN" dir 2>&1 >/dev/null ); rc=$?
-  [ $rc -ne 0 ] && printf '%s' "$out" | grep -q "BLOCKED" && printf '%s' "$out" | grep -q "dir/tracked.txt" && ok "an untracked, non-ignored file under the directory is caught and named" || no "untracked leak passed" "git add --all would stage it (exit=$rc)"
+  [ $rc -ne 0 ] && printf '%s' "$out" | grep "BLOCKED" >/dev/null && printf '%s' "$out" | grep "dir/tracked.txt" >/dev/null && ok "an untracked, non-ignored file under the directory is caught and named" || no "untracked leak passed" "git add --all would stage it (exit=$rc)"
 else
   echo "  skip  git not on PATH — repo-scoped enumeration not exercised"
 fi

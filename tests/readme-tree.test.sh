@@ -27,14 +27,14 @@ TREE="$(awk '/^#+ .*Repository Architecture/{f=1;next} f&&/^```/{n++; if(n==2) e
 LISTED="$(printf '%s\n' "$TREE" | sed -nE 's/^[├└]── ([A-Za-z0-9._-]+\.md) .*/\1/p' | sort -u)"
 
 N=$(printf '%s\n' "$LISTED" | grep -c . || true)
-if [ "$N" -ge 5 ] && printf '%s\n' "$LISTED" | grep -qx 'CLAUDE.md'; then
+if [ "$N" -ge 5 ] && printf '%s\n' "$LISTED" | grep -x 'CLAUDE.md' >/dev/null; then
   ok "control: extractor finds the tree's root docs ($N, CLAUDE.md among them)"
 else
   no "control: extractor finds the tree's root docs" "found $N — the heading or tree format moved; fix the extractor before trusting the checks below"
 fi
 
 for f in *.md; do
-  if printf '%s\n' "$LISTED" | grep -qxF "$f"; then ok "tree lists $f"
+  if printf '%s\n' "$LISTED" | grep -xF "$f" >/dev/null; then ok "tree lists $f"
   else no "tree lists $f" "root doc exists but README's architecture tree omits it"; fi
 done
 
@@ -43,7 +43,7 @@ while IFS= read -r f; do
   [ -f "$f" ] || no "tree entry $f exists at root" "README names a root doc that is not there"
 done <<< "$LISTED"
 
-if printf '%s\n' "$TREE" | grep -qE '[0-9]+ bundled'; then
+if printf '%s\n' "$TREE" | grep -E '[0-9]+ bundled' >/dev/null; then
   no "tree restates no bundled-server count" "$(printf '%s\n' "$TREE" | grep -E '[0-9]+ bundled' | head -1 | sed 's/^ *//')"
 else ok "tree restates no bundled-server count (mcps/_index.md owns it)"; fi
 

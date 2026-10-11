@@ -79,7 +79,7 @@ PY
 )
 shrow=$(printf '%s\n' "$maps" | sed -n 's/^SH://p')
 psrow=$(printf '%s\n' "$maps" | sed -n 's/^PS://p')
-if printf '%s\n' "$maps" | grep -q '^AGREE$'; then
+if printf '%s\n' "$maps" | grep '^AGREE$' >/dev/null; then
   ok "both wrappers map all 5 tiers identically"
   printf '       %s\n' "$shrow"
 else
@@ -148,9 +148,9 @@ echo "── the corrected model ids are pinned (assignment lines only) ──"
 # documents the bad guess — the mistake this very check was written after.
 asg=$(grep -E '^(OPENROUTER|GEMINI)_DEFAULT[[:space:]]*=' "$RAIL")
 [ "$(printf '%s\n' "$asg" | wc -l | tr -d ' ')" = "2" ] && ok "exactly 2 default assignments" || no "expected 2 default assignments" "$asg"
-printf '%s\n' "$asg" | grep -qF 'OPENROUTER_DEFAULT = "google/gemini-2.5-pro"' \
+printf '%s\n' "$asg" | grep -F 'OPENROUTER_DEFAULT = "google/gemini-2.5-pro"' >/dev/null \
   && ok "OpenRouter default is the verified catalog id" || no "OpenRouter default is not the verified id" "$asg"
-printf '%s\n' "$asg" | grep -qF 'GEMINI_DEFAULT = "gemini-pro-latest"' \
+printf '%s\n' "$asg" | grep -F 'GEMINI_DEFAULT = "gemini-pro-latest"' >/dev/null \
   && ok "Gemini default is the verified floating alias" || no "Gemini default is not the verified alias" "$asg"
 
 echo "── the rail is stdlib-only (must run from a routine on a fresh machine) ──"

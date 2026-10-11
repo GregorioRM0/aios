@@ -77,7 +77,7 @@ $PYBIN "$H" "$TMP/nothing-here" >/dev/null 2>&1
 
 mkdir -p "$TMP/half/vault/00 - notes/context/declared"
 OUT="$($PYBIN "$H" "$TMP/half" 2>&1 >/dev/null)"; RC=$?
-if [ $RC -eq 2 ] && printf '%s' "$OUT" | grep -q "observed"; then
+if [ $RC -eq 2 ] && printf '%s' "$OUT" | grep "observed" >/dev/null; then
   ok "one folder present -> refuses AND names the missing folder"
 else
   no "a half-measured vault produced a ladder (rc=$RC)" \
@@ -94,7 +94,7 @@ echo " the verdict FLIPS with vault size -- the property the tool exists for"
 
 mkvault "$TMP/small" 300 300 4      # young: few entries per file
 S="$($PYBIN "$H" "$TMP/small")"
-if printf '%s' "$S" | grep -qi "read ALL of it"; then
+if printf '%s' "$S" | grep -i "read ALL of it" >/dev/null; then
   ok "small vault is told to read everything"
 else
   no "small vault was not told to read everything" \
@@ -103,7 +103,7 @@ fi
 
 mkvault "$TMP/big" 4000 60000
 B="$($PYBIN "$H" "$TMP/big")"
-if printf '%s' "$B" | grep -qi "too much to spend"; then
+if printf '%s' "$B" | grep -i "too much to spend" >/dev/null; then
   ok "grown vault is told to floor at rung 1"
 else
   no "grown vault was not told to narrow" "that is the case the whole ladder exists for"
@@ -154,7 +154,7 @@ printf '# Aprendizajes\n### Uno\n### Dos\ncuerpo\n'         > "$SH/observed/apre
 printf '# Patrones\n### Tres\ncuerpo\n'                      > "$SH/observed/patrones.md"
 
 OUT="$($PYBIN "$H" "$TMP/shape" 2>&1)"; RC=$?
-if [ $RC -eq 0 ] && printf '%s' "$OUT" | grep -q "declared/"; then
+if [ $RC -eq 0 ] && printf '%s' "$OUT" | grep "declared/" >/dev/null; then
   ok "measures a vault whose files match no canonical name"
 else
   no "a non-canonically-named vault was not measured (rc=$RC)" \
@@ -219,7 +219,7 @@ OLD="$TMP/old-rungs.py"
 if git cat-file -e "$PIN:$H" 2>/dev/null && git show "$PIN:$H" > "$OLD" && ! cmp -s "$OLD" "$H"; then
   OLDP="$(price "$OLD")"
   # A valid old reading first -- both files priced -- or an empty run would "differ" too.
-  printf '%s' "$OLDP" | grep -qE '^notes\.md:[0-9]+ rules\.md:[0-9]+$' && [ "$OLDP" != "$EMIT" ] \
+  printf '%s' "$OLDP" | grep -E '^notes\.md:[0-9]+ rules\.md:[0-9]+$' >/dev/null && [ "$OLDP" != "$EMIT" ] \
     && ok "OLD: priced [$OLDP] against an emitted [$EMIT] (the defect, reproduced)" \
     || no "old hook matched the floor; the reproduction no longer holds" "check the pin"
 else

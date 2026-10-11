@@ -45,11 +45,11 @@ cls=$(printf '%s' "$BOTH" | bash "$S" --classify)
 eval "$(sed -n '/^ACCESS_RE=/p;/^NET_RE=/p' "$S")"
 eval "$(sed -n '/^reason() {/,/^}/p' "$S")"
 got=$(reason "$BOTH" access-denied)
-printf '%s' "$got" | grep -Eq "$ACCESS_RE" \
+printf '%s' "$got" | grep -E "$ACCESS_RE" >/dev/null \
   && ok "access-denied quotes the refusal ($got)" \
   || no "access-denied quoted '$got'" "quoting a network error beside access-denied contradicts itself"
 got2=$(reason "$BOTH" unreachable)
-printf '%s' "$got2" | grep -Eq "$NET_RE" \
+printf '%s' "$got2" | grep -E "$NET_RE" >/dev/null \
   && ok "unreachable quotes the network error ($got2)" \
   || no "unreachable quoted '$got2'"
 

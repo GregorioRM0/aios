@@ -77,7 +77,7 @@ fi
 BODY="$(awk '/^## Work orders/{f=1;next} f&&/^## /{exit} f' "$N" | grep -c '^- \*\*')"
 [ "$BODY" = 2 ] && ok "both bullets still under their heading" \
   || no "the section was split — $BODY of 2 bullets remain under it"
-tail -3 "$N" | grep -q '^## Session — 19:19' \
+tail -3 "$N" | grep '^## Session — 19:19' >/dev/null \
   && ok "block appended at the end, where a missing marker belongs" \
   || no "block did not land at the end" "$(tail -4 "$N")"
 
@@ -90,7 +90,7 @@ morning
 NOTE
 )"
 append "$N" "$TMP/block.md" --before "## Close of Day"
-tail -3 "$N" | grep -q '^## Session — 19:19' \
+tail -3 "$N" | grep '^## Session — 19:19' >/dev/null \
   && ok "no marker at all → end" || no "unexpected placement" "$(cat "$N")"
 
 echo "── 3. REFUSAL: a line that merely STARTS with similar text ──"
@@ -161,7 +161,7 @@ printf '# Day\n\n## Rhythm\nx\n' > "$E/note.md"; : > "$E/empty.md"
 BEFORE_N="$(git -C "$E" log --oneline | wc -l | tr -d ' ')"
 OUT="$( cd "$E" && "$HELPER" --note "$E/note.md" --block-file "$E/empty.md" -m x --no-push 2>&1 )"; RC=$?
 AFTER_N="$(git -C "$E" log --oneline | wc -l | tr -d ' ')"
-{ [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qi 'empty'; } \
+{ [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -i 'empty' >/dev/null; } \
   && ok "an empty block file is refused, naming the reason" \
   || no "an empty block file was accepted" "$OUT"
 [ "$BEFORE_N" = "$AFTER_N" ] && ok "and no commit was made for it" \
@@ -182,7 +182,7 @@ else
   OUT="$( cd "$TMP" && "$HELPER" --note "$R/note.md" --block-file "$R/blk.md" --before "## Rhythm" -m x --no-push 2>&1 )"; RC=$?
   EL=$(( $(date +%s) - S ))
   chmod u+w "$R"
-  { [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qi 'not writable'; } \
+  { [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -i 'not writable' >/dev/null; } \
     && ok "an unwritable location is named as such, not reported as contention" \
     || no "unwritable location gave the wrong diagnosis" "$OUT"
   [ "$EL" -lt 10 ] && ok "and it fails immediately (${EL}s), not after the lock timeout" \

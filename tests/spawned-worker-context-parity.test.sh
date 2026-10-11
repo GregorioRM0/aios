@@ -128,8 +128,8 @@ done
 # version did, when step 4 happened to be one line -- silently measures a fraction
 # of the rule and reports on the rest. Read to the start of step 5.
 STEP4="$(awk '/^4\. After greeting/{f=1} f&&/^5\. \*\*When the task is done/{exit} f' "$CM")"
-if printf '%s' "$STEP4" | grep -qiE 'always, whatever the task|floor' \
-   && printf '%s' "$STEP4" | grep -qiE 'the map is enough|only what this task touches|only the files this task touches'; then
+if printf '%s' "$STEP4" | grep -iE 'always, whatever the task|floor' >/dev/null \
+   && printf '%s' "$STEP4" | grep -iE 'the map is enough|only what this task touches|only the files this task touches' >/dev/null; then
   ok "CLAUDE.md step 4 states both halves: an unconditional read and a sized one"
 else
   no "CLAUDE.md step 4 must state a floor AND a sized read" "got: ${STEP4:0:120}"
@@ -138,7 +138,7 @@ fi
 # ── antifragile.md is still singled out, and still ships ────────────────────
 # It is the one file the ritual asks to be scanned BEFORE executing commands, so
 # a floor that merely globs without naming it loses that instruction.
-printf '%s' "$STEP4" | grep -q 'antifragile' \
+printf '%s' "$STEP4" | grep 'antifragile' >/dev/null \
   && ok "CLAUDE.md still singles out antifragile.md" \
   || no "antifragile.md lost its special mention" "it is the scan-before-commands file"
 [ -f "vault/00 - notes/context/observed/antifragile.md" ] \
@@ -191,7 +191,7 @@ code_sh="$(sed 's/^[[:space:]]*#.*//' "$WR")"
 code_ps="$(sed 's/^[[:space:]]*#.*//' "$PS1")"
 for pair in "sh:$code_sh" "ps1:$code_ps"; do
   label="${pair%%:*}"; body="${pair#*:}"
-  if printf '%s' "$body" | grep -q 'load my declared + observed context'; then
+  if printf '%s' "$body" | grep 'load my declared + observed context' >/dev/null; then
     no "$label default task tells the worker to preload" \
        "the preamble in the same file says the opposite; a no-task spawn gets both"
   else
@@ -235,7 +235,7 @@ sig_file(){ # $1 = path -> a three-field signature
 # file removes the one string-handling step that could differ between shells.
 sig_sh="$(sig_file "$WR")"
 sig_ps="$(sig_file "$PS1")"
-if printf '%s' "$sig_sh" | grep -q 'LIST\|NONE\|UNEXPLAINED'; then
+if printf '%s' "$sig_sh" | grep 'LIST\|NONE\|UNEXPLAINED' >/dev/null; then
   no "the wrapper preamble's floor is incomplete ($sig_sh)" \
      "expected glob/antifragile/why — a LIST goes stale, NONE loses the scan rule, UNEXPLAINED gets tidied back"
 elif [ "$sig_sh" = "$sig_ps" ]; then
@@ -535,7 +535,7 @@ for pair in "CLAUDE.md:$CM" "the wrapper:$WR" "the .ps1:$PS1"; do
     || no "$label never mentions right-context" "the escalation path exists but nothing routes to it"
 done
 
-grep -q "skills/aios/right-context" skills/_index.md 2>/dev/null || grep -q "right-context" skills/_index.md \
+grep -q "skills/aios/right-context" skills/_index.md 2>/dev/null || grep "right-context" skills/_index.md >/dev/null \
   && ok "the skill is registered in skills/_index.md" \
   || no "skill not registered" "an unregistered skill is not resolvable by name"
 

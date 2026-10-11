@@ -105,7 +105,7 @@ grep -qEio "$LEAKS" "$T/leak.md" && ok "control: a planted name IS detected" || 
 printf 'This is what Chuycepeda decided about his own purpose.\n' > "$T/name.md"
 grep -qio "$NAME_TOKEN" "$T/name.md" && ok "control: the operator's bare name IS detected" || no "control failed: the scoped name pattern matches nothing" "excluding the byline must not disarm the name check"
 printf 'See https://chuycepeda.substack.com/p/x for the essay.\n' > "$T/url.md"
-{ grep -io "$NAME_TOKEN" "$T/url.md" | grep -qvi "$NAME_EXCLUDE"; } && no "control failed: the author's essay URL was flagged" "that URL ships by design; flagging it is the false positive this exclusion exists for" || ok "control: the author's public essay URL is NOT flagged"
+{ grep -io "$NAME_TOKEN" "$T/url.md" | grep -vi "$NAME_EXCLUDE" >/dev/null; } && no "control failed: the author's essay URL was flagged" "that URL ships by design; flagging it is the false positive this exclusion exists for" || ok "control: the author's public essay URL is NOT flagged"
 grep -qEio 'dopamine|serotonin' "$T/chem.md" && ok "control: planted vocabulary IS detected" || no "control failed: the vocabulary pattern matches nothing" "the pass in §3 proves nothing"
 grep -qE '\b1\.5%|15-25%' "$T/num.md" && ok "control: a planted measurement IS detected" || no "control failed: the number pattern matches nothing" "the pass in §2 proves nothing"
 
@@ -272,7 +272,7 @@ echo "-- 15. the state probe is not the grep -c trap --"
 for f in "$CLOSE" CHANGELOG.md; do
   b=$(basename "$f")
   fenced=$(awk '/^```bash/{f=1;next} /^```/{f=0} f' "$f" 2>/dev/null)
-  if printf '%s' "$fenced" | grep -q "grep -c '\^## Compass'"; then
+  if printf '%s' "$fenced" | grep "grep -c '\^## Compass'" >/dev/null; then
     no "$b RUNS a grep -c compass probe" "grep -c prints 0 and exits non-zero; a || fallback then emits two values and the state comparison silently yields the wrong answer"
   else
     ok "$b runs no grep -c probe (prose may discuss it)"

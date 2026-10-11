@@ -126,33 +126,33 @@ lst() { HOME="$TMP" CLAUDE_CONFIG_DIR="$TMP/cfg" USER_MD_PATH="$TMP/USER.md" AIO
 capture "$SPARE"
 for missing in $FILES; do
   rm -rf "$TMP/cfg/identities/$TOK"; capture "$TOK" "$missing"
-  lst | grep -F "$TOK" | grep -q "not saved" && ok "missing $missing → 'not saved'" \
+  lst | grep -F "$TOK" | grep "not saved" >/dev/null && ok "missing $missing → 'not saved'" \
     || no "missing $missing reads as saved" "restore dies without it"
 done
 out=$(lst)
-printf '%s\n' "$out" | grep -F "$SPARE" | grep -q "saved" && ! printf '%s\n' "$out" | grep -F "$SPARE" | grep -q "not saved" \
+printf '%s\n' "$out" | grep -F "$SPARE" | grep "saved" >/dev/null && ! printf '%s\n' "$out" | grep -F "$SPARE" | grep "not saved" >/dev/null \
   && ok "full capture reads 'saved'" || no "full capture not shown as saved" "$out"
 
 echo "-- 6b. whoami separates the seat from a token session --"
 w=$(env -u AIOS_ACCOUNT_EMAIL HOME="$TMP" CLAUDE_CONFIG_DIR="$TMP/cfg" USER_MD_PATH="$TMP/USER.md" CLAUDE_CODE_OAUTH_TOKEN=x AIOS_ACCOUNT_EMAIL="$TOK" bash "$D/claude-identity.sh" whoami 2>&1)
-printf "%s" "$w" | grep -q "runs on a token.*$TOK" && ok "whoami names the token account next to the seat" || no "whoami in a token session reads the seat as its own" "$w"
+printf "%s" "$w" | grep "runs on a token.*$TOK" >/dev/null && ok "whoami names the token account next to the seat" || no "whoami in a token session reads the seat as its own" "$w"
 
 echo "-- 7. the statusline names the account actually consumed; only seat sessions see seat swaps --"
 cp "$TMP/cfg/.claude.json" "$TMP/.claude.json"
 chip() { probe HOME="$TMP" "$@" "$D/context-monitor.py" 'm.get_account_display()'; }
-chip CLAUDE_CODE_OAUTH_TOKEN=x AIOS_ACCOUNT_EMAIL="$TOK" | grep -q "👤 other" && ok "token session shows the token's account" \
+chip CLAUDE_CODE_OAUTH_TOKEN=x AIOS_ACCOUNT_EMAIL="$TOK" | grep "👤 other" >/dev/null && ok "token session shows the token's account" \
   || no "token session chip does not name the token's account"
-chip CLAUDE_CODE_OAUTH_TOKEN=x | grep -q "token?" && ok "unnamed token session says so" \
+chip CLAUDE_CODE_OAUTH_TOKEN=x | grep "token?" >/dev/null && ok "unnamed token session says so" \
   || no "unnamed token session shows the seat" "the one answer certainly wrong for it"
-chip AIOS_ACCOUNT_EMAIL="$TOK" | grep -q "👤 seat" && ok "no token: chip shows the seat" \
+chip AIOS_ACCOUNT_EMAIL="$TOK" | grep "👤 seat" >/dev/null && ok "no token: chip shows the seat" \
   || no "stray AIOS_ACCOUNT_EMAIL re-labelled the chip"
 mkdir -p "$TMP/.claude"
 python3 -c 'import json,sys,time;json.dump({"ts":int(time.time()),"from":"seat@example.com","to":"spare@example.com"},open(sys.argv[1],"w"))' \
   "$TMP/.claude/swap-notification.json"
 banner() { probe HOME="$TMP" "$@" "$D/context-monitor.py" 'm.get_swap_banner()'; }
-banner | grep -q "🔄" && ok "seat session shows a recent seat swap (control)" \
+banner | grep "🔄" >/dev/null && ok "seat session shows a recent seat swap (control)" \
   || no "seat swap banner missing" "without the control the next check proves nothing"
-banner CLAUDE_CODE_OAUTH_TOKEN=x | grep -q "🔄" \
+banner CLAUDE_CODE_OAUTH_TOKEN=x | grep "🔄" >/dev/null \
   && no "token session shows the seat-swap banner" "that session did not change account" \
   || ok "token session does not show the seat-swap banner"
 

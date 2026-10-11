@@ -1722,6 +1722,17 @@ jobs:
         # is the only thing standing between it and every Windows operator.
         run: python3 tests/lint-windows-stdout.py
 
+      - name: every text-mode file read/write in hooks/ names its encoding
+        # Without encoding=, Python uses the locale: UTF-8 here on ubuntu, cp1252 on a stock
+        # Windows install -- so this class cannot show up in CI except through a lint.
+        run: python3 tests/lint-text-encoding.py
+
+      - name: hooks/.gitattributes alone gives every hook script an LF checkout (it ships to vaults)
+        run: bash tests/hooks-gitattributes.test.sh
+
+      - name: no pipefail suite pipes into grep -q (SIGPIPE turns a match into "not found")
+        run: bash tests/no-grep-q-after-pipe.test.sh
+
       - name: every tracked file passes the secret scanner
         # THE GAP THIS CLOSES. tests/secret-scan.test.sh proves the scanner behaves
         # correctly on FIXTURES. Nothing ran it across the tracked tree — so canonical
