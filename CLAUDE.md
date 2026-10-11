@@ -115,7 +115,7 @@ If `USER.md` exists, read it. It contains:
 
 **Name the output destination in the brief (spawned-output discipline).** A worker can't see your vault conventions; if the brief doesn't say where the deliverable lands, it drifts to the worker's cwd or an invented folder. Route it by type via the File Placement Router and say so: audience-facing / ships outward → `03 - export/{type-or-venture}/` · one project's state → the project note · compounds / will be re-read → the best-matching `reflections/{subfolder}` (e.g. `research`, `audits`) by the retrieval test. **An export is never accidental** — a deck or audience-facing report goes to `export/`, never to reflections. Only a brief that genuinely forgets falls back to `vault/00 - notes/reflections/_inbox/` — provisional, emptied by `/aios:housekeeping` (Bucket 25). *The brief routes by type, or the output waits in `_inbox` — never the worker's guess.*
 
-**Model tier (`--tier frontier|judgment|scale|fast`).** Spawned sessions default to `judgment`. Pick a rung by the **shape of the work, not its importance** — `fast` for high-frequency/latency-sensitive work and sub-agents, `scale` for general work at volume, `judgment` for reasoning and production coding, `frontier` for the hardest long-running autonomy. *Calibrate Don't Choose* applied to spend: top and bottom rungs differ by roughly **22× in cost**, so frontier rates on a file sweep are a transfer, not a rounding error. (Windows: `-Tier fast`. The older `--tier mechanical` still resolves to the same model it always did.) **The rung→model table, and how to verify an id resolves, live in [`MODEL-ROUTING.md`](./MODEL-ROUTING.md) and nowhere else** — a model id restated here is a second implementation of a fact that churns.
+**Model tier (`--tier frontier|judgment|scale|fast`).** Spawned sessions default to `judgment`. Pick a rung by the **shape of the work, not its importance** — `fast` for high-frequency/latency-sensitive work and sub-agents, `scale` for general work at volume, `judgment` for reasoning and production coding, `frontier` for the hardest long-running autonomy. *Calibrate Don't Choose* applied to spend: top and bottom rungs differ by roughly **22× in cost**, so frontier rates on a file sweep are a transfer, not a rounding error. (Windows: `-Tier fast`; `--tier mechanical` still works.) **The rung→model table, and how to verify an id resolves, live in [`MODEL-ROUTING.md`](./MODEL-ROUTING.md) and nowhere else** — a model id restated here is a second implementation of a fact that churns.
 
 **A spawned worker is always a Claude model — and that boundary is load-bearing.** `spawn` passes `--model` straight to the `claude` binary, which runs Claude models only, so a non-Claude model can be **called by** a session and never **be** one. Don't reach for a proxy that makes Claude Code believe it is talking to Anthropic while routing elsewhere — it puts third-party code in the request path of every session holding live Gmail, Drive and Slack credentials plus a private vault. **That is a no.** When you genuinely need another family (a text lane, or an *independent judge* — a model cannot dock points for a bias it shares), call it as a tool via `hooks/openrouter.py`: text in, text out, no MCP catalog, no vault writes, opt-in, silent until a key exists. Boundaries and the privacy trade: [`MODEL-ROUTING.md`](./MODEL-ROUTING.md).
 
@@ -219,7 +219,7 @@ If something was avoided in a session, note it. If something clicked, note it. I
 
 At the start of any session involving this vault, load context in this order:
 
-**Context loading has ONE specification, and it is not here — it is § Identity & Greeting step 4.** Run the floor, then open what the work points at. This section used to carry a second, contradictory copy (*read every file in `declared/`, read every file in `observed/`*), which is the restated-constant failure § Project Note Hygiene names, sitting in the section every session reads at startup — the most authoritative-looking place a stale rule can hide. A session's context budget must not depend on which section it happened to read.
+**Context loading has ONE specification, and it is not here — it is § Identity & Greeting step 4.** Run the floor, then open what the work points at. A second copy here once contradicted it (the restated-constant failure § Project Note Hygiene names); a session's context budget must not depend on which section it read.
 
 Two things live here because they have no home in that step, and both are genuinely startup-only:
 
@@ -578,6 +578,8 @@ The rules:
 ### Deliverables land standalone
 
 Deliverables (drafts, answers, generated content the user asked for) go in a **standalone message or a file — never as text between tool calls in the same turn**. Mid-turn interleaved text can silently drop on some surfaces (routines, bridge/remote sessions): it's in Claude's context but never renders or persists. Corollary: if the user says they didn't see something, verify against the on-disk transcript before defending — context is not evidence of delivery.
+
+**Text meant for another app goes on the clipboard through `hooks/clip`**, one message per write, said in one line. It forces UTF-8 and reads the copy back; if it exits non-zero, give the file path instead — never claim a copy that did not happen.
 
 ### Clickable file paths
 

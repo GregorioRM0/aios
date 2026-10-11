@@ -471,6 +471,28 @@ thing you do is the `ls`.
 PREAMBLE
 }
 
+_spawn_advisor_block() {
+  # Appended to the task file of an ADVISED worker on a Sonnet- or Haiku-class model: measured by
+  # Anthropic, those executors called an Opus advisor on none of 198 questions without an
+  # instruction, while the tool definition still cost ~1,000 tokens a request. Opus and Fable
+  # call it well on their own, and the instruction lowered their pass rates, so they never get
+  # it. MODEL-ROUTING.md § The advisor.
+  cat <<'ADVISOR'
+
+# You have an advisor
+
+This worker runs with an advisor: a stronger model you can consult through the `advisor`
+tool. It sees everything you have done so far and returns short advice. It only helps if
+you call it, and workers on your model rarely do unprompted, so:
+
+- Call it once BEFORE substantive work, with your plan.
+- Call it once BEFORE you declare the task done. Save your work first (write the file,
+  commit if the task says to), so nothing is lost if the call is slow.
+- Call it when you are stuck, or about to choose between two approaches.
+- Ask it to keep its guidance under 80 words.
+ADVISOR
+}
+
 spawn() {
   # --tier frontier|judgment|scale|fast — optional, position-independent (plus the
   # legacy `mechanical`). See the map below for what each rung is for. `mechanical` routes
@@ -673,6 +695,9 @@ spawn() {
   # CLAUDE.md § Identity & Greeting step 4 carries the same rule, so workers spawned by another
   # surface (which never reads this file) get it too; this is the reinforcement on the wrapper path.
   { _spawn_task_preamble; printf '%s\n' "$task"; } > "$task_file"
+  if [ -n "$spawn_advisor" ]; then
+    case "$spawn_model" in *sonnet*|*haiku*) _spawn_advisor_block >> "$task_file" ;; esac
+  fi
 
   local launcher="/tmp/spawn-launch-$name.sh"
   # Match the launcher's shell + rc to the user's LOGIN shell — the same
@@ -775,9 +800,13 @@ LAUNCHER
         # Clipboard staging: save the user's clipboard to restore afterward (spawning
         # must not eat what they had copied), stage the launcher in a temp file (avoids
         # AppleScript escaping), and prime the clipboard with the create command.
-        local saved_clip; saved_clip=$(pbpaste 2>/dev/null)
+        # Every clipboard call forces a UTF-8 locale: pbcopy/pbpaste decode with the process
+        # locale and fall back to Mac Roman without one, and `do shell script` below runs with an
+        # almost empty environment -- so non-ASCII in a launcher or a saved clipboard would be
+        # mangled. hooks/clip does the same with a read-back; it is used where it is installed.
+        local saved_clip; saved_clip=$(LC_ALL=en_US.UTF-8 pbpaste 2>/dev/null)
         printf '%s' "$launcher" > "/tmp/spawn-launch-cmd-$name"
-        printf '%s' 'Terminal: Create New Terminal' | pbcopy
+        printf '%s' 'Terminal: Create New Terminal' | LC_ALL=en_US.UTF-8 pbcopy
         cat > "$applescript_file" <<APPLESCRIPT
 $activate_clause
 -- Focus-settle 1.2s: let the IDE become fully frontmost before the first keystroke.
@@ -813,7 +842,7 @@ tell application "System Events"
     delay 0.6
     -- Step 2: deliver the launcher via PASTE — swap the clipboard to the launcher
     -- command (staged in a temp file), paste, and run.
-    do shell script "cat /tmp/spawn-launch-cmd-$name | pbcopy"
+    do shell script "f=/tmp/spawn-launch-cmd-$name; if [ -x ~/aios/hooks/clip ]; then ~/aios/hooks/clip \"\$f\"; else LC_ALL=en_US.UTF-8 pbcopy < \"\$f\"; fi"
     keystroke "v" using {command down}
     delay 0.4
     keystroke return
@@ -834,7 +863,7 @@ APPLESCRIPT
         # Caught 2026-06-08.
         sleep 1.5
         # Restore the user's clipboard + clean the staged launcher command file.
-        printf '%s' "$saved_clip" | pbcopy
+        printf '%s' "$saved_clip" | LC_ALL=en_US.UTF-8 pbcopy
         rm -f "/tmp/spawn-launch-cmd-$name"
       else
         osascript -e "tell application \"Terminal\" to do script \"$launcher\""
