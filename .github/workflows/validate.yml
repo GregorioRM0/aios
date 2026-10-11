@@ -1640,6 +1640,8 @@ jobs:
         # it globs rather than naming files; and it REFUSES rather than printing a short
         # floor, which is indistinguishable from a complete one once printed.
         run: bash tests/context-floor.test.sh
+      - name: the floor is delivered at session start, compact and opt-out for routines
+        run: bash tests/floor-at-start.test.sh
 
       - name: the floor's PRESCRIBED INVOCATION runs where sessions actually run
         # CLAUDE.md names one command as the mandatory first context load, and its whole
