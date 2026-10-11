@@ -120,7 +120,7 @@ sed -n '/^10b\. /,/^### /p' "$SPEC" | grep -q -- '-m "session: ' \
   && ok "10b's commit subject starts 'session: ' — never counted as work" || no "10b's subject would count as work"
 grep -q 'Under `--auto`, add the done marker' "$SPEC" \
   && ok "under --auto the block itself carries the done marker" || no "--auto closes never record their end"
-grep -q '\*\*`resume`\*\*.*Do \*\*not\*\* append a second block' "$SPEC" \
+grep -q '\*\*`resume`\*\*.*[Dd]o \*\*not\*\* append a second block' "$SPEC" \
   && ok "resume never appends a second block" || no "resume does not forbid a second block"
 grep -q '\*\*`duplicate`\*\*.*read your own conversation since that close' "$SPEC" \
   && ok "duplicate checks the conversation for uncommitted work before skipping" \
@@ -128,6 +128,40 @@ grep -q '\*\*`duplicate`\*\*.*read your own conversation since that close' "$SPE
 grep -q 'Do not use uncommitted vault changes as the signal' "$SPEC" \
   && ok "and does not count a shared vault's uncommitted changes as its own" \
   || no "nothing stops uncommitted peer changes from reading as this session's work"
+grep -q '\*\*`resume`\*\*.*Run the same conversation check first' "$SPEC" \
+  && ok "resume checks the conversation too — new uncommitted work makes it a second close" \
+  || no "resume never looks for work done since the unfinished close"
+grep -q '\*\*`resume`\*\*.*Under `--auto`, write nothing and no marker' "$SPEC" \
+  && ok "an --auto resume writes no marker (it cannot do the routing the marker vouches for)" \
+  || no "an --auto resume can mark an interactive close finished without its routing"
+grep -q '^10b\. .*interactive closes only' "$SPEC" \
+  && ok "10b is for interactive closes only" \
+  || no "10b still runs for an --auto resume"
+
+# ── the producers write exactly what the gate reads ─────────────────────────
+# Each producer's literal is taken from the spec, filled in, written to a note,
+# and the extracted gate must then answer `duplicate`. A renamed marker in one
+# producer would leave every check above green while no real close ever matched.
+producer_10b=$(sed -n '/^10b\. /p' "$SPEC" | grep -o '<!-- close-session-done: [^>]*-->' | head -1)
+producer_auto=$(grep 'Under `--auto`, add the done marker' "$SPEC" | grep -o '<!-- close-session-done: [^>]*-->' | head -1)
+gate_reads() {   # <label> <literal> [gate-file]
+  local lit="$2" got
+  [ -n "$lit" ] || { no "$1: no marker literal found in the spec"; return; }
+  setup; h=$(head_); stamp "$ME" "$h"
+  printf '%s\n' "$lit" | sed "s|{SID}|$ME|; s|{VHEAD}|$h|" >> "$NOTEF"
+  git -C "$TMP/home/aios" add note.md; git -C "$TMP/home/aios" commit -q -m "session: done" -m "AIOS-Session: $ME"
+  got=$(verdict bash "$ME" "${3:-}")
+  [ "$got" = duplicate ] && ok "$1: the gate recognises it" || no "$1: the gate does not recognise it" "got '$got' for $lit"
+}
+gate_reads "step 10b's marker" "$producer_10b"
+gate_reads "the --auto block's marker" "$producer_auto"
+mut=$(printf '%s' "$producer_10b" | sed 's/close-session-done:/close-session-finished:/')
+setup; h=$(head_); stamp "$ME" "$h"
+printf '%s\n' "$mut" | sed "s|{SID}|$ME|; s|{VHEAD}|$h|" >> "$NOTEF"
+git -C "$TMP/home/aios" add note.md; git -C "$TMP/home/aios" commit -q -m "session: done" -m "AIOS-Session: $ME"
+[ "$(verdict bash "$ME")" = resume ] \
+  && ok "MUTANT: a renamed marker is not recognised (resume) — the two checks above are load-bearing" \
+  || no "MUTANT: the gate accepted a renamed marker"
 
 printf '\n  %d passed, %d failed, %d skipped\n' "$PASS" "$FAIL" "$SKIP"
 [ "$FAIL" -eq 0 ]
