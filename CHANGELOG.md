@@ -80,7 +80,7 @@
 
 ## 2026-10-11 — /today and /aios:housekeeping commit only what they wrote; /close-day labels its sweep
 
-`hash: `
+`hash: ` · [#208](https://github.com/The-AIOS/aios/pull/208)
 
 > **What you can now do.** Run `/today` or `/aios:housekeeping` while other sessions are working, without their unfinished files being committed under "Daily plan" or "Housekeeping".
 
