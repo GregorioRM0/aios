@@ -57,7 +57,8 @@
 >
 > Entries are **date-keyed**; releases are **tagged in git**. A release contains every entry dated up to its tag, back to the previous release. **What you actually have is the hash in `.aios-update`** — a vault normally sits *between* releases, and `/aios:update` works off that hash, never off a version number.
 >
-> - **Unreleased** — entries after `2026-10-04`
+> - **Unreleased** — entries after `2026-10-11`
+> - **[v0.8.9](https://github.com/The-AIOS/aios/releases/tag/v0.8.9)** · `2026-10-11` — covers `2026-10-11`
 > - **[v0.8.8](https://github.com/The-AIOS/aios/releases/tag/v0.8.8)** · `2026-10-04` — covers `2026-10-04`
 > - **[v0.8.7](https://github.com/The-AIOS/aios/releases/tag/v0.8.7)** · `2026-10-02` — covers `2026-10-02`
 > - **[v0.8.6](https://github.com/The-AIOS/aios/releases/tag/v0.8.6)** · `2026-09-29` — covers `2026-09-29`
@@ -77,6 +78,41 @@
 > - **[v0.2.0](https://github.com/The-AIOS/aios/releases/tag/v0.2.0)** · `2026-05-25` · **[v0.1.0](https://github.com/The-AIOS/aios/releases/tag/v0.1.0)** · `2026-05-21`
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
+
+## 2026-10-11 — Every session starts knowing what you decided, four new agents, motion you can measure, and no JSON at setup
+
+`hash: 23e868a · e1bb869 · f0b76b3 · 9195f02 · e0ccc43 · 24b0abf · 34df84b · 4f7b35b · 2c0e0ca · f9b258f · 17cb753 · e0410d5 · 74b0471 · a6b4c14 · 22dca6f · d45339a · c016a19 · 0e17dcf · af91491 · 2a25e4a · fd3b676` · [#204](https://github.com/The-AIOS/aios/pull/204) · [#205](https://github.com/The-AIOS/aios/pull/205) · [#206](https://github.com/The-AIOS/aios/pull/206) · [#207](https://github.com/The-AIOS/aios/pull/207) · [#208](https://github.com/The-AIOS/aios/pull/208)
+
+> **What you can now do.** Open any session and have it already know your trust contract and what was learned lately. Report something about AIOS upstream without your vault leaving the machine. Ask for an explainer of a release, a quarter's objectives drafted from your vault, a dry run of publishing a book on Amazon KDP, or a 6-second loop rendered and checked frame by frame. Give a spawned worker an effort level or an advisor. Paste text into another app and have the accents arrive intact. Set AIOS up without approving a wall of JSON.
+
+**Contributions from operators, each weighed by who it serves** ([#204](https://github.com/The-AIOS/aios/pull/204), [#205](https://github.com/The-AIOS/aios/pull/205), [#206](https://github.com/The-AIOS/aios/pull/206), [#207](https://github.com/The-AIOS/aios/pull/207), [#208](https://github.com/The-AIOS/aios/pull/208)): setup no longer stalls after `/add-dir`, and the App's setup path skips the GitHub step it cannot use; every `uv run` a command prescribes works inside a sandbox; an interrupted `/close-session` resumes instead of starting over, and uncommitted work counts as work; `/today` re-reads the note before writing it back, so it no longer overwrites what another session added; `/today` and `/aios:housekeeping` commit only their own files.
+
+**Every new session starts with the floor already loaded.** Measured across a week of sessions, the instruction to run the context floor did not deliver it: some sessions never ran it, and most of the rest worked from its short map. A new hook (`floor-at-start.py`, SETUP *Hook E*) hands each new session a compact floor instead: `INTENT.md` whole, the titles of the newest learnings, and the map to the full floor for depth — about 8,000 tokens on a heavily used vault, once per session. Unattended routines get `INTENT.md` alone, because they commit and send with nobody watching. A resumed session gets nothing new. `AIOS_FLOOR_AT_START=0` keeps a session out.
+
+**Four new agents** (40 bundled):
+- **`aios-feedback`** turns something you noticed into one issue on the right repo. It checks for duplicates, removes names, paths and private content from the draft (it also catches names hidden in ways that only show once GitHub renders them), shows you the target repo and the full text, and files only after you say yes. Name a test repository to try it safely.
+- **`explainer`** builds the cheapest thing that makes you understand a mechanism — usually one interactive HTML walk, every claim tied to its source. `/close-session` offers one when a lot shipped; `/aios:ingest` offers it beside the infographic.
+- **`okr-coach`** drafts a quarter's objectives (at most three) from your vault as a draft you edit, in one file next to the quarter's first week, and scores them once at quarter end. `/7plan`, `/drift` and `/weekly-learnings` read that file when it exists.
+- **`kdp-publisher`** takes a finished book to Amazon KDP: checks the files, fills an answer sheet once per author, and names the decisions you cannot undo (DRM, KDP Select, categories, price). A dry run uploads nothing.
+
+**Motion you can measure (`motion-lab`).** Ask for a loop, a logo sting or a title card and the session writes it as code where every frame is a function of time. It then renders the frames itself and checks them: the loop's seam, one-frame glitches, whether a frame renders the same twice, the brief's numbers, and the soundtrack's loudness and timing. Review is a contact sheet and numbers, not "it looks fine". Exports MP4 and a GIF that keeps time. It needs Python Playwright with Chromium, Pillow and ffmpeg, and says which is missing.
+
+**Workers you can tune.** `spawn --effort low|medium|high|xhigh|max` sets a worker's effort. `spawn --advisor <rung|model>` gives a cheaper worker a stronger model to consult at hard decisions (Windows: `-Effort`, `-Advisor`). `MODEL-ROUTING.md` says when that pays (on the `scale` and `fast` rungs) and when raising effort is the better buy. No rung has a default advisor. The `scale` and `fast` rungs now run Sonnet 5.5 and Haiku 5.5; `--tier mechanical` is unchanged.
+
+**You are told when a session finished on a model nobody chose.** A flagged message can move a session to an older model for the rest of its run. A new hook (*Hook F*) logs each switch, and `/close-session` and `/close-day` name any session that ended on a model other than the one it asked for.
+
+**Text for another app lands intact.** On macOS, copying from a routine or a script could turn `→`, `—` and accents into `‚Üí`, `‚Äî`, `√°`. Sessions now copy through `hooks/clip`, which forces UTF-8 and reads the clipboard back. If there is no clipboard, they give you the file path instead.
+
+**Setup without JSON.** `hooks/install-settings.py` lists in plain words what each hook does for you and changes nothing; with `--apply` it merges them into your Claude settings, keeps everything else, backs up the old file and keeps its permissions. New installs also leave the framework's own test suite out of the working tree (`git sparse-checkout disable` brings it back).
+
+**Smaller fixes you may notice.** `/aios:housekeeping` adds four checks. They report when the model ladder falls behind Anthropic's catalog, which skills cost context without being used, when a claude.ai-synced skill collides with a bundled one, and which old explainers can be pruned. Hooks read and write text as UTF-8 on Windows, where some read accents wrongly. Hook scripts check out with Unix line endings on Windows, and your notes are left untouched. Design skills point to Refero Styles as a second catalog of `DESIGN.md` files.
+
+**Action required** — check each first; do only what applies:
+1. **Wire the two new hooks (E and F).** Run `python3 ~/aios/hooks/install-settings.py` (Windows: `python` or `py -3`) and read the operator what it prints. It changes nothing; if it lists anything to add, run it again with `--apply`. Expect one window asking to allow the command; it writes only `~/.claude/settings.json` and a backup beside it. If it says nothing to change, skip this.
+2. **One installer changes: `hooks/claude-identity/install-wrappers.sh`** (Windows: `install-wrappers.ps1`). It is modified, not new, and writes the same file as before (`~/.zshrc`, or your PowerShell profile). The new `spawn` flags it installs may, when used, write one small settings file per advised worker in your temp folder. Show the diff and recommend yes: without it, `spawn` lacks the new flags and the corrected worker instructions.
+3. **One new skill (`motion-lab`) is registered** by `skills/setup.sh`, which `/aios:update` runs when a bundled skill changes. Nothing to approve beyond that script's usual run.
+4. **Optional, for a vault cloned before today:** leave the test suite out of the working tree with `git -C ~/aios sparse-checkout set --no-cone '/*' '!/tests/'`. Offer it once; skip it if they contribute to AIOS. Undo: `git -C ~/aios sparse-checkout disable`.
+5. **Start a new Claude session** after updating, so the new hooks, commands and agents load.
 
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 
