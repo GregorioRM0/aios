@@ -82,9 +82,9 @@
 
 `hash: ` · [#207](https://github.com/The-AIOS/aios/pull/207)
 
-> **What you can now do.** Tick a box in Obsidian or close another session while `/today` is running, and keep it.
+> **What you can now do.** Tick a box in Obsidian or close another session while `/today` is working on its plan, and keep it.
 
-**`/today` could undo what landed while it was thinking.** When today's note already exists (from `/7plan` or an earlier run), `/today` reads it at the start and writes the whole file back at the end, and its rules said never to re-read in between. Anything that reached the note in that window was overwritten by the older copy, with no message: a session block from `/close-session`, a box ticked by hand, another session's edit. `/today` now records the note's hash when it reads it and checks it again right before writing. If the hash changed, it re-reads the note and merges what arrived before writing. The hash comes from `git hash-object`, which already runs under the command's existing permission, so a scheduled `/today` is not stopped by a new prompt.
+**`/today` could undo what landed while it was thinking.** When today's note already exists (from `/7plan` or an earlier run), `/today` reads it at the start and writes the whole file back at the end, and its rules said never to re-read in between. Anything that reached the note in that window was overwritten by the older copy, with no message: a session block from `/close-session`, a box ticked by hand, another session's edit. `/today` now hashes the note before reading it and hashes it again as the last step before writing. If the hash changed, it re-reads the note, merges what arrived, and checks once more before writing. What remains is the instant between that last check and the write, which a hash cannot cover, because an edit in Obsidian takes no lock. The hash comes from `git hash-object`, which already runs under the command's existing permission, so a scheduled `/today` is not stopped by a new prompt.
 
 **Action required:** none.
 

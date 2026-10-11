@@ -27,11 +27,20 @@ echo "== today: re-check the note before writing it back =="
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 
 # ── 1. the fingerprint command, as the spec prescribes it ────────────────────
-cmd=$(grep -m1 'git hash-object "vault/01 - calendar/' "$SPEC" | sed 's/^[[:space:]]*//')
+fpline=$(grep -n -m1 'git hash-object "vault/01 - calendar/' "$SPEC" | cut -d: -f1)
+cmd=$(grep -m1 'git hash-object "vault/01 - calendar/' "$SPEC" | sed 's/^[^`]*`Bash(//; s/)` — .*$//')
+m1a=$(grep -n '^### Message 1a' "$SPEC" | head -1 | cut -d: -f1)
+m1b=$(grep -n '^### Message 1b' "$SPEC" | head -1 | cut -d: -f1)
 if [ -z "$cmd" ]; then
-  no "Message 1b fingerprints today's note" "no 'git hash-object \"vault/01 - calendar/…' line in today.md"
+  no "Message 1a fingerprints today's note" "no 'git hash-object \"vault/01 - calendar/…' line in today.md"
 else
-  ok "Message 1b fingerprints today's note"
+  # Taken in the message BEFORE the read (1b is one parallel batch: a hash fired beside the
+  # Read can describe a newer version than the one read, and a moved note then looks unchanged).
+  if [ -n "$m1a" ] && [ -n "$m1b" ] && [ "$fpline" -gt "$m1a" ] && [ "$fpline" -lt "$m1b" ]; then
+    ok "the fingerprint is taken in Message 1a, a message before the read"
+  else
+    no "the fingerprint is not in Message 1a" "fingerprint line ${fpline:-none}, 1a ${m1a:-none}, 1b ${m1b:-none}"
+  fi
   case "$cmd" in
     "cd ~/aios && git "*) ok "the fingerprint runs under the existing Bash(cd ~/aios && git:*) permission" ;;
     *) no "the fingerprint needs a permission today.md does not grant" "$cmd" ;;
@@ -69,9 +78,27 @@ if [ -n "$chk" ] && [ -n "$wr" ] && [ -n "$m2" ] && [ "$chk" -gt "$m2" ] && [ "$
 else
   no "the re-check is missing or not before the write" "check=${chk:-none} write=${wr:-none} msg2=${m2:-none}"
 fi
-sed -n "${chk:-1},${wr:-1}p" "$SPEC" | grep -q 'Re-read the note now and merge' \
-  && ok "a changed hash means re-read and merge, not write anyway" \
-  || no "a changed hash does not lead to a re-read and merge"
+# Condition → action, as a pair: the same hash leads to the write, a different one to the re-read.
+# Checking only that both phrases exist would pass with the two branches swapped.
+pairs_ok(){ grep -q '\*\*Same hash\*\* → write\. \*\*Different\*\* → [^.]*\..*Re-read the note now' "$1"; }
+sed -n "${chk:-1},${wr:-1}p" "$SPEC" > "$TMP/check.txt"
+pairs_ok "$TMP/check.txt" \
+  && ok "same hash → write; different → re-read and merge" \
+  || no "the check does not pair 'same hash' with the write and 'different' with the re-read"
+sed 's/\*\*Same hash\*\* → write\. \*\*Different\*\* →/**Different hash** → write. **Same** →/' "$TMP/check.txt" > "$TMP/swapped.txt"
+if cmp -s "$TMP/check.txt" "$TMP/swapped.txt"; then
+  no "MUTANT: could not build the swapped-branches copy"
+else
+  pairs_ok "$TMP/swapped.txt" \
+    && no "MUTANT: swapping the branches still passes — the pairing check proves nothing" \
+    || ok "MUTANT: swapping the branches is caught"
+fi
+grep -q 'as the call \*\*immediately before\*\* `write_note`' "$TMP/check.txt" \
+  && ok "the re-check is the call right before the write (smallest window)" \
+  || no "the re-check is not pinned to right before the write"
+grep -q 'it does not close it' "$TMP/check.txt" \
+  && ok "the spec says plainly that the window shrinks and does not close" \
+  || no "the spec promises more than a hash check can give"
 grep -q '^- \*\*Never re-read files\*\* after Message 1b.*One exception: today.s note itself' "$SPEC" \
   && ok "'Never re-read files' names the exception" \
   || no "'Never re-read files' still forbids the re-read the check needs"
