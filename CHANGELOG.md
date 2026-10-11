@@ -80,7 +80,7 @@
 
 ## 2026-10-11 — Four hook calls in /close-day and /aios:housekeeping run in a sandboxed session
 
-`hash: `
+`hash: ` · [#205](https://github.com/The-AIOS/aios/pull/205)
 
 > **What you can now do.** Run `/close-day` and `/aios:housekeeping` from a sandboxed session and get the context-load audit, the context-ladder measurement and the session-insights excisions instead of an empty answer.
 
