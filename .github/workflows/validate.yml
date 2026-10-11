@@ -107,6 +107,9 @@ jobs:
           # logic answers differently on that same input — so neither can pass vacuously.
           bash tests/close-session-idempotency.test.sh
           echo "OK: the duplicate branch is reachable and the fix is falsifiable"
+      - name: close-session resumes a run cut after the append, and counts uncommitted work
+        # The stamp lands at step 5 and routing runs at 6-10: a run cut in between must not read as a duplicate and skip observed-context routing forever.
+        run: bash tests/close-session-resume.test.sh
 
       - name: CLAUDE.md integrity — § references resolve, pinned literals present
         run: |
