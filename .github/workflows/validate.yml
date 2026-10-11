@@ -1736,6 +1736,15 @@ jobs:
       - name: motion-lab instruments (contract lint always; frame checks where Pillow/ffmpeg/a browser exist)
         run: bash tests/motion-lab.test.sh
 
+      - name: issue-scrub keeps the vault out of an upstream issue (planted-name test)
+        run: bash tests/issue-scrub.test.sh
+
+      - name: install-settings wires SETUP's hooks without a JSON prompt, and matches SETUP verbatim
+        run: bash tests/install-settings.test.sh
+
+      - name: SETUP's sparse-checkout leaves tests/ out of an operator clone, reversibly
+        run: bash tests/operator-clone-slim.test.sh
+
       - name: every tracked file passes the secret scanner
         # THE GAP THIS CLOSES. tests/secret-scan.test.sh proves the scanner behaves
         # correctly on FIXTURES. Nothing ran it across the tracked tree — so canonical
