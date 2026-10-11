@@ -89,7 +89,9 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 line=$(grep -m1 'uv run ~/aios/hooks/route-insight.py' plugins/aios/commands/close-day.md | sed 's/^[[:space:]]*//')
-inv=$(printf '%s' "$line" | sed 's|\(route-insight\.py\).*|\1|; s|~/aios/|'"$REPO"'/|')
+# `~/aios/` becomes "$AIOS_REPO"/ — expanded by the child shell from its environment, quoted, so
+# a checkout path with spaces stays one argument. Splicing $REPO into the program text would not.
+inv=$(printf '%s' "$line" | sed 's|\(route-insight\.py\).*|\1|; s|~/aios/|"$AIOS_REPO"/|')
 case "$inv" in
   UV_CACHE_DIR=*) ok "close-day prescribes route-insight with UV_CACHE_DIR" ;;
   *) no "close-day prescribes route-insight without UV_CACHE_DIR" "$line" ;;
@@ -99,16 +101,20 @@ FAKE="$TMP/home"; mkdir -p "$FAKE/.cache"; chmod 500 "$FAKE/.cache"
 bare=$(printf '%s' "$inv" | sed 's|^UV_CACHE_DIR=[^ ]* ||')
 
 out_ctl="$TMP/ctl.out"
-env -u UV_CACHE_DIR -u XDG_CACHE_HOME HOME="$FAKE" TMPDIR="$TMP" sh -c "$bare --help" >"$out_ctl" 2>/dev/null
+env -u UV_CACHE_DIR -u XDG_CACHE_HOME AIOS_REPO="$REPO" HOME="$FAKE" TMPDIR="$TMP" sh -c "$bare --help" >"$out_ctl" 2>"$TMP/ctl.err"
+# Empty stdout alone is not the condition: a mangled path or a missing script is empty too.
+# The control counts only when uv itself says it could not use its cache.
 if [ -s "$out_ctl" ]; then
   no "CONTROL: bare 'uv run' should fail against an unwritable cache" \
      "it produced output — this environment does not reproduce the condition"
+elif grep -qi 'cache' "$TMP/ctl.err"; then
+  ok "CONTROL: bare 'uv run' fails on the unwritable cache, and says so"
 else
-  ok "CONTROL: bare 'uv run' emits nothing when ~/.cache/uv is unwritable"
+  no "CONTROL: bare 'uv run' failed for another reason" "$(head -2 "$TMP/ctl.err")"
 fi
 
 out_fix="$TMP/fix.out"
-env -u UV_CACHE_DIR -u XDG_CACHE_HOME HOME="$FAKE" TMPDIR="$TMP" sh -c "$inv --help" >"$out_fix" 2>"$TMP/fix.err"
+env -u UV_CACHE_DIR -u XDG_CACHE_HOME AIOS_REPO="$REPO" HOME="$FAKE" TMPDIR="$TMP" sh -c "$inv --help" >"$out_fix" 2>"$TMP/fix.err"
 if grep -q 'usage: route-insight' "$out_fix"; then
   ok "the prescribed line runs against an unwritable cache"
 else
