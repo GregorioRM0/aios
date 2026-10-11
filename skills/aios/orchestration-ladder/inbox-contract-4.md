@@ -71,6 +71,29 @@ person at a terminal and an agent writing a request get the same worker. Both wr
 (`install-wrappers.sh` / `.ps1`: `-Effort`, `-Advisor`), so a surface that spawns through the
 wrapper can honour both fields and stamp contract 4 once it does.
 
+## Amendment AI-205 — a send waits for its target's next idle
+
+A `send` is never typed into a session that is mid-turn (the text would be dropped), and it used to
+dead-letter after a 30-minute hold while the target stayed busy. Under this amendment:
+
+- **A live but busy target → hold.** The send waits for the target's next idle, up to a **24 h
+  ceiling**; past it, the request is undeliverable. A target that is **gone** (no registry entry) is
+  undeliverable at once.
+- **Oldest first, per target.** Held sends to the same session are delivered in `queuedAt` order;
+  sends to other sessions never block each other.
+- **Newer from the same sender supersedes.** When two held sends to one target carry the same
+  `from`, the older is retired quietly (not dead-lettered) and the newer does not wait behind it.
+  Different senders, or no `from`, keep their order and nothing is superseded.
+- **Delivered with its age.** A send that waited more than **2 minutes** is typed as
+  `[queued 47 min ago by <from>] <text>` (minutes under 2 hours, then hours: `[queued 3 h ago]`;
+  ` by <from>` only when `from` is present). A slash command is never stamped — the prefix would turn
+  it into plain text.
+- The 30-minute verification window after typing runs from the **first** type, so a send that
+  queued for hours still gets all of it.
+
+Conformance: `inbox-queue.conformance.json` (13 cases), run by both surfaces and by
+`tests/inbox-contract-4.test.sh` against a reference implementation.
+
 ## Conformance
 
 `inbox-contract-4.conformance.json` is the one fixture both surfaces run. Each case gives a

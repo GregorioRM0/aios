@@ -38,5 +38,36 @@ while IFS= read -r line; do
   k="${line%% *}"; v="${line#* }"
   [ "$v" = ok ] && ok "$k agrees" || no "$k" "$v"
 done <<< "$out"
+echo "── AI-205 queue fixture: every case passes a reference implementation of the amendment ──"
+cat > "$T/queue.py" <<'PY'
+import json, re, sys
+d = json.load(open(sys.argv[1], encoding="utf-8")); CEIL = 24 * 3600 * 1000; STAMP = 2 * 60 * 1000
+def decide(c):
+    t = c["target"]
+    if t is None or c["heldMs"] > CEIL: return "undeliverable"
+    return "hold" if t.get("status") == "busy" else "deliver"
+def queue(c):
+    me = c["me"]; same = [h for h in c["held"] if h["target"] == me["target"]]
+    newer = lambda a, b: a["queuedAt"] > b["queuedAt"]
+    for h in same:
+        if me.get("from") and h.get("from") == me["from"] and newer(h, me): return {"do": "superseded", "by": h["key"]}
+    live = [h for h in same if not (h.get("from") and any(o.get("from") == h["from"] and newer(o, h) for o in same + [me]))]
+    ahead = sorted([h for h in live if h["queuedAt"] < me["queuedAt"]], key=lambda h: h["queuedAt"])
+    return {"do": "wait", "behind": ahead[0]["key"]} if ahead else {"do": "go"}
+def stamp(c):
+    text, w, frm = c["text"], c["waitedMs"], c.get("from")
+    if w < STAMP or re.match(r"^\s*/", text): return text
+    m = round(w / 60000); age = "%d h" % round(m / 60) if m >= 120 else "%d min" % m
+    return "[queued %s ago%s] %s" % (age, " by " + frm if frm else "", text)
+bad = []
+for c in d["cases"]:
+    got = decide(c["decideSend"]) if "decideSend" in c else queue(c["queue"]) if "queue" in c else stamp(c["stamp"])
+    if got != c["expect"]: bad.append("%s: got %r" % (c["case"], got))
+print("QUEUE", "ok" if not bad and len(d["cases"]) >= 13 else "; ".join(bad) or "too few cases")
+PY
+line=$($PYBIN "$T/queue.py" "$D/inbox-queue.conformance.json"); v="${line#* }"
+[ "$v" = ok ] && ok "all AI-205 queue cases pass the reference" || no "queue fixture" "$v"
+grep -F 'AI-205' "$D/inbox-contract-4.md" >/dev/null && ok "the contract text references AI-205" || no "contract does not reference AI-205"
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
-[ "$FAIL" = 0 ] && [ "$PASS" -ge 5 ]
+[ "$FAIL" = 0 ] && [ "$PASS" -ge 7 ]
