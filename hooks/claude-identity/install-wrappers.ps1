@@ -307,7 +307,7 @@ function spawn {
         # -Effort low|medium|high|xhigh|max -- the worker's effort (Claude Code's --effort).
         [ValidateSet('low','medium','high','xhigh','max')] [string] $Effort,
         # -Advisor <rung|model> -- an advisor model for the worker; a rung resolves like -Tier,
-        # anything else is a model id. No rung has a default advisor. MODEL-ROUTING § Advisor.
+        # anything else is a model id. No rung has a default advisor. MODEL-ROUTING.md, section "The advisor".
         [string] $Advisor
     )
 
@@ -519,7 +519,7 @@ function spawn {
     $taskFile = Join-Path $env:TEMP "spawn-task-$Name.md"
     Set-Content -Path $taskFile -Value ($taskPreamble + "`n" + $Task) -Encoding UTF8
     # An ADVISED worker on a Sonnet- or Haiku-class model gets a consult instruction: unprompted,
-    # those executors almost never call the advisor (MODEL-ROUTING.md § The advisor). Opus and
+    # those executors almost never call the advisor (MODEL-ROUTING.md, section "The advisor"). Opus and
     # Fable call it well on their own, and the instruction lowered their pass rates.
     if ($spawnAdvisor -and ($spawnModel -match 'sonnet|haiku')) {
         $advisorBlock = @(

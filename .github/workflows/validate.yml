@@ -1748,6 +1748,9 @@ jobs:
       - name: inbox contract 4 — fixture parses; advisor rungs agree across spec, fixture and both wrappers
         run: bash tests/inbox-contract-4.test.sh
 
+      - name: every .ps1 is ASCII or carries a BOM (Windows PowerShell 5.1 reads BOM-less files as ANSI)
+        run: bash tests/ps1-encoding.test.sh
+
       - name: every tracked file passes the secret scanner
         # THE GAP THIS CLOSES. tests/secret-scan.test.sh proves the scanner behaves
         # correctly on FIXTURES. Nothing ran it across the tracked tree — so canonical
