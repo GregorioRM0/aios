@@ -1733,6 +1733,9 @@ jobs:
       - name: no pipefail suite pipes into grep -q (SIGPIPE turns a match into "not found")
         run: bash tests/no-grep-q-after-pipe.test.sh
 
+      - name: motion-lab instruments (contract lint always; frame checks where Pillow/ffmpeg/a browser exist)
+        run: bash tests/motion-lab.test.sh
+
       - name: every tracked file passes the secret scanner
         # THE GAP THIS CLOSES. tests/secret-scan.test.sh proves the scanner behaves
         # correctly on FIXTURES. Nothing ran it across the tracked tree — so canonical

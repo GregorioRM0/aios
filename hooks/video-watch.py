@@ -616,10 +616,13 @@ def emit_manifest(frames, segments, workdir, a, verbose):
     """Manifest mode: write the deduped frame list + a ready-to-run caption
     prompt so an interactive Claude session can act as the vision reader."""
     manifest = [{"index": i, "time": f["time"], "path": f["path"]} for i, f in enumerate(frames)]
-    mpath = os.path.join(os.getcwd(), "video-watch-manifest.json")
+    # Beside --out when given, else in the work dir that holds the frames it lists -- never the
+    # cwd: run from a repo root, the cwd version left two untracked files in that repo.
+    base = os.path.dirname(os.path.abspath(a.out)) if a.out else workdir
+    mpath = os.path.join(base, "video-watch-manifest.json")
     with open(mpath, "w", encoding="utf-8") as f:
         json.dump({"frames": manifest, "segments": segments}, f, indent=2)
-    ppath = os.path.join(os.getcwd(), "video-watch-caption-prompt.txt")
+    ppath = os.path.join(base, "video-watch-caption-prompt.txt")
     with open(ppath, "w", encoding="utf-8") as f:
         f.write(build_caption_prompt(manifest, segments))
     print(f"  manifest mode → {mpath}\n  caption prompt → {ppath}")

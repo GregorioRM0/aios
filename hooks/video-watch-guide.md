@@ -132,3 +132,5 @@ This was reviewed with an **Inversion premortem** ("it's 6 months later and it b
 ---
 
 *Built for AIOS, 2026-06-20. Companion to the operator's project note `infra-video-comprehension`. The capability is one script (`hooks/video-watch.py`) plus the Apple Vision OCR helper.*
+
+**Not for reviewing your own motion.** This reads other people's films, which are cut-heavy, and it drops near-duplicate frames on purpose. A piece you made yourself is continuous motion, where the error lives in the difference between two adjacent frames: render the frames from source with `hooks/motion-render.py` and check them with `hooks/motion-check.py` (skill: `motion-lab`). Measured on an 8 s loop: 0 scene cuts, and 1 frame of 480 extracted.
