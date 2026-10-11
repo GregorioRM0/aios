@@ -615,7 +615,7 @@ For each entry in `## Reinforced` section of `session-insights.md`:
    - Write the entry to each target file under the appropriate section (use the entry's content + evidence + cross-references to existing sections)
    - **Remove the entry from `## Reinforced` using the surgical excision helper** (do NOT hand-edit multi-line buffer blocks — it's fragile and risks corrupting the compounding file):
      ```bash
-     uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
+     UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
        --match "<unique substring of the entry line — a `### ` heading OR a top-level `- ` bullet>" \
        --marker "<!-- ROUTED {date} (Tier A): {title} → [[{target}]]. Removed from buffer post-route. -->"
      ```
@@ -703,7 +703,7 @@ For each Tier B file (`growth.md`, `profile.md`, `ecosystem.md`):
 1. **Reinforce** — for each Emerging entry that got a **2nd instance today** (a session block / meeting / observation that confirms it), promote it to `## Reinforced` with a `Route to:` tag. If it's clearly route-ready now, route it this pass via the Tier-A helper; otherwise it routes next close-day.
 2. **Expire** — for each remaining Emerging entry, apply the **inverse substance bar** (an entry expires only if ALL hold): (a) **age** — older than ~2 weeks / unreferenced across the last several close-days (don't expire fresh entries that haven't had a chance to reinforce); (b) **no 2nd instance** ever landed; (c) **wouldn't matter in 90 days** (fails the timeline test); (d) **not essential** — nothing real is lost. Expire via the surgical helper with an EXPIRED trail marker:
    ```bash
-   uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
+   UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
      --match "<unique substring of the entry line — a `### ` heading OR a top-level `- ` bullet>" \
      --marker "<!-- EXPIRED {date}: never reinforced, fails inverse substance bar (age + no-2nd-instance + not-90-day-relevant). -->"
    ```

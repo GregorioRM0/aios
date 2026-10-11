@@ -78,6 +78,16 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-11 — Four hook calls in /close-day and /aios:housekeeping run in a sandboxed session
+
+`hash: `
+
+> **What you can now do.** Run `/close-day` and `/aios:housekeeping` from a sandboxed session and get the context-load audit, the context-ladder measurement and the session-insights excisions instead of an empty answer.
+
+**Four `uv run` lines had lost their cache directory.** A sandboxed Bash tool may write only the vault and `$TMPDIR`, and `uv` wants `~/.cache/uv`, so a bare `uv run` fails before the script starts. `CLAUDE.md` answers this with `UV_CACHE_DIR`, and most calls in the commands carry it. Four did not: the context-load audit (Bucket 30) and the context-ladder measurement (Bucket 31) in `/aios:housekeeping`, and both `route-insight.py` excisions in `/close-day`. They now carry it. A new test scans every fenced command line in the commands for a bare `uv run`, so the next one is caught when it is written. Calls whose bare form is pinned in the command's own `allowed-tools` (the `page-fit` check in `/aios:learned` and `/aios:weekly-learnings`) are left as they are, because prefixing them would stop matching their permission.
+
+**Action required:** none.
+
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 
 `hash: 485cc93 · 21fe7af · 93f5251 · 0a9f95a · b3361cf · e629066 · 99a3bb2 · 4c8099f · 5ed1023 · 642542b · 408aa87 · 90f0751 · 1c62258 · 7e4d865 · 7c8e2e3 · 0a4cdc2` · [#192](https://github.com/The-AIOS/aios/pull/192) · [#193](https://github.com/The-AIOS/aios/pull/193) · [#196](https://github.com/The-AIOS/aios/issues/196) · [#197](https://github.com/The-AIOS/aios/issues/197) · [#198](https://github.com/The-AIOS/aios/issues/198) · [#201](https://github.com/The-AIOS/aios/pull/201) · [#202](https://github.com/The-AIOS/aios/pull/202)
