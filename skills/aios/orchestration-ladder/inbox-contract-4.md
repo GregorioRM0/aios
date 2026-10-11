@@ -1,10 +1,10 @@
-# Spawn-inbox contract 4 — DRAFT
+# Spawn-inbox contract 4
 
-> **Status: draft, building in v0.8.9.** Contract 3 stays in force until both surfaces implement
-> this and stamp `aios-spawn-inbox: contract 4` in `~/.aios/spawn-inbox/README.md`. Until then a
-> session must not rely on any field below. The verbs are unchanged; contract 4 only adds three
-> optional fields. Shapes marked **CONFIRM** are decided in name and type but their runtime
-> mechanism is verified when built.
+> **Status: canonical half shipped in v0.8.9** — this spec, its conformance fixture
+> (`inbox-contract-4.conformance.json`, checked by `tests/inbox-contract-4.test.sh`), and the
+> `--effort` / `--advisor` flags on both spawn wrappers. Contract 3 stays in force until a surface
+> implements the fields and stamps `aios-spawn-inbox: contract 4` in `~/.aios/spawn-inbox/README.md`;
+> until then a session must not rely on any field below. The verbs are unchanged.
 
 ## What changes
 
@@ -37,20 +37,39 @@ working.
 - On `resume` of a session that is already running, `effort` cannot change a live process: the
   prompt is delivered and the dead-letter note says the effort was not applied.
 
-### `advisor` — CONFIRM
+### `advisor`
 
-- A rung name (`frontier`, `judgment`, `scale`, `fast`) is resolved with `hooks/resolve-tier`;
-  anything else is taken as a model id.
-- Mechanism: Claude Code reads an `advisorModel` setting, so the surface passes
-  `claude --settings '{"advisorModel":"<id>"}'`. **CONFIRM** against the installed version when
-  built; there is no `--advisor` CLI flag.
+- A rung name resolves to a fixed advisor model — **not** through `hooks/resolve-tier`, which
+  answers `judgment` with an empty string (inherit the default), and an empty advisor names nothing:
+
+  | rung | advisor model |
+  |---|---|
+  | `frontier` | `claude-fable-5-1` |
+  | `judgment` | `claude-opus-5-5` |
+  | `scale` | `claude-sonnet-5-5` |
+  | `fast` | `claude-haiku-5-5` |
+
+  Anything else is taken as a model id, and must match `^[A-Za-z0-9._\[\]-]+$` (it is written
+  into JSON); any other value is **dead-lettered naming the field**.
+- Mechanism (confirmed against Claude Code 2.1.296): the surface passes
+  `claude --settings <file>` where the file holds `{"advisorModel":"<id>"}`. A **file**, not inline
+  JSON, because the Windows `.cmd` shim mangles quotes inside an argument; create it with a unique
+  name (never a fixed path in a shared temp folder). The CLI also has a hidden `--advisor <model>`
+  flag (not in `--help`); `--settings` is the documented route and the one this contract specifies.
+- A bad pairing is quiet: the advisor must rank at or above the worker's model, and when it does not
+  the session starts anyway, prints one stderr line saying the advisor *cannot advise* that model, and
+  runs with no advisor. Surface that line.
+- For a worker on a Sonnet- or Haiku-class model, append the consult instruction to its task (as
+  `spawn --advisor` does; see MODEL-ROUTING.md § The advisor). Never for Opus or Fable workers.
 - No rung has a default advisor. Routines that must never call one set
   `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1`.
 
 ## Command-line twins
 
 `spawn --effort <level>` and `spawn --advisor <rung|model>` map to the same two fields, so a
-person at a terminal and an agent writing a request get the same worker.
+person at a terminal and an agent writing a request get the same worker. Both wrappers carry them
+(`install-wrappers.sh` / `.ps1`: `-Effort`, `-Advisor`), so a surface that spawns through the
+wrapper can honour both fields and stamp contract 4 once it does.
 
 ## Conformance
 

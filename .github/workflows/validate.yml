@@ -1745,6 +1745,9 @@ jobs:
       - name: SETUP's sparse-checkout leaves tests/ out of an operator clone, reversibly
         run: bash tests/operator-clone-slim.test.sh
 
+      - name: inbox contract 4 — fixture parses; advisor rungs agree across spec, fixture and both wrappers
+        run: bash tests/inbox-contract-4.test.sh
+
       - name: every tracked file passes the secret scanner
         # THE GAP THIS CLOSES. tests/secret-scan.test.sh proves the scanner behaves
         # correctly on FIXTURES. Nothing ran it across the tracked tree — so canonical
