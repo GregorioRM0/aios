@@ -195,10 +195,15 @@ def main():
         backup = path + ".bak-aios-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         shutil.copy2(path, backup)
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # Keep the file's permissions: settings.json can hold tokens and is often 0600. A temp file is
+    # created with the default umask (typically 0644), so without this the replace would loosen it.
+    mode = (os.stat(path).st_mode & 0o777) if os.path.exists(path) else 0o600
     tmp = path + ".aios-tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2, ensure_ascii=False)
         f.write("\n")
+    os.chmod(tmp, mode)
     os.replace(tmp, path)
     try:
         with open(path, encoding="utf-8") as f:

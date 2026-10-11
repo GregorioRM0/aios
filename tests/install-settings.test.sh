@@ -54,6 +54,13 @@ mkdir -p "$T/aios/vault/00 - notes/context/ventures/acme"; : > "$T/aios/vault/00
 rm -f "$S"; run --platform posix --apply >/dev/null
 grep 'guard-venture-mount' "$S" >/dev/null && ok "a mounted company brings in the venture guard (C)" || no "venture guard not added with a mount"
 
+rm -f "$S"; printf '{}' > "$S"; chmod 600 "$S"; run --platform posix --apply >/dev/null
+perm=$($PYBIN -c 'import os,sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777))' "$S")
+[ "$perm" = "0o600" ] && ok "a 0600 settings.json stays 0600 after --apply" || no "permissions loosened to $perm"
+rm -f "$S"; run --platform posix --apply >/dev/null
+perm=$($PYBIN -c 'import os,sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777))' "$S")
+[ "$perm" = "0o600" ] && ok "a new settings.json is created 0600" || no "new file created $perm"
+
 echo "── parity: every command written is one SETUP §10 prints ──"
 for plat in posix windows; do
   rm -f "$S"; AIOS_WIN_PYTHON=python AIOS_ROOT="C:/Users/<you>/aios" $PYBIN "$H" --settings "$S" --platform $plat --apply >/dev/null

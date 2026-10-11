@@ -142,7 +142,7 @@ if [ "$outc" = "$(cat "$T/clean.md")" ]; then ok "technical text passes through 
 else no "the control was altered" "$(diff <(printf '%s\n' "$outc") "$T/clean.md" | head -8)"; fi
 $PYBIN "$H" --root "$F" --check "$T/clean.md" 2>/dev/null; rc=$?
 [ "$rc" = 0 ] && ok "--check exits 0 on clean text" || no "--check on clean exit $rc"
-case "$(cat "$T/errc")" in *"redacted: 0 paths, 0 vault paths, 0 vault links, 0 vault quotes, 0 names"*) ok "clean text reports zero redactions" ;; *) no "clean text reported redactions" "$(cat "$T/errc")" ;; esac
+case "$(cat "$T/errc")" in *"redacted: 0 normalised, 0 paths, 0 vault paths, 0 vault links, 0 vault quotes, 0 names"*) ok "clean text reports zero redactions" ;; *) no "clean text reported redactions" "$(cat "$T/errc")" ;; esac
 
 echo "── contract ──"
 $PYBIN "$H" --root "$F" "$T/does-not-exist.md" >/dev/null 2>&1; rc=$?
@@ -154,6 +154,14 @@ e="$(printf 'nothing here\n' | $PYBIN "$H" --root "$T/empty-root" 2>&1 >/dev/nul
 case "$e" in *"no private context files found"*) ok "an empty root says the quote check had nothing to read" ;; *) no "empty root was silent about missing context" "$e" ;; esac
 u="$(printf 'caf\303\251 \342\200\224 na\303\257ve\n' | $PYBIN "$H" --root "$F" 2>/dev/null)"
 [ "$u" = "$(printf 'caf\303\251 \342\200\224 na\303\257ve')" ] && ok "UTF-8 text round-trips" || no "UTF-8 mangled" "$u"
+
+echo "── names written the way GitHub renders them, not the way a regex reads them ──"
+# The security review's bypass class: text that renders as a name on GitHub while matching no
+# pattern -- a zero-width character inside it, HTML entities, intraword emphasis, fullwidth letters.
+for v in "Zed$(printf '\342\200\213')ekiah" "Z&#101;dekiah" "Zede**kiah**" "$(printf '\357\274\272')edekiah"; do
+  out=$(printf 'reported by %s today\n' "$v" | $PYBIN "$H" --root "$F" --term Zedekiah 2>/dev/null)
+  case "$out" in *edekiah*|*kiah*) no "a rendered name survived: $(printf '%s' "$v" | od -c | head -1)" "$out" ;; *) ok "redacted: $(printf '%s' "$v" | LC_ALL=C tr -c '[:print:]' '?')" ;; esac
+done
 
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

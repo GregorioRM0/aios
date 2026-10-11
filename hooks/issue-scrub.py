@@ -52,11 +52,13 @@ EXIT CODES
 Stdlib only. Runs on macOS, Linux and Windows.
 """
 import argparse
+import html
 import json
 import os
 import re
 import subprocess
 import sys
+import unicodedata
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
@@ -256,16 +258,36 @@ def framework_names(root):
 
 class Scrubber:
     def __init__(self, terms, shingles, fw_names):
-        self.counts = {k: 0 for k in ("paths", "vault", "links", "quotes", "names", "emails", "ids", "secrets")}
+        self.counts = {k: 0 for k in ("hidden", "paths", "vault", "links", "quotes", "names", "emails", "ids", "secrets")}
         self.removed = []
         self.terms = terms
         self.shingles = shingles
         self.fw = fw_names
         ordered = sorted(terms, key=len, reverse=True)
         self.term_re = re.compile(
-            r"(?<![\w@-])(" + "|".join(re.escape(t) for t in ordered) + r")(?![\w@-])", re.I
+            r"(?<![\w@-])(" + "|".join(self._spread(t) for t in ordered) + r")(?![\w@-])", re.I
         ) if ordered else None
         self.lower = {t.lower(): r for t, r in terms.items()}
+
+    @staticmethod
+    def _spread(term):
+        # Markdown emphasis inside a word still renders as the word: `Jo**hn**` shows "John" on
+        # GitHub. Allow up to three emphasis/code marks between any two characters of a name.
+        return r"[*_~`]{0,3}".join(re.escape(ch) for ch in term)
+
+    def canon(self, text):
+        """Make the text read the way GitHub will render it, BEFORE matching. Otherwise a name split
+        by a zero-width character, written as HTML entities (`J&#111;hn`) or in compatibility forms
+        (fullwidth letters) passes every pattern here and still renders as the name."""
+        before = text
+        text = html.unescape(text)
+        text = unicodedata.normalize("NFKC", text)
+        hidden = sum(1 for ch in text if unicodedata.category(ch) == "Cf")
+        text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+        if text != before:
+            self.counts["hidden"] += max(1, hidden)
+            self.removed.append(("hidden", "entities / invisible or compatibility characters normalised"))
+        return text
 
     def _hit(self, kind, original, placeholder):
         self.counts[kind] += 1
@@ -321,10 +343,13 @@ class Scrubber:
     def names(self, text):
         if not self.term_re:
             return text
-        return self.term_re.sub(
-            lambda m: self._hit("names", m.group(0), self.lower.get(m.group(0).lower(), "<name redacted>")), text)
+        def repl(m):
+            bare = re.sub(r"[*_~`]", "", m.group(0)).lower()
+            return self._hit("names", m.group(0), self.lower.get(bare, "<name redacted>"))
+        return self.term_re.sub(repl, text)
 
     def run(self, text):
+        text = self.canon(text)
         for rx in SECRET_RES:
             text = self.sub(rx, text, "secrets", "<secret redacted>")
         text = KV_SECRET.sub(lambda m: m.group(1) + self._hit("secrets", m.group(0), "<secret redacted>"), text)
@@ -345,7 +370,7 @@ class Scrubber:
 
 
 def summary(counts, n_terms, n_shingles):
-    parts = [f"{counts['paths']} paths", f"{counts['vault']} vault paths", f"{counts['links']} vault links",
+    parts = [f"{counts['hidden']} normalised", f"{counts['paths']} paths", f"{counts['vault']} vault paths", f"{counts['links']} vault links",
              f"{counts['quotes']} vault quotes", f"{counts['names']} names", f"{counts['emails']} emails",
              f"{counts['ids']} ids", f"{counts['secrets']} secrets"]
     ctx = f"names loaded: {n_terms}" + ("" if n_shingles else "; no private context files found for quote check")
