@@ -182,5 +182,12 @@ grep 'REFUSED' "$T/disg.err" >/dev/null && ok "the refusal says why" || no "no r
 printf 'the ticket mentions zedekiahs and a protozoan\n' | $PYBIN "$H" --root "$F" --term Zedekiah >/dev/null 2>&1; rc=$?
 [ "$rc" = 0 ] && ok "a longer word that merely contains a name is not refused" || no "false refusal on a containing word (rc=$rc)"
 
+printf "thanks Zede<span\nx>kiah's work\n" | $PYBIN "$H" --root "$F" --term Zedekiah >/dev/null 2>&1; rc=$?
+[ "$rc" = 3 ] && ok "a disguised name followed by a suffix (kiah's) is refused" || no "suffix hid a disguised name (rc=$rc)"
+printf 'ask B<span\nx>o about it\n' | $PYBIN "$H" --root "$F" --term Bo >/dev/null 2>&1; rc=$?
+[ "$rc" = 3 ] && ok "a short name (2 letters) is checked too" || no "short disguised name passed (rc=$rc)"
+printf 'Bob and Bonnie went home\n' | $PYBIN "$H" --root "$F" --term Bo >/dev/null 2>&1; rc=$?
+[ "$rc" = 0 ] && ok "a short name is not refused inside other words" || no "short name falsely refused (rc=$rc)"
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

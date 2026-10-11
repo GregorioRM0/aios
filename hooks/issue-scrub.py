@@ -161,9 +161,11 @@ def load_terms(root, extra):
     """Return {term: placeholder} from the operator's own files. Missing files are fine."""
     terms = {}
 
-    def add(term, role):
+    def add(term, role, explicit=False):
         term = (term or "").strip().strip("`*\"' ")
-        if not term or "{{" in term or len(term) < 3 or term.lower() in STOP:
+        # The length floor and stoplist filter noise out of names MINED from vault tables. A name
+        # the operator passed by hand (--term / --terms-file) is a decision, never filtered.
+        if not term or (not explicit and ("{{" in term or len(term) < 3 or term.lower() in STOP)):
             return
         terms.setdefault(term, role)
 
@@ -225,7 +227,7 @@ def load_terms(root, extra):
         pass
 
     for t in extra:
-        add(t, "<name redacted>")
+        add(t, "<name redacted>", explicit=True)
     return terms
 
 
@@ -389,7 +391,10 @@ class Scrubber:
         text = norm(text)
         text = re.sub(r"<[^<>]*>", "", text)                 # inline HTML, even across lines
         text = re.sub(r"\]\([^()]*\)", "]", text)            # link targets
-        text = "".join(ch if (ch.isalnum() or ch.isspace()) else "" for ch in text)
+        text = re.sub(r"[*_~`\[\]]", "", text)                 # markup: invisible when rendered
+        # Every other mark is visible and separates words (`kiah's` reads as "kiah s"), so it
+        # becomes a break -- dropping it would glue a suffix on and hide the name from the match.
+        text = "".join(ch if (ch.isalnum() or ch.isspace()) else " " for ch in text)
         return " ".join(text.lower().split())
 
     def residual(self, clean):
@@ -398,7 +403,9 @@ class Scrubber:
         left = []
         for t in self.terms:
             st = self.skeleton(t)
-            if len(st.replace(" ", "")) >= 4 and (" " + st + " ") in sk:
+            # No length floor: the main pass already replaced every plain-text occurrence, so a
+            # whole-word hit here is a disguised one, however short the name.
+            if st and (" " + st + " ") in sk:
                 left.append(t)
         return left
 
