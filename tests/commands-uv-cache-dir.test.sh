@@ -102,16 +102,24 @@ bare=$(printf '%s' "$inv" | sed 's|^UV_CACHE_DIR=[^ ]* ||')
 
 out_ctl="$TMP/ctl.out"
 env -u UV_CACHE_DIR -u XDG_CACHE_HOME AIOS_REPO="$REPO" HOME="$FAKE" TMPDIR="$TMP" sh -c "$bare --help" >"$out_ctl" 2>"$TMP/ctl.err"
-# Empty stdout alone is not the condition: a mangled path or a missing script is empty too.
-# The control counts only when uv itself says it could not use its cache.
+rc_ctl=$?
+# Empty stdout alone is not the condition: a mangled path or a missing script is empty too, and
+# so is any error whose text merely contains a path with "cache" in it. The control counts only
+# when uv exits non-zero with its own diagnostic for a cache it could not set up.
+cache_failure(){ grep -q 'Failed to initialize cache' "$1"; }
 if [ -s "$out_ctl" ]; then
   no "CONTROL: bare 'uv run' should fail against an unwritable cache" \
      "it produced output — this environment does not reproduce the condition"
-elif grep -qi 'cache' "$TMP/ctl.err"; then
-  ok "CONTROL: bare 'uv run' fails on the unwritable cache, and says so"
+elif [ "$rc_ctl" -ne 0 ] && cache_failure "$TMP/ctl.err"; then
+  ok "CONTROL: bare 'uv run' fails on the unwritable cache (exit $rc_ctl), and uv says so"
 else
-  no "CONTROL: bare 'uv run' failed for another reason" "$(head -2 "$TMP/ctl.err")"
+  no "CONTROL: bare 'uv run' failed for another reason" "exit $rc_ctl: $(head -2 "$TMP/ctl.err")"
 fi
+# The predicate itself must not accept an unrelated error that happens to say "cache".
+printf "error: Failed to spawn: \`/tmp/cache-checkout/hooks/route-insight.py\`\n  Caused by: No such file or directory\n" > "$TMP/decoy.err"
+cache_failure "$TMP/decoy.err" \
+  && no "CONTROL predicate accepts a missing-file error whose path says 'cache'" \
+  || ok "CONTROL predicate rejects a missing-file error whose path says 'cache'"
 
 out_fix="$TMP/fix.out"
 env -u UV_CACHE_DIR -u XDG_CACHE_HOME AIOS_REPO="$REPO" HOME="$FAKE" TMPDIR="$TMP" sh -c "$inv --help" >"$out_fix" 2>"$TMP/fix.err"
