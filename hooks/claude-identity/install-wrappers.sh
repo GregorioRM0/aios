@@ -221,8 +221,10 @@ _claude_with_respawn() {
   local -a effort_args=() advisor_args=()
   [ -n "$CLAUDE_EFFORT" ] && effort_args=(--effort "$CLAUDE_EFFORT")
   if [ -n "$CLAUDE_ADVISOR_MODEL" ]; then
-    local _adv="${TMPDIR:-/tmp}/aios-advisor-$name.json"
-    printf '{"advisorModel":"%s"}\n' "$CLAUDE_ADVISOR_MODEL" > "$_adv" && advisor_args=(--settings "$_adv")
+    # mktemp, not a predictable name: a fixed path in a shared /tmp can be pre-created or
+    # symlinked by another user. The id is validated in spawn() before it gets here.
+    local _adv; _adv="$(mktemp "${TMPDIR:-/tmp}/aios-advisor-XXXXXX")" \
+      && printf '{"advisorModel":"%s"}\n' "$CLAUDE_ADVISOR_MODEL" > "$_adv" && advisor_args=(--settings "$_adv")
   fi
 
   export CLAUDE_AGENT_NAME="$name"
@@ -357,32 +359,39 @@ FITS what you were asked to do.
                                        touches. about_business.md is a ~1:100 summary of
                                        it and does NOT substitute.
 
-FIRST ACTION, before you answer or plan anything — THE MAP, whatever the task is:
-list both folders, read both `_index.md` (one line per file), then read the `###` ENTRY
-THE FLOOR, in one command:
+FIRST ACTION, before you answer or plan anything -- THE FLOOR, whatever the task is.
 
-  uv run ~/aios/hooks/context-floor.py
+If your context already holds a block that begins "CONTEXT FLOOR", the floor was
+delivered at session start (Hook E): INTENT.md, the titles of the newest entries of
+every observed/ file, and the map. Its last section names the FULL floor file -- open it
+for depth whenever a title or the work points there. If there is no such block, run it:
 
-It emits both _index.md, EVERY HEADING in both folders, THE NEWEST 5 ### ENTRIES OF
-EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries, not by file
-position, because the tail is the newest in only about 5 of 8 files -- and INTENT.md.
-One exception: a RULE LIBRARY like antifragile.md emits its meta-pattern INDEX instead
-of its newest entries, because an entry from four months ago binds exactly as hard as
-one from this week and the file's job is to fire BEFORE the mistake -- which is at the floor because it governs what
-you may DO, a different question from whether your output sounds like them, and the one
-that binds a mechanical worker hardest (least contextualised, most able to commit, push,
-send or delete). Absent the hook, glob it by hand — grep -h '^#' on
-declared/*.md, grep -h '^###' on observed/*.md, then the tail of each observed file —
-but prefer the hook: a floor assembled by hand gets done partially or skipped, and
-afterwards nothing can tell the difference.
+    UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-floor.py
+
+It WRITES the floor to a file and prints only a MAP. The map is not the floor: read the
+file it names, in parts, until its last line is "=== END OF FLOOR".
+
+The floor file holds both _index.md, EVERY HEADING in both folders, THE NEWEST 5 ###
+ENTRIES OF EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries, not
+by file position, because the tail is the newest in only about 5 of 8 files -- plus
+INTENT.md and the ventures listing. One exception: a RULE LIBRARY like antifragile.md
+gives its meta-pattern INDEX instead of its newest entries, because an entry from four
+months ago binds exactly as hard as one from this week and the file's job is to fire
+BEFORE the mistake. INTENT.md is at the floor because it governs what you may DO, a
+different question from whether your output sounds like them, and the one that binds a
+mechanical worker hardest (least contextualised, most able to commit, push, send or
+delete). Absent the hook, glob it by hand -- grep -h '^#' on declared/*.md, grep -h
+'^###' on observed/*.md, then the newest entries of each observed file -- but prefer the
+hook: a floor assembled by hand gets done partially or skipped, and afterwards nothing
+can tell the difference.
 
 The floor carries LEARNED CONTENT, not only titles. Headings tell you what exists; they
 tell you nothing the system has learned. Every close-session and close-day appends to
 observed/ — if the next session never reads what was appended, the loop does not close.
 
-It reads the TAIL because the folders are written differently: declared/ is RESTATED
+It reads the NEWEST end because the folders are written differently: declared/ is RESTATED
 (identity, rewritten in place, no newest end), observed/ ACCUMULATES (dated and
-append-ordered, so its newest end is what the last sessions wrote). The tail is BOUNDED —
+dated, so its newest entries are what the last sessions wrote). That slice is BOUNDED —
 at ten times the entries it reads the same five per file while the headings still index
 all of them. Recency is not relevance: an older entry that matters is one title away, and
 antifragile's titles are all in front of you, which is what "scan for relevant rules
@@ -578,6 +587,7 @@ spawn() {
     scale)    spawn_advisor='claude-sonnet-5-5' ;;
     fast)     spawn_advisor='claude-haiku-5-5' ;;
     -*)       echo "⚠️  spawn: --advisor needs a rung or a model id" >&2; return 1 ;;
+    *[!A-Za-z0-9._\[\]-]*) echo "⚠️  spawn: --advisor '$advisor' is not a rung or a model id" >&2; return 1 ;;
     *)        spawn_advisor="$advisor" ;;
   esac
 
