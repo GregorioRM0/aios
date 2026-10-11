@@ -122,7 +122,7 @@ def _transcribe(audio, dest_dir, model, language):
     out_txt = os.path.join(dest_dir, "transcript.txt")
     if rc != 0 or not os.path.exists(out_txt):
         _die(f"mlx-whisper failed (rc={rc}).")
-    with open(out_txt, "r") as f:
+    with open(out_txt, "r", encoding="utf-8") as f:
         return f.read()
 
 
@@ -152,7 +152,7 @@ def main():
             shutil.copy(audio, kept)
             print(f"transcribe.py: kept audio at {kept}", file=sys.stderr)
         if args.output:
-            with open(args.output, "w") as f:
+            with open(args.output, "w", encoding="utf-8") as f:
                 f.write(text)
             print(f"transcribe.py: {args.input} → {args.output} ({len(text.split())} words)", file=sys.stderr)
         else:

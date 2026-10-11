@@ -147,7 +147,7 @@ def fetch_transcript(src, is_url, transcript_path, video, workdir, verbose):
     """
     if transcript_path:
         log(f"reusing transcript: {transcript_path}", verbose=verbose)
-        with open(transcript_path) as f:
+        with open(transcript_path, encoding="utf-8") as f:
             return parse_timestamped_md(f.read())
 
     if is_url:
@@ -189,7 +189,7 @@ def transcribe_local(video, workdir, verbose):
         log(f"whisper failed: {wr.stderr.strip()[-300:]}", verbose=verbose)
         return []
     try:
-        data = json.load(open(jpath))
+        data = json.load(open(jpath, encoding="utf-8"))
     except Exception:
         return []
     segs = []
@@ -593,13 +593,13 @@ def main():
 
         out = a.out or (os.path.splitext(video)[0] + ".watch.md"
                         if not is_url else os.path.join(os.getcwd(), "video-watch-output.md"))
-        with open(out, "w") as f:
+        with open(out, "w", encoding="utf-8") as f:
             f.write(md)
         print(f"✓ wrote {out}  ({len(frames)} keyframes, reader={a.reader})")
 
         if a.json:
             jout = os.path.splitext(out)[0] + ".json"
-            with open(jout, "w") as f:
+            with open(jout, "w", encoding="utf-8") as f:
                 json.dump({"source": src, "reader": a.reader, "duration": dur,
                            "blocks": blocks}, f, indent=2)
             print(f"✓ wrote {jout}")
@@ -617,10 +617,10 @@ def emit_manifest(frames, segments, workdir, a, verbose):
     prompt so an interactive Claude session can act as the vision reader."""
     manifest = [{"index": i, "time": f["time"], "path": f["path"]} for i, f in enumerate(frames)]
     mpath = os.path.join(os.getcwd(), "video-watch-manifest.json")
-    with open(mpath, "w") as f:
+    with open(mpath, "w", encoding="utf-8") as f:
         json.dump({"frames": manifest, "segments": segments}, f, indent=2)
     ppath = os.path.join(os.getcwd(), "video-watch-caption-prompt.txt")
-    with open(ppath, "w") as f:
+    with open(ppath, "w", encoding="utf-8") as f:
         f.write(build_caption_prompt(manifest, segments))
     print(f"  manifest mode → {mpath}\n  caption prompt → {ppath}")
     print("  (an interactive session Reads each frame path and returns the JSON;")
