@@ -189,5 +189,11 @@ printf 'ask B<span\nx>o about it\n' | $PYBIN "$H" --root "$F" --term Bo >/dev/nu
 printf 'Bob and Bonnie went home\n' | $PYBIN "$H" --root "$F" --term Bo >/dev/null 2>&1; rc=$?
 [ "$rc" = 0 ] && ok "a short name is not refused inside other words" || no "short name falsely refused (rc=$rc)"
 
+for v in "Zede$(printf '\315\217')kiah" "Zede$(printf '\343\205\244')kiah" "Zede<!-- a>b -->kiah"; do
+  printf 'by %s today\n' "$v" | $PYBIN "$H" --root "$F" --term Zedekiah >/dev/null 2>&1; rc=$?
+  [ "$rc" = 3 ] || [ "$rc" = 0 -a -z "$(printf 'by %s today\n' "$v" | $PYBIN "$H" --root "$F" --term Zedekiah 2>/dev/null | grep -i kiah)" ] \
+    && ok "invisible split refused or redacted: $(printf '%s' "$v" | LC_ALL=C tr -c '[:print:]' '?')" || no "invisible split survived (rc=$rc)"
+done
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

@@ -389,7 +389,14 @@ class Scrubber:
         every mark removed. Coarser than any rendering, so a name that survives here may survive
         there; a name absent here cannot be on the page."""
         text = norm(text)
+        text = re.sub(r"<!--[\s\S]*?-->", "", text)           # comments, whatever they contain
         text = re.sub(r"<[^<>]*>", "", text)                 # inline HTML, even across lines
+        # Characters that render as nothing without being Unicode "format" characters: combining
+        # marks left on their own after NFKC (e.g. the combining grapheme joiner), Hangul fillers,
+        # the braille blank. Removed here only -- the shipped text keeps them -- so a name they
+        # split is still caught.
+        text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn"
+                       and ch not in "\u115f\u1160\u3164\uffa0\u2800")
         text = re.sub(r"\]\([^()]*\)", "]", text)            # link targets
         text = re.sub(r"[*_~`\[\]]", "", text)                 # markup: invisible when rendered
         # Every other mark is visible and separates words (`kiah's` reads as "kiah s"), so it
