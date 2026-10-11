@@ -34,8 +34,12 @@ echo "== commands commit their own paths =="
 # ── 1. today + housekeeping: named paths, no --vault ─────────────────────────
 TMP0="$(mktemp -d)"
 # Prints every aios-commit invocation in <file> that uses --vault or names no `-- "vault/` path.
+# Judged per line, so a line holding TWO invocations is refused outright: one good call on it
+# would otherwise vouch for a pathless one beside it.
 bad_calls(){
   grep -E 'hooks/aios-commit ' "$1" | grep -v '^allowed-tools:' | while IFS= read -r l; do
+    n=$(printf '%s\n' "$l" | grep -o 'hooks/aios-commit ' | wc -l | tr -d ' ')
+    [ "$n" -gt 1 ] && { printf '%s\n' "$l"; continue; }
     case "$l" in
       *--vault*) printf '%s\n' "$l" ;;
       *' -- "vault/'*) : ;;
@@ -60,6 +64,16 @@ printf '\n- `cd ~/aios && ~/aios/hooks/aios-commit -m "Daily plan {date}"`\n' >>
 [ -n "$(bad_calls "$TMP0/today-mut.md")" ] \
   && ok "MUTANT: a pathless call added beside a good one is caught" \
   || no "MUTANT: a pathless call beside a good one passes"
+# …and on the SAME line as the good one.
+sed 's|^\(- `cd ~/aios \&\& ~/aios/hooks/aios-commit -m "Daily plan {date}" -- .*\)$|\1 then `cd ~/aios \&\& ~/aios/hooks/aios-commit -m "Daily plan {date}"`|' \
+  "$C/today.md" > "$TMP0/today-mut2.md"
+if cmp -s "$C/today.md" "$TMP0/today-mut2.md"; then
+  no "MUTANT (same line) could not be built"
+else
+  [ -n "$(bad_calls "$TMP0/today-mut2.md")" ] \
+    && ok "MUTANT: a pathless call on the same line as a good one is caught" \
+    || no "MUTANT: a pathless call on the same line as a good one passes"
+fi
 
 # ── 2. close-day: own writes by name, then a sweep that says so ──────────────
 own=$(grep -n 'aios-commit -m "Close day {date}" -- "vault/' "$C/close-day.md" | head -1 | cut -d: -f1)
