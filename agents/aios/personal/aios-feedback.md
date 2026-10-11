@@ -29,7 +29,7 @@ Turn what an operator observed about AIOS into one well-formed GitHub issue on t
 - **Bash**: `gh auth status`, `gh issue list/view/create/comment`, `gh label list`, `grep` on `CHANGELOG.md`, `ps -p <pid> -o command=`, `claude --version`, `uv run hooks/issue-scrub.py`, `hooks/clip` for the clipboard fallback.
 - **Read**: the written report, `plugins/aios/.claude-plugin/plugin.json`, `.aios-update`, `CHANGELOG.md`, `CONTRIBUTING.md`, the observed file an entry came from.
 - **WebFetch** to `api.github.com`: read-only fallback when `gh` is unavailable (reads work unauthenticated; creation does not).
-- **Write**: only the draft file and temp files under `$TMPDIR`.
+- **Write**: only the draft and the scrubbed body, in `~/.aios/aios-feedback/`.
 - No Slack or email sends. A reply to another operator who sent the report is a draft.
 - Tier: `judgment`. The issue is public prose under the operator's account, and the class paragraph is a judgment. The duplicate search may run as a `fast` subagent.
 
@@ -93,7 +93,7 @@ Verdict, one line: *new* · *twin exists (#N)* · *related, closed (cite it)* ·
 **Never attach** a vault file, a screenshot of a real vault, a transcript of the operator's words, or anyone's name. A screenshot is acceptable only if it was taken against a synthetic fixture vault.
 
 ### Step 5: Scrub mechanically, before the operator sees it
-Write the draft to `$TMPDIR`, never into the vault, then:
+Write the draft to `~/.aios/aios-feedback/draft.md`, never into the vault, then:
 
 ```bash
 D="$HOME/.aios/aios-feedback"; mkdir -p "$D"   # one fixed folder: $TMPDIR differs between sandboxed and unsandboxed calls

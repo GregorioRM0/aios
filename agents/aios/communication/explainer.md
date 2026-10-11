@@ -35,7 +35,7 @@ Give comprehension debt a way to be repaid that is not a conversation. CLAUDE.md
 - **Read / Grep / Bash** — read sources; `git log` / `git diff` / `git show` for a release range; `node --check` on inline scripts; headless Chrome screenshots; a `scrollWidth` probe.
 - **Obsidian MCP (read)** — vault subjects (ingests, project notes, reflections) and their one-hop wikilinks.
 - **Write** — exactly one HTML file per run (plus nothing else in the vault).
-- **Agent** — the fresh-reader check: a `fast`-tier subagent given only the HTML.
+- **Agent** (the Agent tool, not the `spawn` command) — the fresh-reader check: a subagent on the fast model, given only the HTML.
 - **No WebFetch** unless the operator names a web source. **No Artifact publish** — publishing is outward and is the operator's call.
 
 ## Skills
@@ -100,15 +100,15 @@ Cut any section the subject does not earn. Never pad one to keep it.
 
 **Build rules:**
 - One self-contained `.html` file: inline CSS and JS, zero external requests except fonts the chosen theme requires.
-- Theme by the `infographic-builder` hierarchy (explicit reference → the venture's `design.md` → fallback). Say which theme you picked and why, with a one-line override.
+- Theme by the `infographic-builder` hierarchy (explicit reference → the venture's `design.md` → fallback). Say which theme you picked and why, with a one-line override. **The output stays self-contained:** take tokens (colours, type) from a local `design.md`, never fetch a design library, and never load a CSS framework from a CDN — where infographic-builder suggests one, write the CSS inline. No local design → your own two-theme palette, named as such.
 - Dark and light both, via CSS custom properties; honour `prefers-reduced-motion` with an honest final state for every animated element.
 - Put `<meta name="aios-discardable" content="true">` and `<meta name="aios-explainer-source" content="{path, range, or commit}">` in `<head>`. The first lets `/aios:housekeeping` propose pruning; the second keeps the view tied to its source.
 - If a component in the operator's animation library already teaches a concept, you may **embed** it (read the library's `_index.md` first). You never mint components into that library and never edit a deck. A motion worth keeping → propose it to `animation-composer`.
 
 ### 5. Verify — a build is not done until all three pass
-1. **Fidelity.** Every factual claim traces to a path, commit, or source line. Grep the HTML for unrendered template text (`${`, `{{`) and for every number; each number must appear in a source. A claim the source does not support is removed or moved to *Still open* with the words *"not confirmed by the source."*
-2. **Render.** `node --check` every inline script (strip HTML comments first). Headless Chrome screenshots in **both** themes at 1440 px and 390 px, every stepper state, plus one `--force-prefers-reduced-motion` pass. Probe `document.documentElement.scrollWidth` ≤ viewport width (older headless Chrome floors the window near 500 px — measure, never assume). Review **every** screenshot, not a sample.
-3. **Fresh reader.** Spawn a `fast`-tier subagent with **only** the HTML file and `question`: *"Answer this from the page alone."* If it cannot, or it answers wrongly, the explainer failed — fix the walk and re-run. This is the closest mechanical proxy for *"the reader will understand it."*
+1. **Fidelity.** Every factual claim traces to a path, commit, or source line. Grep the HTML for unrendered template text (`${`, `{{`) and for every number; each number must appear in a source. **The corpus is what you were given** (the diff or commit range, the files at the pinned commit, the CHANGELOG entry); strip `path:line` anchors before the number check, or line numbers read as unsourced claims. A claim the source does not support is removed or moved to *Still open* with the words *"not confirmed by the source."*
+2. **Render.** `node --check` every inline script (strip HTML comments first). Headless Chromium (Playwright) in **both** themes at 1440 px and 390 px, stepping through every stepper state, plus one `--force-prefers-reduced-motion` pass. **Probe `document.documentElement.scrollWidth` ≤ viewport width in every state** (older headless Chrome floors the window near 500 px — measure, never assume). Review full pages and one **contact sheet per part** of its stepper states rather than each screenshot singly, so nothing goes unseen and the count stays readable. On macOS, a sandboxed shell cannot launch Chromium (a mach-port permission error): run the render step unsandboxed.
+3. **Fresh reader.** Give a subagent on the fast model (the Agent tool, never `spawn`) **only** the HTML file and `question`: *"Answer this from the page alone."* If it cannot, or it answers wrongly, the explainer failed — fix the walk and re-run. This is the closest mechanical proxy for *"the reader will understand it."*
 
 Report a failed check honestly rather than shipping around it.
 
@@ -125,7 +125,8 @@ When called from an unattended close (nobody is present to ask), do not build. W
 
 ## Output format
 Route per the File Placement Router (CLAUDE.md § IV): an explainer is made *for a reader*, so it is an export, never a reflection or a log.
-- `reader: operator` or `team` → `vault/03 - export/explainers/{YYYY-MM-DD}-{slug}.html`.
+- `reader: operator` or `team` → `vault/03 - export/explainers/{YYYY-MM-DD}-{slug}.html` (the brief may name another folder; the brief wins).
+- **Pin the subject before you start.** For a branch, a release or a range, record the commit it ends at (`git rev-parse <ref>`) and explain that, not a moving branch; print the SHA in the page's footer and in *Still open* if the branch moved while you worked.
 - `reader: public` → `vault/03 - export/{venture}/explainers/{YYYY-MM-DD}-{slug}.html` when the subject belongs to one venture; otherwise `vault/03 - export/explainers/`. (Create the subfolder on first use and follow the folder-birth rule.)
 - `budget: quick` → no file; the spine and one diagram go in the reply.
 - Raster views (PNG/PDF), only if asked → `~/Downloads/`, never the vault (the `infographic-builder` split).

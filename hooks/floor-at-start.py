@@ -16,7 +16,7 @@ floor as additionalContext:
     3. the map                     -- every section of the full floor file, with its path
 
 The full file stays where the map says, for depth. Measured budget on a heavy vault: ~33 KB,
-about 8,200 tokens, once per new interactive session (cached across its turns), against ~47,000
+about 8,000 tokens, once per new interactive session (cached across its turns), against ~47,000
 for the whole floor. INTENT ships whole rather than "rule sections" picked by heading: headings
 vary per vault, and INTENT is the one file that governs what a session may do.
 
