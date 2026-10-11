@@ -262,7 +262,8 @@ Place triage decisions at the top of Parking lot, not buried in Rhythm.
   5. Note any fixes inline in the commit message: `Daily plan {date} (clean pass: merged X, restored Y, recovered N due-today tasks, closed-twin: Z)`. Name every task dropped as a done twin, so a wrong drop is visible and recoverable rather than silently gone.
 
 ### Message 3 — Commit + push
-- `cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Daily plan {date}"`
+- `cd ~/aios && ~/aios/hooks/aios-commit -m "Daily plan {date}" -- "vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md"`, and after the note, every other path this run wrote (a refreshed `vault/00 - notes/projects/_index.md`, for instance).
+- **Name the paths; never `--vault`.** `--vault` commits every changed file in the vault, and at morning time that includes whatever other sessions and the operator have open and not yet committed. Their half-done work would be published under "Daily plan" and attributed to this session. `/close-day` is the one command that sweeps, and it does it in a commit of its own. Naming paths separates files, not lines: a file this run wrote goes in whole, so a peer's unsaved edit inside it goes too. For today's note that changes nothing, since `/today` writes the whole note anyway.
 
 ## First run handling
 
@@ -467,7 +468,7 @@ After writing the Radar table, scan the past 7 daily notes (`vault/01 - calendar
 - Carry-reason tags: `strategic-deferral` (important but not now), `blocked-on-{who}` (external), `needs-challenge` (should I push harder?), `waiting-on-date` (time-gated). Once tagged, count alone stops escalating.
 - **🤖 Proactive execution:** prefix tasks Claude can execute with available tools. Match against `agents/_index.md` (loaded in Message 1a) by domain + keywords; annotate `🤖 {task} _(→ agent: [[agent-name]])_`. After Energy note, add: `🤖 **{N} tasks agents can handle** — say "go" to spawn them, pick specific ones, or /agent {name} to wear the hat.`
 - **Dependency trees:** when a task is blocked, nest the blocker beneath it with indentation.
-- **After writing, commit + push** — `cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Daily plan {date}"`.
+- **After writing, commit + push** the paths this run wrote, by name — see Message 3.
 
 ## Command Discovery Engine
 

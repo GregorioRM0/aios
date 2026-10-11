@@ -753,9 +753,21 @@ If any unchecked, complete it now before commit.
 
 **Never `git add -A`.** Close-day is the day's consolidator; by now the workers have closed + committed their own work via `aios-commit`. Commit the vault paths *this close-day* changed — which is close-day's own writes **plus the human's ambient Obsidian edits** (this scoped sweep is what replaces the dropped 2-min autosave: the human's live edits are captured here, at end of day, not by a background timer). Exclude per-machine runtime/state files.
 
+Two commits, in this order, so the history says which is which.
+
+**First, close-day's own writes, by name** — the closed note, and every observed, project, index or snapshot file this run edited:
+
 ```bash
-cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Close day {date}"
+cd ~/aios && ~/aios/hooks/aios-commit -m "Close day {date}" -- "vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md" {every other path this run wrote}
 ```
+
+**Then the sweep, under a subject that says it is one:**
+
+```bash
+cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Sweep uncommitted vault edits at close of day {date}"
+```
+
+Why two. The sweep picks up whatever is uncommitted, and that is not only the human's Obsidian edits. A session still running, or one that closed without committing, has files in it too. In one commit called "Close day", that work would read as close-day's, and nobody could tell afterwards which lines close-day wrote. Separate, the first commit holds the files close-day wrote and the second is plainly labelled a sweep. The split is by **file**, not by line: if someone else also left uncommitted edits in a file close-day wrote (the closed note, typically, edited in Obsidian), those go in whole with the first commit. `aios-commit` stages whole files, and telling one writer's lines from another's in the same file is not something it can do. When there is nothing left to sweep, the second command reports that and commits nothing.
 
 `--vault` sweeps the dirty vault paths for you — **space- and rename-safe** (it enumerates `git diff --name-only HEAD` ∪ untracked under `vault/` + `.aios-update`, minus the machine-local noise), so it never truncates a path like `vault/00 - notes/…` the way a `git status | awk '{print $2}'` sweep would. It stages only those paths via a throwaway index (working tree untouched), self-scans for secrets, and pushes with defer-on-offline. Run `/close-day` when active sessions have closed (that's what the Glass Close-all button is for) so nothing is mid-write.
 

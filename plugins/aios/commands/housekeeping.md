@@ -990,8 +990,10 @@ Write a log to `00 - notes/logs/command-logs/housekeeping-{YYYY-MM-DD}.md` with:
 Commit and push:
 
 ```bash
-cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Housekeeping {date}"
+cd ~/aios && ~/aios/hooks/aios-commit -m "Housekeeping {date}" -- "vault/00 - notes/logs/command-logs/housekeeping-{YYYY-MM-DD}.md" {every path an applied proposal changed}
 ```
+
+Name the paths: the log, plus each file this run's applied proposals touched. Not `--vault`, which commits every changed file in the vault, including other sessions' unfinished work, under "Housekeeping". That is the scope expansion step 2 above rules out.
 
 ## Rules
 
