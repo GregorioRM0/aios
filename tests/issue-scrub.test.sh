@@ -173,5 +173,14 @@ printf 'by Z&amp;#101;dekiah and Zede**kiah** at /Users/someone/aios\n' > "$T/ho
 o1=$($PYBIN "$H" --root "$F" --term Zedekiah "$T/hostile.md" 2>/dev/null); o2=$(printf '%s\n' "$o1" | $PYBIN "$H" --root "$F" --term Zedekiah 2>/dev/null)
 [ "$o1" = "$o2" ] && ok "scrubbing the scrubbed output changes nothing" || no "not idempotent" "$o1 | $o2"
 
+echo "── fail closed: a disguise the patterns miss is refused, not shipped ──"
+printf 'thanks Zede<span\nclass="x">kiah for this\n' > "$T/disg.md"; rm -f "$T/disg.out"; : > "$T/disg.out"
+$PYBIN "$H" --root "$F" --term Zedekiah "$T/disg.md" --out "$T/disg.out" 2>"$T/disg.err"; rc=$?
+[ "$rc" = 3 ] && ok "a name split by a multi-line tag is REFUSED (exit 3)" || no "disguised name not refused (rc=$rc)" "$(cat "$T/disg.out" 2>/dev/null)"
+[ ! -e "$T/disg.out" ] && ok "and no output file is left behind" || no "an output file exists after a refusal"
+grep 'REFUSED' "$T/disg.err" >/dev/null && ok "the refusal says why" || no "no refusal message"
+printf 'the ticket mentions zedekiahs and a protozoan\n' | $PYBIN "$H" --root "$F" --term Zedekiah >/dev/null 2>&1; rc=$?
+[ "$rc" = 0 ] && ok "a longer word that merely contains a name is not refused" || no "false refusal on a containing word (rc=$rc)"
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

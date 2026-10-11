@@ -49,6 +49,9 @@ EXIT CODES
   0  scrubbed (whether or not anything was removed) · or --check found nothing to remove
   1  --check only: something would be removed (the text is not safe to send as-is)
   2  usage error, or the input file could not be read
+  3  REFUSED, nothing written: a loaded name is still readable once markup is ignored, or the
+     scrub did not converge. Fail closed -- a pattern scrubber cannot know every way a page can
+     render a word, so the last check reads the output the coarsest way a person could.
 Stdlib only. Runs on macOS, Linux and Windows.
 """
 import argparse
@@ -368,13 +371,36 @@ class Scrubber:
     def run(self, text):
         # Scrub until a further pass finds nothing: a redaction can join two fragments into a new
         # match, and the output must be safe to scrub again with the same result (idempotent).
+        self.converged = False
         for _ in range(4):
             before = len(self.removed)
             out = self._once(text)
             if out == text and len(self.removed) == before:
+                self.converged = True
                 return out
             text = out
-        return text
+        return text  # not converged: main() refuses rather than ship it
+
+    @staticmethod
+    def skeleton(text):
+        """What a reader sees, reduced to letters, digits and word breaks: tags, link targets and
+        every mark removed. Coarser than any rendering, so a name that survives here may survive
+        there; a name absent here cannot be on the page."""
+        text = norm(text)
+        text = re.sub(r"<[^<>]*>", "", text)                 # inline HTML, even across lines
+        text = re.sub(r"\]\([^()]*\)", "]", text)            # link targets
+        text = "".join(ch if (ch.isalnum() or ch.isspace()) else "" for ch in text)
+        return " ".join(text.lower().split())
+
+    def residual(self, clean):
+        """Fail closed: names whose letters still appear, as a word, in the scrubbed output."""
+        sk = " " + self.skeleton(clean) + " "
+        left = []
+        for t in self.terms:
+            st = self.skeleton(t)
+            if len(st.replace(" ", "")) >= 4 and (" " + st + " ") in sk:
+                left.append(t)
+        return left
 
     def _once(self, text):
         text = self.canon(text)
@@ -438,6 +464,7 @@ def main(argv=None):
     shingles = load_shingles(a.root)
     s = Scrubber(terms, shingles, framework_names(a.root))
     clean = s.run(text)
+    left = s.residual(clean)
 
     if a.json:
         print(json.dumps({"redacted": s.counts, "names_loaded": len(terms),
@@ -448,6 +475,14 @@ def main(argv=None):
         for kind, orig in s.removed:
             print(f"  removed [{kind}] {orig!r}", file=sys.stderr)
 
+    if left or not s.converged:
+        why = ("%d loaded name(s) still readable in the output once markup is ignored" % len(left)
+               if left else "the scrub did not converge")
+        print(f"issue-scrub: REFUSED -- {why}. Nothing was written: rewrite the draft so the name is "
+              "plain text (it will then be replaced), or remove it.", file=sys.stderr)
+        if a.out and os.path.exists(a.out):
+            os.remove(a.out)  # never leave an earlier scrub's file to be mistaken for this one
+        return 3
     if a.check:
         return 1 if s.removed else 0
     if a.out:

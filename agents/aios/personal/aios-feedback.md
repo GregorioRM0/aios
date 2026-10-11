@@ -98,6 +98,8 @@ UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/issue-scrub.py "$TMP
 
 It replaces home paths with `~/…`; paths into `00 - notes` / `01 - calendar` / `02 - assets` / `03 - export` / `04 - backups`, vault wikilinks, and verbatim runs from `USER.md`, `INTENT.md` or `context/` with placeholders; and names it loads from the vault (session names, companies, ventures, clients, contacts, the operator's own name and email) with roles such as *the operator*, *a client*, *a company*. Emails, Slack and Drive links, Slack ids, phone numbers and token-shaped strings go too. Pass `--term "<name>"` for any person or organization mentioned in this session that the vault does not hold.
 
+**Exit `3` means REFUSED and nothing was written:** a name is still readable once markup is ignored (it was hidden inside emphasis, HTML or a link), or the scrub did not settle. Rewrite that part of the draft as plain text and scrub again. Never send a draft the scrubber refused, and never work around the refusal by hand.
+
 Read its stderr line and repeat it to the operator: *"redacted: 2 paths, 1 vault path, 0 vault links, 0 vault quotes, 3 names, … (names loaded: N)"*. If `names loaded` is 0, or the line says no private context was found, say so plainly. A scrub that loaded no names cannot have caught any. Then read the scrubbed body yourself. If a placeholder left a sentence meaningless, rewrite the sentence in framework terms; do not restore the redacted text. `--show-removed` lists what was removed, for the operator's local terminal only; it never goes into the issue or a message.
 
 **The pre-scrub draft is never shown as the thing to approve.**
