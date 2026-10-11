@@ -53,10 +53,16 @@ def seq(name, n=120, pop=None, broken_seam=False):  # ~2.6 px a step, as at 60 f
         dr.ellipse([x - 12, y - 12, x + 12, y + 12], fill=(255, 93, 77))
         im.save(os.path.join(d, "frame_%05d.png" % i))
 seq("good"); seq("pop", pop=30); seq("seam", broken_seam=True)
+d = os.path.join(root, "hold"); os.makedirs(d)   # still for 60 frames, then a smooth 12-frame move, then still
+for i in range(100):
+    k = min(max(i - 60, 0), 12) / 12.0; x = 40 + 80 * (0.5 - 0.5 * math.cos(math.pi * k))
+    im = Image.new("RGB", (160, 160), (14, 15, 18)); ImageDraw.Draw(im).ellipse([x - 12, 68, x + 12, 92], fill=(255, 93, 77))
+    im.save(os.path.join(d, "frame_%05d.png" % i))
 EOF
   $PYBIN "$C" seam "$T/good" >/dev/null 2>&1 && ok "a whole-cycle loop passes seam" || no "good loop failed seam"
   $PYBIN "$C" seam "$T/seam" >/dev/null 2>&1 && no "a broken seam passed" || ok "a loop that stops short of a whole cycle fails seam"
   $PYBIN "$C" pops "$T/good" >/dev/null 2>&1 && ok "smooth motion passes pops" || no "smooth motion flagged as a pop"
+  $PYBIN "$C" pops "$T/hold" >/dev/null 2>&1 && ok "an intentional move out of a still hold is not a pop" || no "a move after stillness was flagged as a pop" "$($PYBIN "$C" pops "$T/hold" 2>&1)"
   out=$($PYBIN "$C" pops "$T/pop" 2>&1) && no "a planted one-frame pop passed" || { case "$out" in *"frame 30"*) ok "the planted pop is found at frame 30" ;; *) no "pop found at the wrong frame" "$out" ;; esac; }
 else skip "Pillow not installed"; fi
 
@@ -70,6 +76,23 @@ if command -v ffmpeg >/dev/null 2>&1; then
   out=$($PYBIN "$C" audio "$T/beep.wav" --events "$T/late.json" --fps 60 2>&1)
   case "$out" in *"FAIL hit for frame 50"*) ok "a hit 9 frames late fails" ;; *) no "a late hit passed" "$out" ;; esac
 else skip "ffmpeg not installed"; fi
+
+echo "── GIF export keeps the colours of a piece that opens on an empty frame ──"
+if $PYBIN -c 'import PIL' 2>/dev/null && command -v ffmpeg >/dev/null 2>&1; then
+  cat > "$T/fadein.py" <<'PY'
+import os, sys
+from PIL import Image, ImageDraw
+d = sys.argv[1]; os.makedirs(d)
+for i in range(24):
+    im = Image.new("RGB", (120, 120), (11, 11, 13))
+    if i >= 6: ImageDraw.Draw(im).ellipse([30, 30, 90, 90], fill=(255, 93, 77))
+    im.save(os.path.join(d, "frame_%05d.png" % i))
+PY
+  $PYBIN "$T/fadein.py" "$T/fadein"
+  $PYBIN "$R" export "$T/fadein" --fps 24 --out "$T/fadein.mp4" --gif "$T/fadein.gif" --gif-fps 24 >/dev/null 2>&1
+  $PYBIN -c 'import sys; from PIL import Image; g=Image.open(sys.argv[1]); g.seek(g.n_frames-1); r,gg,b=g.convert("RGB").getpixel((60,60)); sys.exit(0 if r>200 and gg<140 else 1)' "$T/fadein.gif" \
+    && ok "the coral survives in a GIF whose first frame is empty" || no "GIF palette taken from frame 0: later colours lost"
+else skip "Pillow or ffmpeg not installed"; fi
 
 echo "── the example 6 s loop, end to end (browser) ──"
 if $PYBIN -c 'import playwright, PIL' 2>/dev/null && $PYBIN "$R" frames "$EX" --out "$T/probe" --frames 0 --size 64x64 >/dev/null 2>&1; then

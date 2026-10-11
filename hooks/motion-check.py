@@ -154,8 +154,13 @@ def cmd_pops(a):
     floor = 0.5
     flagged = []
     for i, s in enumerate(steps):
-        nb = steps[max(0, i - 3):i] + steps[i + 1:i + 4]
-        ref = statistics.median(nb) if nb else 0.0
+        # A pop is a one-frame SPIKE: out of line with the steps on BOTH sides. Comparing with all
+        # neighbours at once flagged every intentional move out of a still hold (measured on a
+        # logo sting: an 8-frame pulse after 2 s of rest read as 4 "pops"), because a move's first
+        # step follows stillness. A real pop also stands out against what comes after it.
+        prev, nxt = steps[max(0, i - 3):i], steps[i + 1:i + 4]
+        sides = [statistics.median(x) for x in (prev, nxt) if x]
+        ref = max(sides) if sides else 0.0
         if s > max(ref * a.factor, floor):
             flagged.append((os.path.basename(fs[i + 1])[6:11].lstrip("0") or "0", s, ref))
     if flagged:

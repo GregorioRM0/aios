@@ -338,7 +338,15 @@ def cmd_export(args):
         else:
             delays = [int(round(1000 / gfps / 10.0)) * 10] * m
         frames = [Image.open(p).convert("RGB") for p in pick]
-        pal = frames[0].quantize(colors=255, method=Image.Quantize.MEDIANCUT)
+        # One palette for the whole GIF, built from frames sampled ACROSS the piece. Taking it from
+        # frame 0 alone mapped a sting that opens on an empty frame to solid black (a 2 KB GIF).
+        sample = frames[::max(1, len(frames) // 16)][:16]
+        w, h = frames[0].size
+        tw, th = max(1, w // 4), max(1, h // 4)
+        tile = Image.new("RGB", (tw * len(sample), th))
+        for i, fr in enumerate(sample):
+            tile.paste(fr.resize((tw, th)), (i * tw, 0))
+        pal = tile.quantize(colors=255, method=Image.Quantize.MEDIANCUT)
         q = [f.quantize(palette=pal, dither=Image.Dither.FLOYDSTEINBERG) for f in frames]
         q[0].save(args.gif, save_all=True, append_images=q[1:], duration=delays, loop=0, optimize=False, disposal=1)
         out.update({"gif": args.gif, "gif_frames": m, "gif_ms": sum(delays)})
