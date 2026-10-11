@@ -247,7 +247,10 @@ Aggregate the cleanup report: *"Cleaned N duplicates across {layer1, layer2, ...
 repo={framework upstream URL}
 hash={last APPLIED commit hash}
 synced={date this vault was last VERIFIED against canonical}
+ref={optional: a branch other than the default this vault is testing}
 ```
+
+**`ref=` marks a test, and only a test.** A release dogfooded from its branch (or a contributor testing one) writes `ref=<branch>`, so the freshness checks report `TESTING <branch>` instead of BEHIND and nothing auto-updates over it. **A normal run of this command syncs the default branch, so Step 7 deletes any `ref=` line** when it writes `hash=`: leaving the test is exactly what running `/aios:update` means.
 
 **The two fields answer different questions and advance on different conditions.** `hash=` is *what you have* — it moves only on a run that fully applied, because an over-advanced hash orphans content (§ Step 7). `synced=` is *when we last checked* — it moves on **any** run that verified the vault against canonical and found it clean, including a run that applied nothing.
 
@@ -992,7 +995,7 @@ On the answer:
 
 ### 7. Advance tracker (only on a clean, fully-applied run) and clean up
 
-**Only write `hash=` to the new HEAD if BOTH are true:** (a) every Step-3 apply + Step-4 auto-exec succeeded, and (b) the Step-6.5 reconcile came back clean (no remaining framework drift). If either failed, leave `hash=` at its current value and report what's incomplete — a stale hash is recoverable (next run re-pulls); an over-advanced one orphans content (the failure we're guarding against). **`synced={today}` is stamped on any run whose reconcile came back clean, applied or not** (§ Tracker file) — it records that the vault was verified, which is true whether or not upstream had moved. So a failed apply advances neither; a clean no-op advances only `synced=`; a clean applied run advances both.
+**Only write `hash=` to the new HEAD if BOTH are true** (and when you write it, delete any `ref=` line — see § Tracker file): (a) every Step-3 apply + Step-4 auto-exec succeeded, and (b) the Step-6.5 reconcile came back clean (no remaining framework drift). If either failed, leave `hash=` at its current value and report what's incomplete — a stale hash is recoverable (next run re-pulls); an over-advanced one orphans content (the failure we're guarding against). **`synced={today}` is stamped on any run whose reconcile came back clean, applied or not** (§ Tracker file) — it records that the vault was verified, which is true whether or not upstream had moved. So a failed apply advances neither; a clean no-op advances only `synced=`; a clean applied run advances both.
 
 **Then commit the framework-sync to the vault repo — the atomic apply→advance→commit that leaves the vault clean and pushable.** Without this, the vault sits *applied-but-uncommitted* after every update: un-pushable, and drifting from canonical for anyone who pulls the vault (e.g. a teammate on plain `git pull`). Commit **exactly the Tier-1 paths this run applied** (from Steps 3 + 6.5) plus `.aios-update`, via `aios-commit` — scoped, so the operator's in-flight vault *content* is untouched, and `aios-commit`'s plumbing bypasses the pre-commit guard by design:
 ```bash

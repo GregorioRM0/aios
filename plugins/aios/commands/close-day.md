@@ -91,7 +91,9 @@ Apply the result from step 1's dead-letter check:
 
 ## Aios-update freshness rendering
 
-Apply the result from step 1's `.aios-update` check (BEHIND / synced / access-denied / unreachable / no-config):
+Apply the result from step 1's `.aios-update` check (BEHIND / TESTING / synced / access-denied / unreachable / no-config):
+
+- **`TESTING <branch>`** → one line in the `## Close of Day` block: *"Framework: testing `{branch}`, ahead of main — not an update to take."* Never offer `/aios:update` for it.
 
 - **`synced`** → silent. No surface in the close-of-day section.
 - **`BEHIND`** → surface as a callout at the top of the `## Close of Day` block, before the verdict line: `> 🆕 **Aios-update pending** — local hash `{h}`, upstream `{r}`. Run `/aios:update` before the secondary machine's overnight queue (or first thing tomorrow morning) so fresh commands/templates land in her shift.` This is consequential at close-day specifically because that queue is generated FROM your local state — stale local = stale handoff.

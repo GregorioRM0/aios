@@ -15,8 +15,12 @@
 #   freshness-probe.sh --classify      read git error text on stdin → access-denied | unreachable
 #
 # Output — the same words as before, plus one new state:
-#   aios-update: synced | BEHIND (local=… remote=…) | access-denied (why) | unreachable (why) | no-config
+#   aios-update: synced | BEHIND (local=… remote=…) | TESTING <branch> (local=… main=…) | access-denied (why) | unreachable (why) | no-config
 #   company-{name}: synced | BEHIND (…) | access-denied (why) | unreachable (why)
+# `TESTING` = the vault is on a branch other than the default one (named by the tracker's `ref=`,
+# or its hash is the tip of another branch): AHEAD or beside main, never behind it. Updating would
+# pull main and undo the test, so callers must not auto-update on it (measured: a dogfooded release
+# branch read as BEHIND and the App offered an update that would have rolled it back).
 # `access-denied` = the server answered and refused the credential. Always exits 0: finding a
 # problem is not a failed command. AIOS_ROOT overrides ~/aios (used by the test).
 # Guard: tests/freshness-probe.test.sh
@@ -41,24 +45,32 @@ reason() {  # $1 errs · $2 classification
   printf '%s' "$1" | grep -Eo "$re" | head -1
 }
 
-probe() {  # $1 label · $2 repo url · $3 local hash
-  local label="$1" repo="$2" h="$3" r="" errs="" e hr cls why
+probe() {  # $1 label · $2 repo url · $3 local hash · $4 tracker ref (optional)
+  local label="$1" repo="$2" h="$3" ref="${4:-}" r="" refs="" errs="" e hr cls why
   export GIT_TERMINAL_PROMPT=0
   export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=10}"
   e="$(mktemp)"
-  r=$(git ls-remote "$repo" HEAD 2>"$e" </dev/null | awk '{print $1}')
+  # All refs, not only HEAD: a hash that is another branch's tip is a test branch, not a lag.
+  refs=$(git ls-remote "$repo" 2>"$e" </dev/null); r=$(printf '%s\n' "$refs" | awk '$2=="HEAD"{print $1}')
   errs="$(cat "$e")"
   if [ -z "$r" ]; then
     # SSH first, then public HTTPS, so a fresh HTTPS clone with no SSH keys still resolves.
     hr=$(printf '%s' "$repo" | sed -E 's#git@github\.com:#https://github.com/#')
     if [ "$hr" != "$repo" ]; then
-      r=$(git ls-remote "$hr" HEAD 2>"$e" </dev/null | awk '{print $1}')
+      refs=$(git ls-remote "$hr" 2>"$e" </dev/null); r=$(printf '%s\n' "$refs" | awk '$2=="HEAD"{print $1}')
       errs="$errs"$'\n'"$(cat "$e")"
     fi
   fi
   rm -f "$e"
   if [ -n "$r" ]; then
-    if [ "$h" = "$r" ]; then echo "$label: synced"; else echo "$label: BEHIND (local=${h:0:7} remote=${r:0:7})"; fi
+    local tip_of
+    tip_of=$(printf '%s\n' "$refs" | awk -v h="$h" '$1==h && $2 ~ /^refs\/heads\// {sub("refs/heads/","",$2); print $2; exit}')
+    if [ "$h" = "$r" ]; then echo "$label: synced"
+    elif [ -n "$ref" ] && [ "$ref" != main ] && [ "$ref" != master ] && [ "$ref" != HEAD ]; then
+      echo "$label: TESTING $ref (local=${h:0:7} main=${r:0:7})"
+    elif [ -n "$tip_of" ] && [ "$tip_of" != main ] && [ "$tip_of" != master ]; then
+      echo "$label: TESTING $tip_of (local=${h:0:7} main=${r:0:7})"
+    else echo "$label: BEHIND (local=${h:0:7} remote=${r:0:7})"; fi
     return
   fi
   cls=$(printf '%s' "$errs" | classify)
@@ -76,7 +88,7 @@ esac
 if [ "$mode" = all ] || [ "$mode" = --aios-update ]; then
   cfg="$ROOT/.aios-update"
   if [ -f "$cfg" ]; then
-    probe aios-update "$(grep ^repo= "$cfg" | cut -d= -f2)" "$(grep ^hash= "$cfg" | cut -d= -f2)"
+    probe aios-update "$(grep ^repo= "$cfg" | cut -d= -f2)" "$(grep ^hash= "$cfg" | cut -d= -f2)" "$(grep ^ref= "$cfg" | cut -d= -f2)"
   else
     echo "aios-update: no-config"
   fi

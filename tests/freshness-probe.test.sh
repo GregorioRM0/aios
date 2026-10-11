@@ -90,5 +90,32 @@ old="$(PATH="$T/bin:$PATH"; repo=git@github.com:acme/denied.git
   [ -z "$r" ] && echo unreachable || echo reachable)"
 expect "the stock probe calls a refused key 'unreachable'" "$old" unreachable
 
+echo "-- a vault on a test branch is TESTING (ahead), never BEHIND --"
+# Measured: a release dogfooded from its branch read as BEHIND, and the App offered an update
+# that would have pulled main over the test.
+TB="$(mktemp -d)"
+git init -q --bare "$TB/remote.git"
+git -C "$TB" init -q w 2>/dev/null || git init -q "$TB/w"
+git -C "$TB/w" -c user.name=t -c user.email=t@t commit -q --allow-empty -m a
+DEF=$(git -C "$TB/w" branch --show-current); MAIN=$(git -C "$TB/w" rev-parse HEAD)
+git -C "$TB/w" checkout -q -b rel
+git -C "$TB/w" -c user.name=t -c user.email=t@t commit -q --allow-empty -m b
+TIP=$(git -C "$TB/w" rev-parse HEAD)
+git -C "$TB/w" push -q "$TB/remote.git" "$DEF" rel 2>/dev/null
+git -C "$TB/remote.git" symbolic-ref HEAD "refs/heads/$DEF"
+mkdir -p "$TB/v"
+tracker(){ printf 'repo=%s\nhash=%s\n' "$TB/remote.git" "$1" > "$TB/v/.aios-update"; [ -n "${2:-}" ] && printf 'ref=%s\n' "$2" >> "$TB/v/.aios-update"; :; }
+run(){ AIOS_ROOT="$TB/v" bash "$S" --aios-update; }
+tracker "$MAIN"; expect "on the default branch's head: synced" "$(run)" "aios-update: synced"
+tracker "$TIP"; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "the tip of another branch reads TESTING rel" ;; *) no "another branch's tip read as: $out" ;; esac
+tracker 0123456789012345678901234567890123456789 rel; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "ref= names the test even after the branch moved" ;; *) no "ref= ignored: $out" ;; esac
+tracker 0123456789012345678901234567890123456789; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "control: an old default-branch hash still reads BEHIND" ;; *) no "control broke: $out" ;; esac
+tracker 0123456789012345678901234567890123456789 main; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "ref=main is not a test" ;; *) no "ref=main read as: $out" ;; esac
+rm -rf "$TB"
+grep -F '`TESTING <branch>`' plugins/aios/commands/today.md >/dev/null && grep -F 'Never auto-fire' plugins/aios/commands/today.md >/dev/null \
+  && ok "/today renders TESTING and never auto-updates on it" || no "/today has no TESTING rule"
+grep -F 'TESTING <branch>' plugins/aios/commands/close-day.md >/dev/null && ok "/close-day renders TESTING" || no "/close-day has no TESTING rule"
+grep -F 'delete any `ref=` line' plugins/aios/commands/update.md >/dev/null && ok "/aios:update clears ref= when it syncs the default branch" || no "update never clears ref="
+
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
