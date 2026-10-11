@@ -277,6 +277,16 @@ def framework_names(root):
     return names
 
 
+# Letters from other scripts that render like Latin ones. A name spelled with a Cyrillic `е` looks
+# identical on the page and matches nothing, so the fail-closed reading folds them back to Latin.
+CONFUSABLES = str.maketrans({
+    "а": "a", "в": "b", "е": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p", "с": "c", "т": "t",
+    "у": "y", "х": "x", "ѕ": "s", "і": "i", "ј": "j", "ԁ": "d", "ӏ": "l", "һ": "h", "ԛ": "q", "ԝ": "w",
+    "α": "a", "β": "b", "ε": "e", "η": "n", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "τ": "t",
+    "υ": "u", "χ": "x", "ɡ": "g", "ı": "i", "ℓ": "l",
+})
+
+
 class Scrubber:
     def __init__(self, terms, shingles, fw_names):
         self.counts = {k: 0 for k in ("hidden", "paths", "vault", "links", "quotes", "names", "emails", "ids", "secrets")}
@@ -395,6 +405,8 @@ class Scrubber:
         # marks left on their own after NFKC (e.g. the combining grapheme joiner), Hangul fillers,
         # the braille blank. Removed here only -- the shipped text keeps them -- so a name they
         # split is still caught.
+        # Accents are folded too (NFD, then marks dropped): a reader still recognises "Zédekiah".
+        text = unicodedata.normalize("NFD", text.lower()).translate(CONFUSABLES)
         text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn"
                        and ch not in "\u115f\u1160\u3164\uffa0\u2800")
         text = re.sub(r"\]\([^()]*\)", "]", text)            # link targets

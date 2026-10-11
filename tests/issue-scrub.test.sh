@@ -195,5 +195,10 @@ for v in "Zede$(printf '\315\217')kiah" "Zede$(printf '\343\205\244')kiah" "Zede
     && ok "invisible split refused or redacted: $(printf '%s' "$v" | LC_ALL=C tr -c '[:print:]' '?')" || no "invisible split survived (rc=$rc)"
 done
 
+for v in "Z$(printf '\320\265')dekiah" "Z$(printf '\303\251')dekiah"; do
+  printf 'by %s today\n' "$v" | $PYBIN "$H" --root "$F" --term Zedekiah >/dev/null 2>&1; rc=$?
+  [ "$rc" = 3 ] && ok "a look-alike or accented spelling is refused: $(printf '%s' "$v" | LC_ALL=C tr -c '[:print:]' '?')" || no "look-alike spelling passed (rc=$rc)"
+done
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]
