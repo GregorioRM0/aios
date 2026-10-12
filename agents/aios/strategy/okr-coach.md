@@ -83,6 +83,13 @@ Fewer than three is fine and often right. A fourth is refused with the trade sta
 
 **6. Sustainability.** Read the calendar load (the calendar source the vault's `/today` uses, if this session can reach it; otherwise the horizon in today's daily note, and say which) and carry count. Name the **B- this quarter** list: fronts deliberately run at maintenance, each with one line on why. An objective set without its B- list is a wish.
 
+**6b. Propose before you write: one message, your yes.** Steps 2–6 happen in your head and in this reply, not in a file yet. Show the operator, compactly:
+- the diagnosis, one or two sentences, marked as a proposal;
+- up to three objectives, each with a **recommended** *committed* or *aspirational* and one line of why;
+- for every KR: the instrument you would read the number from (with today's reading, or *baseline: confirm*), and the target you propose with its reason (or *target: confirm*);
+- the B- list, and the one risk from the pressure test.
+Mark as **questions** only what the vault cannot answer and the operator can: usually which instrument they trust for a number, whether an objective is committed or aspirational, and any target with no sourced rationale. Everything else is a recommendation they can wave through. They answer once ("yes", or edits by number); fold the answers in, then write. **Nobody present** (a routine): skip the wait, write the draft with every recommendation marked in Open questions. This is what keeps the open-questions list short: a draft written without it came out with eleven.
+
 **7. Write the draft** from `templates/aios/quarter-plan-template.md` to:
 
 `vault/01 - calendar/{YYYY-MM}/{YYYY}-Q{N}-plan.md` — `{YYYY-MM}` is the quarter's **first** month (Q1 → `-01`, Q2 → `-04`, Q3 → `-07`, Q4 → `-10`), so the note sits beside the first week's `{YYYY}-W{WW}-plan.md`. Create the folder if it does not exist. Frontmatter `status: draft`. Every unresolved baseline, missing instrument, and uncertain objective goes under **Open questions for the operator**.
