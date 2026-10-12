@@ -250,7 +250,7 @@ synced={date this vault was last VERIFIED against canonical}
 ref={optional: a branch other than the default this vault is testing}
 ```
 
-**`ref=` marks a test, and only a test.** A release dogfooded from its branch (or a contributor testing one) writes `ref=<branch>`, so the freshness checks report `TESTING <branch>` instead of BEHIND and nothing auto-updates over it. **A normal run of this command syncs the default branch, so it deletes any `ref=` line on every run that reaches the default branch's HEAD** — the hash-advance path in Step 7, the already-current path in Step 1, and a run whose apply failed alike: leaving the test is exactly what running `/aios:update` means, and a `ref=` left behind would report TESTING over a vault that is no longer on the branch. (The freshness probe also stops reporting TESTING once `refs/heads/<branch>` is gone from the remote, so a merged-and-deleted release branch cannot pin the state either way.)
+**`ref=` is written only by someone testing a branch** (a maintainer dogfooding a release, a contributor trying one); a normal install never has it. While its branch exists on the remote, the freshness checks say `TESTING <branch>` instead of offering an update over the test. **Every run of this command deletes any `ref=` line** (Step 1's already-current path and Step 7 alike), because syncing the default branch is leaving the test.
 
 **The two fields answer different questions and advance on different conditions.** `hash=` is *what you have* — it moves only on a run that fully applied, because an over-advanced hash orphans content (§ Step 7). `synced=` is *when we last checked* — it moves on **any** run that verified the vault against canonical and found it clean, including a run that applied nothing.
 

@@ -107,7 +107,8 @@ mkdir -p "$TB/v"
 tracker(){ printf 'repo=%s\nhash=%s\n' "$TB/remote.git" "$1" > "$TB/v/.aios-update"; [ -n "${2:-}" ] && printf 'ref=%s\n' "$2" >> "$TB/v/.aios-update"; :; }
 run(){ AIOS_ROOT="$TB/v" bash "$S" --aios-update; }
 tracker "$MAIN"; expect "on the default branch's head: synced" "$(run)" "aios-update: synced"
-tracker "$TIP"; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "the tip of another branch reads TESTING rel" ;; *) no "another branch's tip read as: $out" ;; esac
+tracker "$TIP"; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "another branch's tip WITHOUT ref= reads BEHIND (TESTING is never inferred)" ;; *) no "TESTING inferred from a branch tip: $out" ;; esac
+tracker "$TIP" rel; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "the same tip WITH ref=rel reads TESTING rel" ;; *) no "explicit ref= on a branch tip read as: $out" ;; esac
 tracker 0123456789012345678901234567890123456789 rel; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "ref= names the test even after the branch moved" ;; *) no "ref= ignored: $out" ;; esac
 printf 'repo=%s\r\nhash=0123456789012345678901234567890123456789\r\nref=rel\r\n' "$TB/remote.git" > "$TB/v/.aios-update"
 out=$(run); case "$out" in "aios-update: TESTING rel (local="*) ok "a CRLF tracker's ref= still names the branch" ;; *) no "CRLF ref= read as: $(printf '%s' "$out" | od -c | head -2)" ;; esac

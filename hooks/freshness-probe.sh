@@ -17,8 +17,8 @@
 # Output — the same words as before, plus one new state:
 #   aios-update: synced | BEHIND (local=… remote=…) | TESTING <branch> (local=… main=…) | access-denied (why) | unreachable (why) | no-config
 #   company-{name}: synced | BEHIND (…) | access-denied (why) | unreachable (why)
-# `TESTING` = the vault is on a branch other than the default one (named by the tracker's `ref=`,
-# or its hash is the tip of another branch): AHEAD or beside main, never behind it. Updating would
+# `TESTING` = the tracker's `ref=` names a branch other than the default one that still exists on
+# the remote: the vault is testing it, AHEAD or beside main, never behind it. Updating would
 # pull main and undo the test, so callers must not auto-update on it (measured: a dogfooded release
 # branch read as BEHIND and the App offered an update that would have rolled it back).
 # `access-denied` = the server answered and refused the credential. Always exits 0: finding a
@@ -50,7 +50,7 @@ probe() {  # $1 label · $2 repo url · $3 local hash · $4 tracker ref (optiona
   export GIT_TERMINAL_PROMPT=0
   export GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=10}"
   e="$(mktemp)"
-  # All refs, not only HEAD: a hash that is another branch's tip is a test branch, not a lag.
+  # All refs, not only HEAD: a ref= branch counts only while it still exists there.
   refs=$(git ls-remote "$repo" 2>"$e" </dev/null); r=$(printf '%s\n' "$refs" | awk '$2=="HEAD"{print $1}')
   errs="$(cat "$e")"
   if [ -z "$r" ]; then
@@ -63,17 +63,16 @@ probe() {  # $1 label · $2 repo url · $3 local hash · $4 tracker ref (optiona
   fi
   rm -f "$e"
   if [ -n "$r" ]; then
-    local tip_of ref_live=""
-    # ref= counts only while its branch still exists on the remote we just listed: a release
-    # branch merged and deleted must fall through to BEHIND/synced, or the vault reads TESTING
-    # forever. (Offline never reaches here -- an empty listing is reported as unreachable.)
+    local ref_live=""
+    # TESTING comes ONLY from an explicit ref= whose branch still exists on the remote we just
+    # listed. Never inferred from "this hash is some branch's tip": a branch cut from main sits on
+    # a main commit, and a normal user synced there would read TESTING instead of BEHIND and stop
+    # updating. A merged and deleted branch falls through to BEHIND/synced. (Offline never reaches
+    # here -- an empty listing is reported as unreachable.)
     [ -n "$ref" ] && printf '%s\n' "$refs" | awk -v r="refs/heads/$ref" '$2==r{f=1} END{exit !f}' && ref_live=1
-    tip_of=$(printf '%s\n' "$refs" | awk -v h="$h" '$1==h && $2 ~ /^refs\/heads\// {sub("refs/heads/","",$2); print $2; exit}')
     if [ "$h" = "$r" ]; then echo "$label: synced"
     elif [ -n "$ref_live" ] && [ "$ref" != main ] && [ "$ref" != master ] && [ "$ref" != HEAD ]; then
       echo "$label: TESTING $ref (local=${h:0:7} main=${r:0:7})"
-    elif [ -n "$tip_of" ] && [ "$tip_of" != main ] && [ "$tip_of" != master ]; then
-      echo "$label: TESTING $tip_of (local=${h:0:7} main=${r:0:7})"
     else echo "$label: BEHIND (local=${h:0:7} remote=${r:0:7})"; fi
     return
   fi
