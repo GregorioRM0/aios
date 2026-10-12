@@ -137,5 +137,22 @@ $PYBIN hooks/observed-staleness.py "$fr" --today 2026-09-24 >/dev/null 2>&1; rc=
 [ "$rc" -eq 2 ] && ok "control: a file with NO updated: key still cannot be measured (exit 2)" || no "control: a missing stamp stopped being an error" "exit $rc"
 rm -rf "$fr"
 
+echo "── role logs: a gap is reported when role logs are configured, silent otherwise ──"
+R="$T/rl/vault/00 - notes"; O="$R/context/observed"
+note "$O" patterns.md "updated: 2026-09-20"
+out=$(run "$O" 2>&1)
+case "$out" in *"role log"*) no "role-log line without role-expectations.md" "$out" ;; *) ok "no role-expectations.md → no role-log line" ;; esac
+mkdir -p "$R/context/declared"; echo "# Role" > "$R/context/declared/role-expectations.md"
+out=$(run "$O" 2>&1)
+case "$out" in *"no role log was ever written"*) ok "configured but never written → said plainly" ;; *) no "missing role logs not reported" "$out" ;; esac
+mkdir -p "$R/logs/role-logs/2026-09"; : > "$R/logs/role-logs/2026-09/2026-09-15-role-log.md"
+out=$(run "$O" 2>&1); rc=$?
+case "$out" in *"role log: last written 9 days ago (2026-09-15)"*) ok "a 9-day gap is flagged with the date" ;; *) no "role-log gap not flagged" "$out" ;; esac
+[ "$rc" = "0" ] && ok "a role-log gap does not change the exit code" || no "exit $rc from a role-log gap" "it is informational"
+: > "$R/logs/role-logs/2026-09/2026-09-23-role-log.md"
+out=$(run "$O" 2>&1)
+case "$out" in *"⚠️  role log"*) no "control: a 1-day-old role log was flagged" "$out" ;; *"role log: last written 2026-09-23 (1d ago)"*) ok "control: a recent role log is reported, not flagged" ;; *) no "recent role log line missing" "$out" ;; esac
+rm -rf "$T/rl"
+
 printf '\n── %s passed, %s failed ──\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
