@@ -105,7 +105,7 @@
 
 **Setup without JSON.** `hooks/install-settings.py` lists in plain words what each hook does for you and changes nothing; with `--apply` it merges them into your Claude settings, keeps everything else, backs up the old file and keeps its permissions. New installs also leave the framework's own test suite out of the working tree (`git sparse-checkout disable` brings it back).
 
-**Smaller fixes you may notice.** `/aios:housekeeping` adds four checks. They report when the model ladder falls behind Anthropic's catalog, which skills cost context without being used, when a claude.ai-synced skill collides with a bundled one, and which old explainers can be pruned. Hooks read and write text as UTF-8 on Windows, where some read accents wrongly. Hook scripts check out with Unix line endings on Windows, and your notes are left untouched. Design skills point to Refero Styles as a second catalog of `DESIGN.md` files. A prompt the spawn inbox delivers again after two weeks is labelled as the inbox's, not read as your typing. A message sent through the inbox to a session that is busy now waits for its next pause (up to 24 hours) instead of being lost after 30 minutes, once your App or Glass supports it: the inbox contract and its tests in this release say how. A vault running a branch other than the framework's main one (a release being tested) now says *testing that branch* instead of offering an update that would undo it, and goes back to normal once that branch is merged. `spawn` given a flag with no value now stops with a message instead of hanging. `install-settings.py` keeps a symlinked settings file as a link, and refuses settings it cannot read safely, in plain words, before changing anything.
+**Smaller fixes you may notice.** `/aios:housekeeping` adds four checks: a model ladder behind Anthropic's catalog, skills that cost context unused, claude.ai skills colliding with bundled ones, and old explainers to prune. On Windows, hooks read and write UTF-8 and check out with Unix line endings; your notes are untouched. Design skills also point to Refero Styles. An inbox message to a busy session waits for its next pause (up to 24 hours) once your App or Glass supports it, and a prompt re-sent after two weeks is labelled as the inbox's. A vault testing a release branch says *testing that branch* instead of offering an update that would undo it. `spawn` with a flag and no value stops with a message instead of hanging, and `install-settings.py` keeps a symlinked settings file as a link and refuses unreadable settings before changing anything.
 
 **Action required** — check each first; do only what applies:
 1. **Wire the two new hooks (E and F).** Run `python3 ~/aios/hooks/install-settings.py` (Windows: `python` or `py -3`) and read the operator what it prints. It changes nothing; if it lists anything to add, run it again with `--apply`. Expect one window asking to allow the command; it writes only `~/.claude/settings.json` and a backup beside it. If it says nothing to change, skip this.
@@ -113,6 +113,16 @@
 3. **One new skill (`motion-lab`) is registered** by `skills/setup.sh`, which `/aios:update` runs when a bundled skill changes. Nothing to approve beyond that script's usual run.
 4. **Optional, for a vault cloned before today:** leave the test suite out of the working tree with `git -C ~/aios sparse-checkout set --no-cone '/*' '!/tests/'`. Offer it once; skip it if they contribute to AIOS. Undo: `git -C ~/aios sparse-checkout disable`.
 5. **Start a new Claude session** after updating, so the new hooks, commands and agents load.
+
+### v0.8.10, later the same night
+
+> **What you can now do.** Every session reads its context floor in parts that fit, the plugin version you see follows each update, and a skipped role log shows up the next morning.
+
+- **The floor names its own read parts.** A fixed 600-line part could be too big for one read; the floor now lists exact line ranges that fit.
+- **`/aios:update` refreshes the plugin itself** (`claude plugin update aios@the-aios`), so the version shown matches the release.
+- **Role logs:** `/today` and `/close-day` report the days since the last one when role logs are set up.
+
+**Action required:** none. Start a new Claude session after updating.
 
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 
