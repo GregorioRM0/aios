@@ -20,6 +20,8 @@ Also expose, when they apply: `window.__duration` and `window.__fps` (so the ren
 (scale, position, opacity) so `assert` and `speed` can read them, and `?t=` in the URL to freeze any frame
 in a normal browser.
 
+**Opened directly, it must not look blank.** With no `?t=`, the page renders its **hero frame** (the resolved hold, or the most telling moment of a loop), never frame 0 of a piece that opens on an empty ground. Someone double-clicking the file sees the piece, not a black page; the renderer always sets t itself, so this changes no frame it captures.
+
 ## Fixes table (each line is a failure that will happen to you)
 
 | Symptom | Cause | Fix |

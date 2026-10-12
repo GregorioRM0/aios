@@ -214,8 +214,8 @@ def main():
     if not ok:
         print("Written, but the read-back did not show every hook. Your previous file is at: %s" % (backup or "(none)"))
         return 2
-    print("Done. %s A new Claude session picks these up (hooks load at session start)."
-          % (("Your previous file is saved as %s." % backup) if backup else ""))
+    print("Done. " + (("Your previous file is saved as %s. " % backup) if backup else "")
+          + "A new Claude session picks these up (hooks load at session start).")
     return 0
 
 
