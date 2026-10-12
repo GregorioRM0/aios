@@ -67,7 +67,8 @@
     cx.restore();
   };
   window.__ready = true;
-  window.renderAt(Number(new URLSearchParams(location.search).get('t')) || 0);  // ?t= freezes any frame
+  const q = new URLSearchParams(location.search).get('t');                  // ?t= freezes any frame
+  window.renderAt(q !== null ? Number(q) : 1.0);  // opened by hand: a telling frame (the pulse), never a blank
 </script>
 </body>
 </html>

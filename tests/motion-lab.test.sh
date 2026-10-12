@@ -85,6 +85,9 @@ if command -v ffmpeg >/dev/null 2>&1; then
   case "$out" in *"integrated loudness"*LUFS*) ok "loudness is measured and reported" ;; *) no "no loudness line" "$out" ;; esac
   out=$($PYBIN "$C" audio "$T/beep.wav" --events "$T/late.json" --fps 60 2>&1)
   case "$out" in *"FAIL hit for frame 50"*) ok "a hit 9 frames late fails" ;; *) no "a late hit passed" "$out" ;; esac
+  ffmpeg -v error -f lavfi -i "color=c=black:s=64x64:d=1" -c:v libx264 -pix_fmt yuv420p "$T/mute.mp4"
+  $PYBIN "$C" audio "$T/mute.mp4" --silent 2>&1 | grep -q "PASS silent by brief  N/A" && ok "a silent film under --silent is N/A, not a run failure" || no "--silent did not report N/A"
+  $PYBIN "$C" audio "$T/beep.wav" --silent >/dev/null 2>&1 && no "--silent passed a file that has sound" || ok "caught: sound present in a silent brief"
 else skip "ffmpeg not installed"; fi
 
 echo "── GIF export keeps the colours of a piece that opens on an empty frame ──"

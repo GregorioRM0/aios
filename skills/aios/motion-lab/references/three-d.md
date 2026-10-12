@@ -66,8 +66,25 @@ dirLight(0xffffff, 3.2, 160, 32);  // rim: behind, separates the object from a d
   0.15 m object at a third of the height from about 0.9 m.
 - **The camera is a function of t too**: compute its position and target in `state(t)` (an in-out
   push-in, or a short orbit around the target) and call `camera.lookAt` in `setScene`.
-- **The square cut** reads `?aspect=1`: set the camera aspect to 1 and move it back (or widen the
-  fov) until the widest moment fits inside the margins, then render at `--size 1080x1080`.
+- **Frame the beat, not the scene.** A three-quarter view (15–35° off front), the acting objects
+  close and large, the others behind or out of frame. Move the camera target between beats if the
+  action moves.
+- **Report the hero's own share of the frame** so `assert` can check it (`framing` only sees all
+  non-ground pixels together):
+
+  ```js
+  function screenHeight(obj) {               // the object's projected height, 0..1 of the frame
+    const b = new THREE.Box3().setFromObject(obj), ys = [];
+    for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z])
+      ys.push(new THREE.Vector3(x, y, z).project(camera).y);
+    return (Math.max(...ys) - Math.min(...ys)) / 2;
+  }
+  // in __probe(t), after renderAt(t): heroH: screenHeight(cup)  -> assert heroH >= 0.33 on the hero frame
+  ```
+- **The square cut** reads `?aspect=1`: set the camera aspect to 1, then move the camera back (or
+  widen the fov) **and re-lay out the objects** where the wide arrangement does not fit a square
+  (bring them closer together, or stack them in depth), until the widest moment fits inside the
+  margins. Render at `--size 1080x1080`, with the URL carrying `?aspect=1`.
 
 ## Objects without models
 

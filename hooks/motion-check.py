@@ -18,7 +18,9 @@ USAGE
   motion-check.py assert      PAGE.html CHECKS.json [--fps 60] [--size WxH]
                                                            [{"frame":84,"expr":"p.scale","expect":1.08,"tol":0.01}]
                                                            evaluated against window.__probe(t) as `p`
-  motion-check.py audio       FILM.mp4|SOUND.wav [--events EVENTS.json --fps 60]
+  motion-check.py audio       FILM.mp4|SOUND.wav [--events EVENTS.json --fps 60] [--silent]
+                                                           --silent: the brief has no sound, so N/A
+                                                           (and FAIL if a sound track is present)
                                                            loudness, true peak, band energy, hit timing
 
 Every subcommand prints one line per check (`PASS` / `FAIL` / `WARN`, then the numbers) and a final
@@ -294,8 +296,15 @@ def cmd_audio(a):
     rc, err = ffmpeg_stderr(["-i", a.media, "-af", "ebur128=peak=true", "-f", "null", "-"])
     lufs = re.findall(r"\bI:\s*(-?[\d.]+)\s*LUFS", err)
     peak = re.findall(r"Peak:\s*(-?[\d.]+|-inf)\s*dBFS", err)
+    if a.silent:
+        # A silent brief: the check does not apply, and saying so is a verdict, not a failure to run.
+        has_audio = bool(lufs) and rc == 0
+        line("FAIL" if has_audio else "PASS", "silent by brief",
+             "a sound track is present (%.1f LUFS) but the brief is silent" % float(lufs[-1]) if has_audio
+             else "N/A -- no sound track, as the brief says")
+        return finish()
     if rc != 0 or not lufs:
-        die("could not measure loudness (no audio stream?)")
+        die("could not measure loudness (no audio stream?); if the brief is silent, pass --silent")
     L = float(lufs[-1])
     line("PASS" if abs(L - a.lufs) <= 1.0 else "FAIL", "integrated loudness", "%.1f LUFS (target %.0f +-1)" % (L, a.lufs))
     if peak:
@@ -380,8 +389,10 @@ def cmd_framing(a):
               "turns the frame to mid-tone; float the subject on the ground, or pass --bleed if intended"
               % (len(muddy), len(heights), muddy[0][0], muddy[0][1] * 100)) if muddy else "")
     top = max(heights)
-    line("PASS" if top[0] >= 0.33 else "WARN", "hero height",
-         "subject reaches %.0f%% of the frame height at f%s (aim >= 33%% at the hero beat)" % (top[0] * 100, top[1]))
+    # Everything that is not ground, together: a scene of three small objects spread wide reads as
+    # "big" here. The HERO's own share is a number the page knows (assert it from __probe).
+    line("PASS" if top[0] >= 0.33 else "WARN", "subject height",
+         "everything not ground spans %.0f%% of the frame height at f%s (the hero's own share: assert it via __probe)" % (top[0] * 100, top[1]))
     finish()
 
 
@@ -399,6 +410,7 @@ def main():
     x.add_argument("--fps", type=float); x.add_argument("--size", default="1920x1080")
     u = sp.add_parser("audio"); u.add_argument("media"); u.add_argument("--events")
     u.add_argument("--fps", type=float, default=60); u.add_argument("--lufs", type=float, default=-14.0)
+    u.add_argument("--silent", action="store_true")
     a = ap.parse_args()
     {"contract": cmd_contract, "determinism": cmd_determinism, "seam": cmd_seam, "pops": cmd_pops, "framing": cmd_framing,
      "assert": cmd_assert, "audio": cmd_audio}[a.cmd](a)

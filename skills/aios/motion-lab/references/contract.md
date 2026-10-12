@@ -33,6 +33,8 @@ grows by name each time a render surprises you.
 - particles, lens flares, glow halos, bokeh dust, light leaks
 - a spinning turntable, a camera shake, a whip pan
 - an invented logo, company name, tagline, price, statistic or claim
+- real-world marks: the contactless-payment symbol, card-network or app-store marks, a recognisable phone's camera layout or a brand's product silhouette
+- a row of objects front-on across a wide empty frame (a catalogue shot)
 - a square cut made by cropping the wide one
 - an ease-out launched from rest, a move that stops instead of landing
 
@@ -50,6 +52,7 @@ grows by name each time a render surprises you.
 | The frame reads as mid-grey mud | a lit floor or sweep fills the frame | float the subject on the dark ground; a contact shadow only; `framing` finds it |
 | The subject is cut by the edge | the camera framed the hero beat, not the widest moment | frame the widest moment inside 3%; `framing` names the frame |
 | A move looks like it jumps, then slows | an ease-out launched from rest | start in-out or on a spring; `speed` names the corner frame |
-| The square cut loses half the subject | cropped from the wide render | a second render with its own camera (`?aspect=1`) |
+| The square cut loses half the subject | cropped from the wide render | a second render with its own layout (`?aspect=1`): camera and, where needed, object positions |
+| The event is too small to see | the camera frames every object at once | frame the beat's actors; the rest out of frame or soft behind; assert the hero's share via `__probe` |
 
 *Add a row every time a fix works. The house copy of this file is the one that grows.*

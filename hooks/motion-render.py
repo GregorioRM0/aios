@@ -159,6 +159,8 @@ def average_linear(paths, out):
     try:
         import numpy as np
     except ImportError:
+        print("motion-render: numpy not installed -- motion blur averaged in sRGB, trails slightly dark "
+              "(pip install numpy for linear light)", file=sys.stderr)
         imgs = [Image.open(p).convert("RGB") for p in paths]
         acc = imgs[0]
         for i, im in enumerate(imgs[1:], start=2):
