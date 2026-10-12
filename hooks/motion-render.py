@@ -18,11 +18,11 @@ THE PAGE CONTRACT (references/contract.md has the full house version):
   - optional `window.__probe(t)` -> {name: number, ...} for the speed graph and motion-check assert.
 
 USAGE
-  motion-render.py frames PAGE.html --out DIR [--fps 60] [--duration 6] [--size 1080x1080]
+  motion-render.py frames PAGE.html --out DIR [--fps 60] [--duration 6] [--size 1920x1080]
                    [--all | --frames 0,24,48] [--subframes N]
   motion-render.py sheet  DIR --out sheet.png [--count 12 | --every K] [--cols 4] [--width 1600]
   motion-render.py onion  DIR --range A:B --out onion.png
-  motion-render.py speed  PAGE.html --out speed.png [--fps 60] [--duration 6] [--size WxH]
+  motion-render.py speed  PAGE.html --out speed.png [--fps 60] [--duration 6] [--size WxH] [--corner 0.5] [--allow F,F]
   motion-render.py export DIR --out film.mp4 [--fps 60] [--audio sound.wav] [--gif out.gif --gif-fps 25]
 
 Frames are written as DIR/frame_00000.png. A loop renders frames 0..N-1 (N = duration*fps): frame
@@ -284,14 +284,33 @@ def cmd_speed(args):
                     series.setdefault(k, [None] * n)[i] = float(v)
     finally:
         st.close()
-    # per-frame change (speed) of each probed value, normalised per series
+    # Per-frame velocity of each probed value (signed, so a reversal is seen), normalised per series.
+    # A CORNER is a one-frame jump in velocity: a dead start, an ease-out launched from rest, a move that
+    # stops instead of landing. A smooth piece has none; a frame that jumps by more than half the value's
+    # range is a wrap or a cut, judged by `pops`, not here.
     W, pad = 1200, 30
-    speeds = {}
+    allow = {int(x) for x in str(args.allow).split(",") if x.strip().isdigit()}
+    speeds, corners = {}, {}
     for k, vals in series.items():
-        sp = [0.0] + [abs((vals[i] or 0) - (vals[i - 1] or 0)) for i in range(1, n)]
-        if max(sp) == 0:
+        v = [(vals[i] or 0) for i in range(n)]
+        rng = (max(v) - min(v)) or 0.0
+        if rng == 0:
             continue  # a constant (a reference value, a fixed slot) has no motion to graph
-        speeds[k] = sp
+        vel = [v[i] - v[i - 1] for i in range(1, n)]               # vel[j] = change into frame j+1
+        jump = [abs(d) > 0.5 * rng for d in vel]
+        mx = max([abs(d) for d, j in zip(vel, jump) if not j] or [0.0])
+        speeds[k] = [0.0] + [abs(d) for d in vel]
+        if mx == 0:
+            continue
+        hits = []
+        for j in range(1, len(vel)):
+            if jump[j] or jump[j - 1] or (j + 1) in allow:
+                continue
+            dv = abs(vel[j] - vel[j - 1])
+            if dv > args.corner * mx:
+                hits.append((j + 1, dv / mx))
+        if hits:
+            corners[k] = hits
     if not speeds:
         die("every probed value is constant: nothing moves, so there is no speed to graph")
     img = Image.new("RGB", (W, 160 * len(speeds)), (20, 20, 20))
@@ -302,13 +321,27 @@ def cmd_speed(args):
         mx = max(sp) or 1.0
         pts = [(pad + i * (W - 2 * pad) / max(1, n - 1), top + 140 - sp[i] / mx * 110) for i in range(n)]
         dr.line(pts, fill=(255, 140, 90), width=2)
-        dr.text((pad, top + 8), "%s  (max %.4g / frame)" % (k, mx), fill=(220, 220, 220))
+        for fr, _ in corners.get(k, []):
+            x = pad + fr * (W - 2 * pad) / max(1, n - 1)
+            dr.line([(x, top + 24), (x, top + 150)], fill=(255, 60, 60), width=1)
+        dr.text((pad, top + 8), "%s  (max %.4g / frame)%s" % (k, mx, ("  CORNERS: %d" % len(corners[k])) if k in corners else ""),
+                fill=(220, 220, 220))
     for i in range(n):
         csv.append(str(i) + "," + ",".join("%.6g" % speeds[k][i] for k in speeds))
     img.save(args.out)
     with open(os.path.splitext(args.out)[0] + ".csv", "w", encoding="utf-8") as f:
         f.write("\n".join(csv) + "\n")
-    print(json.dumps({"out": args.out, "series": list(speeds), "constant_skipped": [k for k in series if k not in speeds], "frames": n}))
+    for k in speeds:
+        if k in corners:
+            h = corners[k]
+            print("FAIL  corners: %s -- %d; first at f%d (velocity jumped %.0f%% of top speed in one frame)%s"
+                  % (k, len(h), h[0][0], h[0][1] * 100, (", also " + ", ".join("f%d" % f for f, _ in h[1:4])) if len(h) > 1 else ""))
+        else:
+            print("PASS  corners: %s" % k)
+    print(json.dumps({"out": args.out, "series": list(speeds), "constant_skipped": [k for k in series if k not in speeds],
+                      "corners": {k: [f for f, _ in h] for k, h in corners.items()}, "frames": n}))
+    print("RESULT %s" % ("PASS" if not corners else "FAIL (%d series with corners): %s" % (len(corners), ", ".join(corners))))
+    sys.exit(1 if corners else 0)
 
 
 def cmd_export(args):
@@ -364,7 +397,7 @@ def main():
     sp = ap.add_subparsers(dest="cmd", required=True)
     f = sp.add_parser("frames"); f.add_argument("page"); f.add_argument("--out", required=True)
     f.add_argument("--fps", type=float); f.add_argument("--duration", type=float)
-    f.add_argument("--size", default="1080x1080"); f.add_argument("--all", action="store_true")
+    f.add_argument("--size", default="1920x1080"); f.add_argument("--all", action="store_true")
     f.add_argument("--frames"); f.add_argument("--subframes", type=int, default=1)
     s = sp.add_parser("sheet"); s.add_argument("dir"); s.add_argument("--out", required=True)
     s.add_argument("--count", type=int, default=12); s.add_argument("--every", type=int)
@@ -373,7 +406,10 @@ def main():
     o.add_argument("--out", required=True)
     v = sp.add_parser("speed"); v.add_argument("page"); v.add_argument("--out", required=True)
     v.add_argument("--fps", type=float); v.add_argument("--duration", type=float)
-    v.add_argument("--size", default="1080x1080")
+    v.add_argument("--size", default="1920x1080")
+    v.add_argument("--corner", type=float, default=0.5,
+                   help="a one-frame change in velocity above this share of the series' top speed is a corner")
+    v.add_argument("--allow", default="", help="frames where a corner is intended (a cut, a snap), e.g. 120,240")
     e = sp.add_parser("export"); e.add_argument("dir"); e.add_argument("--out", required=True)
     e.add_argument("--fps", type=float, default=60); e.add_argument("--audio")
     e.add_argument("--gif"); e.add_argument("--gif-fps", type=float, default=25)

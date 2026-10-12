@@ -12,6 +12,12 @@ Starting values, not laws. A brief that cites these instead of adjectives gets t
 | anticipate | `0.36, 0, 0.66, -0.56` | a wind-up before the move |
 | linear | `0, 0, 1, 1` | only for continuous rotation or scrolling |
 
+**An ease-out starts at full speed.** Launched from a standstill it is a corner: the thing jumps from
+rest to its top speed in one frame, and `motion-render.py speed` fails it. Use ease-out only for
+something already moving (entering from off frame, continuing a previous move); from rest, start
+in-out or on a spring. The same goes for a wind-up: after an anticipation the move must leave from the
+speed the wind-up ended at, so **let a spring do the move and the landing**.
+
 ## Springs: one closed form, damping ratio as the unit
 
 ```js
@@ -26,6 +32,15 @@ function spring(t, zeta = 0.7, w = 14) {
 
 Damping ratio translates across every library: **1.0** no bounce · **0.7–0.85** premium, settled ·
 **0.4–0.6** playful. (For ζ ≥ 1 use the critically damped form `1 - (1 + w*t) * exp(-w*t)`.)
+
+## Scale and framing (3D)
+
+- **Model in metres, at real size**: a phone 0.147 × 0.071 m, a cup 0.12 m, a bottle 0.26 m. Then a
+  spring, a light distance and a camera move mean the same thing in every scene.
+- **The hero fills ≥ 1/3 of the frame height** at its beat; nothing comes within **3%** of an edge
+  (`motion-check.py framing`).
+- **One camera move**: a push-in of 10–15% of the distance, or an orbit of 10–25°, in-out, over the
+  whole piece or one shot.
 
 ## Durations and stagger
 

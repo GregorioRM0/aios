@@ -57,6 +57,18 @@ dirLight(0xdfe6ff, 0.55, 55, 8);   // fill: cool, right, low
 dirLight(0xffffff, 3.2, 160, 32);  // rim: behind, separates the object from a dark ground
 ```
 
+## Ground, scale and camera
+
+- **No floor by default.** `scene.background = new THREE.Color(0x0a0a0c)` and nothing under the
+  subject. If it must rest on something, give it a **contact shadow only**: a plane with
+  `THREE.ShadowMaterial({ opacity: 0.35 })`, which draws the shadow and nothing else.
+- **Metres, real size** (a phone 0.147 m tall). Camera distance follows: a 35 mm lens frames a
+  0.15 m object at a third of the height from about 0.9 m.
+- **The camera is a function of t too**: compute its position and target in `state(t)` (an in-out
+  push-in, or a short orbit around the target) and call `camera.lookAt` in `setScene`.
+- **The square cut** reads `?aspect=1`: set the camera aspect to 1 and move it back (or widen the
+  fov) until the widest moment fits inside the margins, then render at `--size 1080x1080`.
+
 ## Objects without models
 
 Devices, cards and panels are **rounded rectangles**, flat or extruded, built in code, so nothing
@@ -64,6 +76,9 @@ is downloaded and nothing infringes a product's design:
 
 - `THREE.Shape` with quadratic corners → `ShapeGeometry` (a flat face, set UVs to 0..1 so a texture
   maps cleanly) or `ExtrudeGeometry` with a small bevel (a slab: a phone, a card, a tablet).
+- **Build every part the camera sees**: a phone has its camera bump, side buttons and a screen
+  with a real interface state; a cup has its rim, sleeve and lid lip. Lathe (`LatheGeometry`) a
+  profile curve for anything round. A plain primitive reads as a placeholder.
 - Glass: `MeshPhysicalMaterial({ roughness: 0.08, clearcoat: 1, envMapIntensity: 0.35 })`.
   Metal frame: `metalness: 0.85, roughness: 0.3`. Keep `envMapIntensity` low on a dark ground, or
   everything turns grey.
@@ -81,7 +96,9 @@ System font stacks need no network; a web font must be loaded (`document.fonts.l
 The first contact sheet usually shows the same three faults; look for them by frame:
 
 - **Too small in frame**: the hero object or the event is a few pixels; move the camera in before
-  touching anything else.
+  touching anything else (`framing` reports the hero height).
+- **Mud**: a floor or sweep catches the key light and the frame goes mid-grey (`framing`, ground
+  stays ground). Remove it; keep a contact shadow.
 - **The hero move reads as a slide**: lift it off its surface (a dip, then an arc) so it separates
   from what it leaves.
 - **It arrives early or late**: give the travel its own easing and let a spring do the last

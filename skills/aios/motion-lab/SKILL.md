@@ -1,6 +1,6 @@
 ---
 name: motion-lab
-description: 'Use when making motion that will be rendered to video or GIF — starting from a one-line ask like "make me a 3D animation of X": it first interviews the operator element by element (goal, story, time, hero move, look, motion, banned, engine, QA, output), each with a recommended answer, then renders. For a loop, a logo sting, a title card, a product shot, a launch film, an explainer film, a deck component exported for social. Code-drawn motion where every frame is a pure function of t: the render contract, the directed-prompt template (GOAL · OUTPUT · TIME · LOOK · MOTION · SHOTS · BANNED · QA), the numbers (easing, springs as damping ratio, stagger, beat grid, holds), and the render → look → fix loop run on hooks/motion-render.py and hooks/motion-check.py. NOT for reading someone else''s video (watch-video) and NOT for live UI motion inside a product.'
+description: 'Use when making motion that will be rendered to video or GIF — starting from a one-line ask like "make me a 3D animation of X": it first interviews the operator element by element (goal, story, time, hero move, look, camera, motion, banned, engine, QA, output), each with a recommended answer, then renders. For a loop, a logo sting, a title card, a product shot, a launch film, an explainer film, a deck component exported for social. Code-drawn motion where every frame is a pure function of t: the render contract, the directed-prompt template (GOAL · OUTPUT · TIME · LOOK · CAMERA · MOTION · SHOTS · BANNED · QA), the numbers (easing, springs as damping ratio, stagger, beat grid, holds), and the render → look → fix loop run on hooks/motion-render.py and hooks/motion-check.py. NOT for reading someone else''s video (watch-video) and NOT for live UI motion inside a product.'
 ---
 
 # Motion Lab
@@ -8,6 +8,17 @@ description: 'Use when making motion that will be rendered to video or GIF — s
 **Direction is numbers, and review is measurement.** Every adjective left in a brief is a decision handed back to the model's default look; every check left to "watching it" is a check that does not happen, because the model sees only the frames it is shown and cannot hear. Measured in public: the same model given 27 words of adjectives and 448 words of numbers for the same subject came back with its stock look for the first and the brief for the second.
 
 The engine is plain: **one self-contained HTML file whose every frame is a pure function of t**, frozen frame by frame in a headless browser (`hooks/motion-render.py`), checked by instruments (`hooks/motion-check.py`), stitched by ffmpeg. Frames are reproducible, an edit is one number and a re-render, and the model can look at its own work.
+
+## The bar, by default
+
+**Every piece aims at the house bar unless the operator says otherwise**, and a lower bar is written into the brief by name (*"rough draft, one round"*), never drifted into. The bar, as things that can be checked:
+
+- **The subject floats on a dark ground.** No floor plane, no lit sweep, no grey table, unless asked: a lit surface turns the whole frame to mid-tone and nothing reads as the hero. `framing` fails it.
+- **Nothing touches the frame edge** (3% safe margin), and **the hero fills at least a third of the frame height** at its beat. `framing` measures both.
+- **The camera moves on purpose**: one named move (a push-in, a short orbit), eased in-out, never locked off by accident.
+- **Objects are built to real proportions in metres, with detail on every surface the camera sees**: a screen shows a real interface state, a product has its parts. A cylinder with a blob on top is a placeholder, not a piece.
+- **Every move lands**: from rest, a move starts in-out or on a spring; ease-out only for something already moving. `speed` fails a corner.
+- **Every check is green**, and the receipts say which ones did not apply.
 
 ## Who calls this
 
@@ -17,7 +28,7 @@ The **GOAL belongs to the caller**: `explainer` (rung 3: the reader understands 
 
 ## Step 0 — interview for the brief (always, for any short ask)
 
-A one-line ask (*"make me a 3D animation of X"*) is never rendered as given: the model fills every gap with its default look. **Your first reply is the whole brief, proposed**: ten elements, each with a recommended answer derived from the session's context (the purpose, the venture's `design.md`, the house contract and BANNED list) and a few words of why. Mark as questions only the two or three only the operator can answer (usually the goal, the story beats, anything about their brand). They answer once ("yes", or edits by element); read the final brief back; render nothing before a yes. Save it as `{slug}.brief.md`. How to recommend each element, and what a finished brief looks like: **`references/brief-interview.md`** and **`references/example-brief.md`**. Nobody present → use the recommendations and mark each one `assumed` in the receipts.
+A one-line ask (*"make me a 3D animation of X"*) is never rendered as given: the model fills every gap with its default look. **Your first reply is the whole brief, proposed**: eleven elements, each with a recommended answer derived from the session's context (the purpose, the venture's `design.md`, the house contract and BANNED list) and a few words of why. Mark as questions only the two or three only the operator can answer (usually the goal, the story beats, anything about their brand). They answer once ("yes", or edits by element); read the final brief back; render nothing before a yes. Save it as `{slug}.brief.md`. How to recommend each element, and what a finished brief looks like: **`references/brief-interview.md`** and **`references/example-brief.md`**. Nobody present → use the recommendations and mark each one `assumed` in the receipts.
 
 ## Before the first frame
 
@@ -36,19 +47,24 @@ R frames piece.html --out frames --frames 0,90,180,270    # stills at the shot b
 R frames piece.html --out frames --all                    # then every frame (a loop renders 0..N-1)
 R sheet frames --out sheet.png                            # 12 frames on one page: READ it
 C seam frames ; C pops frames                            # the cut back to frame 0; one-frame glitches
+C framing frames                                          # safe margins, ground stays ground, hero height
 C determinism piece.html --frames 0,84                    # same frame twice, same pixels?
 C assert piece.html checks.json                           # the brief's numbers, against __probe(t)
 R onion frames --range 80:92 --out onion.png              # spacing should tighten near the keys
-R speed piece.html --out speed.png                        # corners = dead starts, straight = linear
+R speed piece.html --out speed.png                        # FAILs on a corner (a launch from rest, a stop)
 R export frames --out piece.mp4 [--audio score.wav] [--gif piece.gif --gif-fps 24]
 C audio piece.mp4 --events hits.json                      # loudness, true peak, hits 1 frame late
 ```
 
 **Look, then write notes that name frames** ("at f84 the ring overshoots past 1.08"), one or two per round; fix; re-render only what changed. Turn feelings into numbers before acting ("make it pop" → scale 1.0 → 1.08 → 1.0 over 6 frames, peak on the beat). Give notes as the problem plus the result you want, not the fix. **Two to four rounds is normal; report the count.**
 
+Sizes default to **1920×1080**. A **square cut is a second render with its own camera** (the page reads `?aspect=1` and re-frames), never a crop of the wide one: a crop cuts the subject and breaks the margins. Render it with `--size 1080x1080 ` and run `framing` on it too.
+
+**A loop for social is seamless**: whole cycles, frames 0..N−1, and `seam` must pass. "Social", "feed", "autoplay" in the ask mean a loop unless the operator says it ends.
+
 **Sound is last**, scored from frame numbers (each hit one frame after its picture), synthesized or from licensed files, and checked by `audio`, never by "listening": the model cannot hear.
 
-**Every check says PASS or FAIL with its numbers.** A check that could not run exits 2 and says why; never report it as passed.
+**Every check says PASS or FAIL with its numbers.** A check that could not run exits 2 and says why; never report it as passed. A check that does not apply (no `audio` on a silent piece, no `seam` on a piece that ends) is reported as **N/A, with the reason**, never as PASS.
 
 ## After
 

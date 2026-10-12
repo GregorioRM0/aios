@@ -8,9 +8,10 @@
 #
 # Layers, each skipped (and said so) when its dependency is absent -- CI has no browser:
 #   always    contract lint (stdlib): the example passes; one mutant per rule fails
-#   Pillow    seam + pops on synthetic frame sequences, with planted defects
+#   Pillow    seam + pops + framing on synthetic frame sequences, with planted defects
 #   ffmpeg    audio: a beep one frame after frame 59 is found on time; a late one is not
-#   browser   the example loop: render all frames, seam, pops, determinism, sheet, export
+#   browser   the example loop: render all frames, seam, pops, determinism, speed, sheet, export;
+#             a move launched from rest is caught as a speed corner
 set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 R="$ROOT/hooks/motion-render.py"; C="$ROOT/hooks/motion-check.py"
@@ -103,6 +104,27 @@ PY
     && ok "the coral survives in a GIF whose first frame is empty" || no "GIF palette taken from frame 0: later colours lost"
 else skip "Pillow or ffmpeg not installed"; fi
 
+echo "── framing: safe margins and a ground that stays ground (Pillow) ──"
+if $PYBIN -c 'import PIL' 2>/dev/null; then
+  cat > "$T/framing.py" <<'PYF'
+import os, sys
+from PIL import Image, ImageDraw
+out, kind = sys.argv[1], sys.argv[2]
+os.makedirs(out, exist_ok=True)
+for i in range(30):
+    im = Image.new("RGB", (320, 180), (12, 12, 14)); d = ImageDraw.Draw(im)
+    if kind == "floor":  d.polygon([(0, 90), (320, 60), (320, 180), (0, 180)], fill=(70, 70, 72))
+    x = 100 + i
+    d.rectangle([x, 40 if kind != "cut" else 0, x + 90, 140], fill=(200, 200, 205))
+    im.save(os.path.join(out, "frame_%05d.png" % i))
+PYF
+  for k in good cut floor; do $PYBIN "$T/framing.py" "$T/fr-$k" "$k"; done
+  $PYBIN "$C" framing "$T/fr-good" >/dev/null 2>&1 && ok "a subject floating inside the margins passes" || no "framing failed a clean frame" "$($PYBIN "$C" framing "$T/fr-good" 2>&1)"
+  $PYBIN "$C" framing "$T/fr-cut" 2>&1 | grep -q "FAIL safe margins" && ok "caught: a subject cut by the frame edge" || no "edge cut not caught"
+  $PYBIN "$C" framing "$T/fr-floor" 2>&1 | grep -q "FAIL ground stays ground" && ok "caught: a lit floor turning the frame to mid-tone" || no "muddy ground not caught"
+  $PYBIN "$C" framing "$T/fr-floor" --bleed >/dev/null 2>&1 && ok "--bleed opts out when full-frame is the intent" || no "--bleed did not skip"
+else skip "Pillow not installed"; fi
+
 echo "── the example 6 s loop, end to end (browser) ──"
 if $PYBIN -c 'import playwright, PIL' 2>/dev/null && $PYBIN "$R" frames "$EX" --out "$T/probe" --frames 0 --size 64x64 >/dev/null 2>&1; then
   $PYBIN "$R" frames "$EX" --out "$T/f" --all --size 240x240 --fps 30 >/dev/null 2>&1 \
@@ -112,6 +134,18 @@ if $PYBIN -c 'import playwright, PIL' 2>/dev/null && $PYBIN "$R" frames "$EX" --
   $PYBIN "$C" determinism "$EX" --frames 0,84 --size 240x240 --fps 30 >/dev/null 2>&1 && ok "determinism green" || no "example not deterministic"
   printf '[{"frame":0,"expr":"p.phase","expect":0,"tol":1e-9},{"frame":90,"expr":"p.phase","expect":0.5,"tol":1e-9}]' > "$T/a.json"
   $PYBIN "$C" assert "$EX" "$T/a.json" --fps 30 --size 240x240 >/dev/null 2>&1 && ok "assert green against __probe" || no "assert failed"
+  $PYBIN "$R" speed "$EX" --out "$T/speed.png" --size 240x240 --fps 30 >/dev/null 2>&1 && ok "speed: the example has no corners" || no "speed flagged the example" "$($PYBIN "$R" speed "$EX" --out "$T/speed.png" --size 240x240 --fps 30 2>&1)"
+  # a value launched from rest at full speed (an ease-out from a standstill) is a corner
+  cat > "$T/corner.html" <<'HTMLC'
+<!doctype html><html><body><script>
+window.__duration = 2; window.__fps = 30;
+const outE = (u) => 1 - Math.pow(1 - Math.min(1, Math.max(0, u)), 3);
+window.__probe = (t) => ({ x: t < 1 ? 0 : outE((t - 1) / 0.6) });
+window.renderAt = (t) => { document.body.style.background = "#111"; };
+window.renderAt(0); window.__ready = true;
+</script></body></html>
+HTMLC
+  $PYBIN "$R" speed "$T/corner.html" --out "$T/corner.png" --size 64x64 2>&1 | grep -q "FAIL  corners: x -- 1; first at f31" && ok "caught: a move launched from rest at full speed (f31)" || no "speed corner not caught" "$($PYBIN "$R" speed "$T/corner.html" --out "$T/corner.png" --size 64x64 2>&1)"
   $PYBIN "$R" sheet "$T/f" --out "$T/sheet.png" >/dev/null 2>&1 && [ -s "$T/sheet.png" ] && ok "contact sheet written" || no "sheet failed"
   if command -v ffmpeg >/dev/null 2>&1; then
     $PYBIN "$R" export "$T/f" --fps 30 --out "$T/loop.mp4" --gif "$T/loop.gif" --gif-fps 24 > "$T/x.out" 2>&1 \

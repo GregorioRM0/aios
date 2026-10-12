@@ -13,6 +13,8 @@ USAGE
                                                            render each frame twice: identical?
   motion-check.py seam        DIR [--factor 3]             last frame -> first, vs the median step
   motion-check.py pops        DIR [--factor 4]             frames whose change jumps past neighbours
+  motion-check.py framing     DIR [--margin 0.03] [--bleed] the subject inside the safe margins, on a
+                                                           ground that stays ground; hero height per frame
   motion-check.py assert      PAGE.html CHECKS.json [--fps 60] [--size WxH]
                                                            [{"frame":84,"expr":"p.scale","expect":1.08,"tol":0.01}]
                                                            evaluated against window.__probe(t) as `p`
@@ -329,20 +331,76 @@ def cmd_audio(a):
     finish()
 
 
+def cmd_framing(a):
+    """The two faults a contact sheet shows and an eye forgives: a subject cut by the frame edge, and
+    a ground that is not ground (a grey floor plane, a lit sweep) so the whole frame turns to mid-tone
+    mud and nothing reads as the hero. Measured, not judged: the ground is the colour of the four
+    corners; the subject is every pixel that differs from it."""
+    need_pil()
+    from PIL import Image, ImageChops
+    fs = frames(a.dir)
+    pick = fs[::max(1, len(fs) // 24)]
+    tol = 24
+    worst_edge, muddy, heights = None, [], []
+    for f in pick:
+        im = Image.open(f).convert("RGB")
+        W, H = im.size
+        im = im.resize((max(1, W // 4), max(1, H // 4)))
+        w, h = im.size
+        px = im.load()
+        cs = [px[1, 1], px[w - 2, 1], px[1, h - 2], px[w - 2, h - 2]]
+        g = tuple(sorted(c[i] for c in cs)[1] for i in range(3))
+        d = ImageChops.difference(im, Image.new("RGB", im.size, g)).split()
+        m = ImageChops.lighter(ImageChops.lighter(d[0], d[1]), d[2]).point(lambda v: 255 if v > tol else 0)
+        hist = m.histogram()
+        ground_share = hist[0] / float(w * h)
+        bb = m.getbbox()
+        n = os.path.basename(f)[6:11].lstrip("0") or "0"
+        if not bb:
+            continue
+        x0, y0, x1, y1 = bb[0] / w, bb[1] / h, bb[2] / w, bb[3] / h
+        heights.append((y1 - y0, n))
+        gap = min(x0, y0, 1 - x1, 1 - y1)
+        if worst_edge is None or gap < worst_edge[0]:
+            worst_edge = (gap, n)
+        if ground_share < 0.4:
+            muddy.append((n, ground_share))
+    if not heights:
+        line("FAIL", "framing", "every sampled frame is empty ground")
+        return finish()
+    if a.bleed:
+        line("PASS", "safe margins", "skipped: --bleed (full-frame by intent; say so in the brief)")
+        line("PASS", "ground stays ground", "skipped: --bleed")
+    else:
+        gap, n = worst_edge
+        line("FAIL" if gap < a.margin else "PASS", "safe margins",
+             "closest to an edge %.1f%% of the frame at f%s (limit %.0f%%)" % (gap * 100, n, a.margin * 100))
+        line("FAIL" if muddy else "PASS", "ground stays ground",
+             ("%d/%d frames are mostly not ground; first f%s at %.0f%% ground -- a lit floor or sweep "
+              "turns the frame to mid-tone; float the subject on the ground, or pass --bleed if intended"
+              % (len(muddy), len(heights), muddy[0][0], muddy[0][1] * 100)) if muddy else "")
+    top = max(heights)
+    line("PASS" if top[0] >= 0.33 else "WARN", "hero height",
+         "subject reaches %.0f%% of the frame height at f%s (aim >= 33%% at the hero beat)" % (top[0] * 100, top[1]))
+    finish()
+
+
 def main():
     ap = argparse.ArgumentParser(prog="motion-check.py", description=__doc__.split("\n")[0])
     sp = ap.add_subparsers(dest="cmd", required=True)
     c = sp.add_parser("contract"); c.add_argument("page")
     d = sp.add_parser("determinism"); d.add_argument("page"); d.add_argument("--frames", required=True)
-    d.add_argument("--fps", type=float); d.add_argument("--size", default="1080x1080")
+    d.add_argument("--fps", type=float); d.add_argument("--size", default="1920x1080")
     s = sp.add_parser("seam"); s.add_argument("dir"); s.add_argument("--factor", type=float, default=3.0)
     p = sp.add_parser("pops"); p.add_argument("dir"); p.add_argument("--factor", type=float, default=4.0)
+    fr = sp.add_parser("framing"); fr.add_argument("dir"); fr.add_argument("--margin", type=float, default=0.03)
+    fr.add_argument("--bleed", action="store_true")
     x = sp.add_parser("assert"); x.add_argument("page"); x.add_argument("checks")
-    x.add_argument("--fps", type=float); x.add_argument("--size", default="1080x1080")
+    x.add_argument("--fps", type=float); x.add_argument("--size", default="1920x1080")
     u = sp.add_parser("audio"); u.add_argument("media"); u.add_argument("--events")
     u.add_argument("--fps", type=float, default=60); u.add_argument("--lufs", type=float, default=-14.0)
     a = ap.parse_args()
-    {"contract": cmd_contract, "determinism": cmd_determinism, "seam": cmd_seam, "pops": cmd_pops,
+    {"contract": cmd_contract, "determinism": cmd_determinism, "seam": cmd_seam, "pops": cmd_pops, "framing": cmd_framing,
      "assert": cmd_assert, "audio": cmd_audio}[a.cmd](a)
 
 

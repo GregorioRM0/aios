@@ -22,6 +22,20 @@ in a normal browser.
 
 **Opened directly, it must not look blank.** With no `?t=`, the page renders its **hero frame** (the resolved hold, or the most telling moment of a loop), never frame 0 of a piece that opens on an empty ground. Someone double-clicking the file sees the piece, not a black page; the renderer always sets t itself, so this changes no frame it captures.
 
+## BANNED (seed)
+
+Defaults a model reaches for when nothing stops it. Paste the list under every prompt; the house copy
+grows by name each time a render surprises you.
+
+- a floor plane, a lit sweep, a grey table under the subject (unless asked)
+- a static camera when no one asked for one
+- primitive stand-ins: a plain cylinder for a cup, a box for a phone, a blob for a lid
+- particles, lens flares, glow halos, bokeh dust, light leaks
+- a spinning turntable, a camera shake, a whip pan
+- an invented logo, company name, tagline, price, statistic or claim
+- a square cut made by cropping the wide one
+- an ease-out launched from rest, a move that stops instead of landing
+
 ## Fixes table (each line is a failure that will happen to you)
 
 | Symptom | Cause | Fix |
@@ -33,5 +47,9 @@ in a normal browser.
 | Text reflows mid-shot | the web font arrived after frame 0 | the renderer waits for `document.fonts.ready`; preload fonts |
 | GIF runs 4% slow | 41.67 ms delays rounded to 40 | export at 25 fps, or 24 fps with the 40/40/40/40/40/50 ms pattern (`export --gif-fps 24`) |
 | Hits feel late | sound files peak after their start | measure with `audio --events`; shift each hit to land 1 frame after its picture |
+| The frame reads as mid-grey mud | a lit floor or sweep fills the frame | float the subject on the dark ground; a contact shadow only; `framing` finds it |
+| The subject is cut by the edge | the camera framed the hero beat, not the widest moment | frame the widest moment inside 3%; `framing` names the frame |
+| A move looks like it jumps, then slows | an ease-out launched from rest | start in-out or on a spring; `speed` names the corner frame |
+| The square cut loses half the subject | cropped from the wide render | a second render with its own camera (`?aspect=1`) |
 
 *Add a row every time a fix works. The house copy of this file is the one that grows.*
