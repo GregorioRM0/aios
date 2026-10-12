@@ -16,6 +16,7 @@
   --accent:#2a78d6; --accent-ink:#1d5fae; --on-accent:#ffffff; --focus:#c2410c;
   /* objectives: categorical, fixed order (validated all-pairs, light) */
   --o1:#2a78d6; --o1-ink:#1d5fae; --o2:#c93d86; --o2-ink:#a32e6a; --o3:#7f6a00; --o3-ink:#6b5900;
+  --o4:#7a4fd0; --o4-ink:#5c34b0; --o5:#0f8582; --o5-ink:#0a6461;
   /* status: Wodtke confidence bands (reserved) */
   --lo:#d03b3b; --lo-bg:#fbe1e1; --lo-ink:#8a1c1c;
   --mid:#d99a00; --mid-bg:#fbefc8; --mid-ink:#694a00;
@@ -30,7 +31,7 @@
     --bg:#0c0e14; --surface:#141822; --surface2:#1b2030; --ink:#f2f3f7; --dim:#b3b8c8; --faint:#9298ad;
     --hair:rgba(242,243,247,.12); --hair2:rgba(242,243,247,.06); --shadow:0 20px 40px -26px rgba(0,0,0,.75);
     --accent:#3987e5; --accent-ink:#8cbcf5; --on-accent:#08121f; --focus:#fb923c;
-    --o1:#3987e5; --o1-ink:#8cbcf5; --o2:#e0609a; --o2-ink:#f39cc4; --o3:#a88c10; --o3-ink:#d9bf4f;
+    --o1:#3987e5; --o1-ink:#8cbcf5; --o2:#e0609a; --o2-ink:#f39cc4; --o3:#a88c10; --o3-ink:#d9bf4f; --o4:#9a7cf0; --o4-ink:#c6b4fb; --o5:#25aaa5; --o5-ink:#8adcd7;
     --lo:#e66767; --lo-bg:#45191c; --lo-ink:#ffc7c7;
     --mid:#e6b23a; --mid-bg:#40330c; --mid-ink:#f7dc90;
     --hi:#3fbf74; --hi-bg:#143823; --hi-ink:#aee8c1;
@@ -43,7 +44,7 @@
   --bg:#0c0e14; --surface:#141822; --surface2:#1b2030; --ink:#f2f3f7; --dim:#b3b8c8; --faint:#9298ad;
   --hair:rgba(242,243,247,.12); --hair2:rgba(242,243,247,.06); --shadow:0 20px 40px -26px rgba(0,0,0,.75);
   --accent:#3987e5; --accent-ink:#8cbcf5; --on-accent:#08121f; --focus:#fb923c;
-  --o1:#3987e5; --o1-ink:#8cbcf5; --o2:#e0609a; --o2-ink:#f39cc4; --o3:#a88c10; --o3-ink:#d9bf4f;
+  --o1:#3987e5; --o1-ink:#8cbcf5; --o2:#e0609a; --o2-ink:#f39cc4; --o3:#a88c10; --o3-ink:#d9bf4f; --o4:#9a7cf0; --o4-ink:#c6b4fb; --o5:#25aaa5; --o5-ink:#8adcd7;
   --lo:#e66767; --lo-bg:#45191c; --lo-ink:#ffc7c7;
   --mid:#e6b23a; --mid-bg:#40330c; --mid-ink:#f7dc90;
   --hi:#3fbf74; --hi-bg:#143823; --hi-ink:#aee8c1;
@@ -91,7 +92,7 @@ section{margin-top:clamp(36px,5vw,64px);scroll-margin-top:84px}
 .chip svg{width:12px;height:12px;flex:none}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .o1{--c:var(--o1);--c-ink:var(--o1-ink)} .o2{--c:var(--o2);--c-ink:var(--o2-ink)} .o3{--c:var(--o3);--c-ink:var(--o3-ink)}
-.o4{--c:var(--o1);--c-ink:var(--o1-ink)} .o5{--c:var(--o2);--c-ink:var(--o2-ink)}
+.o4{--c:var(--o4);--c-ink:var(--o4-ink)} .o5{--c:var(--o5);--c-ink:var(--o5-ink)}
 
 /* top bar */
 .bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
@@ -104,6 +105,38 @@ section{margin-top:clamp(36px,5vw,64px);scroll-margin-top:84px}
 .localbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:16px;padding:10px 14px;border:1px dashed color-mix(in srgb,var(--accent) 45%,var(--hair));border-radius:14px;background:color-mix(in srgb,var(--accent) 5%,var(--surface));font-size:13.5px;color:var(--dim)}
 .localbar .chip{flex:none}
 .localbar #changeCount{font-weight:700;color:var(--ink)}
+
+/* plan-gaps banner */
+.gapbar{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px 18px;align-items:center;margin:0 0 14px;padding:16px 18px;border-radius:18px;background:var(--cf-bg);border:1px solid color-mix(in srgb,var(--cf-line) 55%,transparent);border-left:5px solid var(--cf-line);color:var(--cf-ink)}
+.gapbar[hidden]{display:none}
+.gapbar .gi{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--cf-line) 18%,var(--cf-bg));flex:none}
+.gapbar .gi svg{width:22px;height:22px}
+.gapbar .gh{font-size:clamp(16px,1.7vw,18px);font-weight:800;line-height:1.3;color:var(--cf-ink)}
+.gapbar p{margin:2px 0 0;font-size:14px;color:var(--cf-ink)}
+.gapbar .gparts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.gapbar .gparts span{font:600 11px/1.3 "JetBrains Mono",monospace;letter-spacing:.04em;padding:4px 9px;border-radius:999px;border:1px dashed var(--cf-line);background:color-mix(in srgb,var(--surface) 55%,var(--cf-bg));color:var(--cf-ink)}
+.gapbar .ga{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.gapbar .btn{text-decoration:none;color:var(--cf-ink);background:color-mix(in srgb,var(--surface) 60%,var(--cf-bg));border-color:var(--cf-line)}
+.gapbar .btn:hover{background:var(--surface);color:var(--cf-ink);border-color:var(--cf-ink)}
+.gapbar .btn.go{background:var(--cf-ink);color:var(--cf-bg);border-color:var(--cf-ink)}
+.gapbar .btn.go:hover{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.gapbar.done{grid-template-columns:auto minmax(0,1fr);padding:10px 14px;background:var(--surface);border:1px solid var(--hair);border-left:5px solid var(--hi);color:var(--dim)}
+.gapbar.done .gi{width:30px;height:30px;border-radius:9px;background:var(--hi-bg);color:var(--hi-ink)}
+.gapbar.done .gi svg{width:17px;height:17px}
+.gapbar.done p{margin:0;color:var(--dim)} .gapbar.done p b{color:var(--hi-ink)}
+.typeline.flash{box-shadow:0 0 0 3px var(--c);border-radius:12px}
+.typeline{transition:box-shadow .4s}
+
+/* long periods (a half-year, 26 weeks): the week strip gets a full-width row */
+.long .dash{grid-template-columns:1fr}
+.long .tcard{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);column-gap:32px;align-items:center}
+.long .tcard>.card-k{grid-column:1/-1}
+.long .tcard .tl{margin-top:0}
+.long .tlgrid{grid-template-columns:repeat(var(--nw),minmax(24px,1fr));overflow-x:auto;padding:8px 4px 4px;scrollbar-width:thin}
+.long .hrow{grid-template-columns:minmax(180px,300px) 1fr}
+.long .hcells{grid-template-columns:repeat(auto-fill,minmax(96px,1fr))}
+.long .spark{width:260px}
+.wk .dl b{font:700 9px/1 "JetBrains Mono",monospace;color:var(--dim);width:100%;text-align:center}
 
 /* toc */
 .toc{position:sticky;top:10px;z-index:20;margin-top:22px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;padding:6px;border:1px solid var(--hair);border-radius:999px;background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow)}
@@ -327,11 +360,15 @@ dialog textarea{width:100%;min-height:220px;font:12.5px/1.5 "JetBrains Mono",ui-
 /* responsive */
 @media (max-width:1020px){
   .dash{grid-template-columns:1fr}
+  .long .tcard{grid-template-columns:minmax(0,1fr)}
+  .long .tcard .tl{margin-top:18px}
   .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
   .bands{grid-template-columns:1fr}
 }
 @media (max-width:760px){
   .two{grid-template-columns:1fr}
+  .gapbar{grid-template-columns:auto minmax(0,1fr)}
+  .gapbar .ga{grid-column:1/-1;justify-content:flex-start}
   .kr-main{grid-template-columns:1fr}
   .metrics{justify-content:flex-start}
   .otog{grid-template-columns:auto minmax(0,1fr) auto;padding:16px 16px 16px 22px}
@@ -353,6 +390,10 @@ dialog textarea{width:100%;min-height:220px;font:12.5px/1.5 "JetBrains Mono",ui-
   .actions .btn{padding:9px 12px}
   .actions .btn.primary .bt{display:inline}
   .card{padding:16px}
+  .gapbar{padding:14px;gap:12px}
+  .gapbar .gi{width:34px;height:34px}
+  .gapbar .ga .btn{flex:1 1 auto;justify-content:center}
+  .long .spark{width:100%;max-width:300px}
   .weekstep .wv{min-width:96px}
   .hcells{grid-template-columns:repeat(3,minmax(0,1fr))}
   .cell{padding:8px}
@@ -372,7 +413,7 @@ dialog textarea{width:100%;min-height:220px;font:12.5px/1.5 "JetBrains Mono",ui-
   .kr{margin-bottom:10px;break-inside:avoid}
   .kr-main{grid-template-columns:1fr}
   .metrics{justify-content:flex-start}
-  .actions,.toc,.localbar,.noprint,.more,.weekstep,.objtools{display:none!important}
+  .actions,.toc,.localbar,.gapbar .ga,.noprint,.more,.weekstep,.objtools{display:none!important}
   .obody[hidden],.kr-det[hidden]{display:grid!important}
   .obody[hidden]{display:block!important}
   .card,.obj,.kr,.pti,.oqi,.stat{box-shadow:none;break-inside:avoid}
@@ -562,6 +603,8 @@ dialog textarea{width:100%;min-height:220px;font:12.5px/1.5 "JetBrains Mono",ui-
     <symbol id="i-scale" viewBox="0 0 24 24"><path d="M12 4v16M7 20h10M5 7h14M5 7l-3 6a3 3 0 006 0zm14 0l-3 6a3 3 0 006 0z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v5m0 3v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-park" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 16V8h3a2.5 2.5 0 010 5h-3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-todo" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="18" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 018 0v3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
   </defs>
 </svg>
@@ -599,8 +642,9 @@ dialog textarea{width:100%;min-height:220px;font:12.5px/1.5 "JetBrains Mono",ui-
   <main>
     <section id="dash" aria-labelledby="dashH">
       <h2 id="dashH" class="sr">Quarter dashboard</h2>
+      <div class="gapbar" id="gapbar" role="region" aria-labelledby="gapH" hidden></div>
       <div class="dash">
-        <div class="card rv" aria-labelledby="timeH">
+        <div class="card tcard rv" aria-labelledby="timeH">
           <div class="card-k"><h3 id="timeH" class="kicker">Time in the quarter</h3><span class="chip" id="reviewChip"></span></div>
           <div class="time">
             <svg class="ring" viewBox="0 0 140 140" role="img" id="ring"></svg>
@@ -772,6 +816,9 @@ function weekIdxOf(d){ for (var i=0;i<weeks.length;i++){ if (d>=weeks[i].mon && 
 var todayWeekId = "W"+String(isoWeek(today)).padStart(2,"0");
 var todayIdx = weekIdxOf(today);
 var selIdx = todayIdx>=0 ? todayIdx : (today < weeks[0].mon ? 0 : weeks.length-1);
+/* a period longer than a quarter (e.g. a 26-week half) gets the long layout and says "period" */
+var LONG = weeks.length > 15, PER = LONG ? "period" : "quarter";
+if (LONG){ root.classList.add("long"); $("timeH").textContent = "Time in the period"; $("weeks").setAttribute("aria-label","Weeks of the period"); }
 
 /* ---------- value helpers ---------- */
 function confOf(kr, wid){ var l=state.conf[kr.id]; if (l && l[wid]!=null) return l[wid]; return (kr.confidence||{})[wid]!=null ? kr.confidence[wid] : null; }
@@ -822,10 +869,10 @@ function renderTime(){
   var where;
   if (todayIdx>=0) where = "Today is in <b>"+weeks[todayIdx].id+"</b>, week "+(todayIdx+1)+" of "+weeks.length+".";
   else if (today < weeks[0].mon) { var dd=Math.round((weeks[0].mon-today)/864e5); where = "Starts <b>"+fmtShort(Q.weeks.from)+"</b>"+(dd===1?" — tomorrow.":", in "+dd+" days.")+" Today is "+fmt(today)+" ("+todayWeekId+")."; }
-  else where = "The quarter's weeks are over (today "+fmt(today)+").";
+  else where = "The "+PER+"'s weeks are over (today "+fmt(today)+").";
   var rv = Q.review_date ? Math.round((parseD(Q.review_date)-today)/864e5) : null;
   $("timeFacts").innerHTML = '<div>'+where+'</div>'
-    + '<div><b>'+Math.round(frac*100)+'%</b> of the quarter\'s days elapsed · '+weeksDone+' of '+weeks.length+' weeks</div>'
+    + '<div><b>'+Math.round(frac*100)+'%</b> of the '+PER+'\'s days elapsed · '+weeksDone+' of '+weeks.length+' weeks</div>'
     + (rv!=null ? '<div>Scoring in <b>'+(rv>=0?rv+" days":"the past")+'</b> · '+esc(fmtShort(Q.review_date))+'</div>' : '<div><span class="chip cf">Review date to confirm</span></div>');
   $("reviewChip").textContent = Q.review_date ? "Review "+fmtShort(Q.review_date) : "No review date";
 }
@@ -842,11 +889,13 @@ function renderWeeks(){
     var d = dues[i]||[];
     var lab = w.id+", week of "+fmt(w.mon)+(i===todayIdx?", this week":"")+(d.length?", due: "+d.map(function(x){return x.kr.id;}).join(", "):"")+(i===rvIdx?", review":"");
     b.setAttribute("aria-label", lab); b.title = lab;
-    var dots = d.map(function(x){ return '<i class="'+ocls(x.oi)+'"></i>'; }).join("") + (i===rvIdx?'<i class="rv"></i>':"");
+    var dd = d; if (d.length>3){ var so={}; dd = d.filter(function(x){ if (so[x.oi]) return false; so[x.oi]=1; return true; }); }
+    var dots = dd.map(function(x){ return '<i class="'+ocls(x.oi)+'"></i>'; }).join("") + (i===rvIdx?'<i class="rv"></i>':"") + (d.length>3?'<b>'+d.length+'</b>':"");
     b.innerHTML = '<span class="wl2">'+w.id.slice(1)+'</span><span class="seg"></span><span class="dl">'+dots+'</span>';
     b.addEventListener("click", function(){ setWeek(i); });
     g.appendChild(b);
   });
+  if (g.scrollWidth > g.clientWidth+4){ var sb = g.children[selIdx]; if (sb) g.scrollLeft = Math.max(0, sb.offsetLeft - g.clientWidth/2); }
   var sel = weeks[selIdx];
   $("selWeekTxt").textContent = "Checking in: "+sel.id+" · "+fmt(sel.mon);
   $("wVal").textContent = sel.id+" · "+fmt(sel.mon);
@@ -898,9 +947,65 @@ function renderStats(){
   $("stats").innerHTML = tiles.map(function(t){ return '<div class="stat '+t[0]+'"><div class="n">'+t[1]+'</div><div class="l"><b>'+t[2]+'</b>'+(t[3]?'<br>'+esc(t[3]):'')+'</div></div>'; }).join("");
 }
 
+/* ---------- plan gaps banner ---------- */
+function plural(n, one, many){ return n+" "+(n===1?one:(many||one+"s")); }
+function gapList(){
+  var g = [];
+  Q.objectives.forEach(function(o){
+    if (!typeOf(o)) g.push({o:o, kr:null});
+    o.krs.forEach(function(kr){ if (krConfirm(kr)) g.push({o:o, kr:kr}); });
+  });
+  return g;
+}
+var gapAt = 0;
+function renderGaps(){
+  var ks = allKrs(), bar = $("gapbar");
+  var bc = ks.filter(function(x){return isConfirm(x.kr.baseline);}).length;
+  var tc = ks.filter(function(x){return isConfirm(x.kr.target);}).length;
+  var und = Q.objectives.filter(function(o){return !typeOf(o);}).length;
+  var oq = (Q.open_questions||[]).length;
+  var stops = gapList();
+  var localTypes = Object.keys(state.type).filter(function(k){ return state.type[k]; }).length;
+  bar.hidden = false;
+  if (!stops.length && !oq){
+    bar.className = "gapbar done";
+    bar.innerHTML = '<span class="gi">'+ico("i-check")+'</span><p><b id="gapH">Plan complete.</b> Every baseline, target and objective type is declared, and no question is open.'+(localTypes?' '+plural(localTypes,"type")+' set in this browser: export them so the note says so too.':'')+'</p>';
+    return;
+  }
+  var vals = bc+tc, conf = [];
+  if (vals) conf.push(plural(vals,"value"));
+  if (und) conf.push(plural(und,"type"));
+  var head = conf.length ? conf.join(" and ")+" to confirm" : plural(oq,"open question")+" to answer";
+  var sub = (conf.length && oq ? "Plus "+plural(oq,"open question")+". " : "") + "Answer these and the plan is complete.";
+  var parts = [];
+  if (bc) parts.push(plural(bc,"baseline"));
+  if (tc) parts.push(plural(tc,"target"));
+  if (und) parts.push(plural(und,"objective type")+" undeclared");
+  if (oq) parts.push(plural(oq,"open question"));
+  if (gapAt >= stops.length) gapAt = 0;
+  bar.className = "gapbar";
+  bar.innerHTML = '<span class="gi">'+ico("i-todo")+'</span>'
+    + '<div><h3 class="gh" id="gapH">'+head+'</h3><p>'+sub+(localTypes?' '+plural(localTypes,"type")+' set in this browser count as declared until you export them.':'')+'</p>'
+    + '<div class="gparts">'+parts.map(function(t){ return '<span>'+esc(t)+'</span>'; }).join("")+'</div></div>'
+    + '<div class="ga">'
+    + (stops.length ? '<button class="btn go" type="button" id="gapNext">'+(gapAt===0?"Go to first gap":"Next gap · "+(gapAt+1)+" of "+stops.length)+' →</button>' : '')
+    + (oq ? '<a class="btn" id="gapQ" href="#questions">'+plural(oq,"open question")+' →</a>' : '')
+    + '</div>';
+  var nb = $("gapNext");
+  if (nb) nb.addEventListener("click", function(){ var st = gapList(); if (!st.length) return; var g = st[gapAt % st.length]; gapAt = (gapAt+1) % st.length; goGap(g); renderGaps(); });
+}
+function goGap(g){
+  if (g.kr){ openKr(g.o.id, g.kr.id); return; }
+  if (!ui.open[g.o.id]){ ui.open[g.o.id]=true; saveUi(); renderObjectives(); paintExpandAll(); }
+  var tl = document.querySelector("#body-"+slug(g.o.id)+" .typeline"); if (!tl) return;
+  tl.scrollIntoView({behavior: reduce?"auto":"smooth", block:"center"});
+  tl.classList.add("flash"); setTimeout(function(){ tl.classList.remove("flash"); }, 1600);
+  var f = tl.querySelector("input:checked") || tl.querySelector("input"); if (f) f.focus({preventScroll:true});
+}
+
 /* ---------- charts ---------- */
 function spark(kr){
-  var cw=18, W=weeks.length*cw, H=50, top=4, bot=4;
+  var cw=LONG?12:18, W=weeks.length*cw, H=50, top=4, bot=4;
   function y(v){ return top + (10-v)/9*(H-top-bot); }
   var s = '<svg class="spark" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" data-kr="'+esc(kr.id)+'"';
   var pts=[], desc=[];
@@ -1048,7 +1153,7 @@ function renderObjectives(){
   box.querySelectorAll(".spark").forEach(function(sv){ sv.addEventListener("click", function(e){ var r=e.target.closest("[data-wi]"); if (r) setWeek(+r.getAttribute("data-wi")); }); });
   if (active){ var f=$(active); if (f && f!==document.activeElement && box.contains(f)) f.focus(); }
 }
-function refresh(focusId){ renderHeat(); renderStats(); renderObjectives(); updateCount(); var f=$(focusId); if (f) f.focus(); }
+function refresh(focusId){ renderHeat(); renderStats(); renderGaps(); renderObjectives(); updateCount(); var f=$(focusId); if (f) f.focus(); }
 function paintExpandAll(){ var all = Q.objectives.every(function(o){ return ui.open[o.id]; }); var b=$("expandAll"); b.textContent = all ? "Collapse all" : "Expand all"; b.setAttribute("aria-pressed", String(all)); }
 $("expandAll").addEventListener("click", function(){ var all = Q.objectives.every(function(o){ return ui.open[o.id]; }); Q.objectives.forEach(function(o){ ui.open[o.id] = !all; }); saveUi(); renderObjectives(); paintExpandAll(); });
 function openKr(oid, krid){
@@ -1155,7 +1260,7 @@ if ("IntersectionObserver" in window){
 }
 window.addEventListener("beforeprint", function(){ document.querySelectorAll(".rv").forEach(function(n){ n.classList.add("in"); }); });
 
-renderTime(); renderWeeks(); renderHeat(); renderStats(); renderObjectives(); paintExpandAll(); updateCount();
+renderTime(); renderWeeks(); renderHeat(); renderStats(); renderGaps(); renderObjectives(); paintExpandAll(); updateCount();
 })();
 </script>
 </body>
