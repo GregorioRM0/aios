@@ -238,6 +238,10 @@ def compact(root, session_id):
                                  "vault (hooks/context-floor.py refused it); INTENT.md still applies.")
     floor_path = m.group(1)
     the_map = run.stdout.strip()
+    # The floor names its own read parts, sized to fit one Read each; pass them on verbatim.
+    pm = re.search(r"by these line ranges \(each fits one Read\): ([0-9, -]+?) --", run.stdout)
+    how = ("in these parts (line ranges, each fits one Read): %s," % pm.group(1).strip()) if pm \
+        else "in parts of about 250 lines,"
     try:
         titles = titles_of(root)
     except Exception:
@@ -245,9 +249,9 @@ def compact(root, session_id):
     sections = "\n".join(l for l in the_map.splitlines() if re.match(r"\s+\d+-\d+\s", l))
 
     head = ("CONTEXT FLOOR (compact, delivered at session start by hooks/floor-at-start.py)\n"
-            "BEFORE ACTING: Read %s in parts of about 600 lines, to its last line "
+            "BEFORE ACTING: Read %s %s to its last line "
             "'=== END OF FLOOR'. What follows is a trimmed excerpt, not the floor.\n"
-            "The trust contract in full: %s" % (floor_path, intent_path(root)))
+            "The trust contract in full: %s" % (floor_path, how, intent_path(root)))
     ttext = "\n".join(titles)
 
     def intent_fill(room):

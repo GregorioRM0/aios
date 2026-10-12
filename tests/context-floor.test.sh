@@ -107,6 +107,28 @@ MB=$(printf '%s' "$MAP" | wc -c | tr -d ' '); FB=$(wc -c < "$FF" | tr -d ' ')
   || no "map $MB B / floor $FB B" "the map must stay readable in one tool result"
 printf '%s' "$MAP" | grep "w2000" >/dev/null && no "the map carries entry bodies" "then it is the floor again, and gets cut again" \
   || ok "the map carries no entry bodies"
+# The map names the read parts, and each must fit ONE Read (capped in tokens, so a fixed
+# line count fails in a large floor's dense part: measured, lines 1-599 = 80 KB were refused).
+PARTS="$(printf '%s' "$MAP" | sed -n 's/.*by these line ranges (each fits one Read): \([0-9, -]*\) --.*/\1/p' | head -1)"
+VERDICT="$($PYBIN - "$FF" "$PARTS" <<'PYP'
+import sys
+L = open(sys.argv[1], encoding="utf-8").read().split("\n")
+if L and L[-1] == "": L.pop()
+parts = [tuple(map(int, r.split("-"))) for r in sys.argv[2].replace(" ", "").split(",") if r]
+expect = 1; worst = 0
+for a, z in parts:
+    if a != expect: print("gap-or-overlap at %d (expected %d)" % (a, expect)); sys.exit()
+    worst = max(worst, sum(len(l.encode("utf-8")) + 1 for l in L[a-1:z])); expect = z + 1
+if expect != len(L) + 1: print("parts end at %d of %d lines" % (expect - 1, len(L))); sys.exit()
+print("ok %d %d" % (len(parts), worst))
+PYP
+)"
+case "$VERDICT" in
+  "ok "*) NP=$(printf '%s' "$VERDICT" | cut -d' ' -f2); WB=$(printf '%s' "$VERDICT" | cut -d' ' -f3)   # cut, not set --: zsh does not word-split
+          [ "$NP" -ge 2 ] && [ "$WB" -le 40000 ] && ok "the map names $NP read parts that cover the floor, each <= 40 KB (largest $WB B)" \
+            || no "read parts: $VERDICT" "a part over the Read cap makes a session drop the floor, or the fixture is too small to need parts" ;;
+  *) no "read parts are wrong: ${VERDICT:-none named}" "the map must name contiguous line ranges covering the whole file" ;;
+esac
 # Every section's start line must be that section's own header in the file.
 BAD=0
 while read -r a label; do

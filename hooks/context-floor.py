@@ -226,6 +226,31 @@ def folder(base, name):
     return out
 
 
+
+# One Read of a file is capped in TOKENS (25k on Claude Code), and a floor's lines vary from a
+# few bytes to several hundred: measured on a heavily used vault, lines 1-599 were 80 KB and the
+# Read was refused, while 58 KB parts went through. A fixed line count is therefore wrong in the
+# dense part of every large floor, so the parts are computed from the file itself: consecutive
+# line ranges of at most READ_PART_BYTES each, with a wide margin under the cap.
+READ_PART_BYTES = 40000
+
+
+def read_parts(text, budget=READ_PART_BYTES):
+    """1-based inclusive (first, last) line ranges, each under `budget` bytes."""
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()
+    parts, start, size = [], 1, 0
+    for n, line in enumerate(lines, 1):
+        b = len(line.encode("utf-8")) + 1
+        if size and size + b > budget:
+            parts.append((start, n - 1))
+            start, size = n, 0
+        size += b
+    if start <= len(lines):
+        parts.append((start, len(lines)))
+    return parts or [(1, 1)]
+
 def main(argv):
     as_json = "--json" in argv
     to_stdout = "--print" in argv
@@ -458,7 +483,8 @@ def main(argv):
     # measured 10-03 -> 10-11, sessions piped this through head/tail or redirected it to a file
     # and then worked from the map as if it were the floor. So BOTH ends name the next action.
     o("THIS IS ONLY THE MAP -- THE CONTEXT FLOOR IS NOT LOADED YET.")
-    o("NEXT: Read %s in parts of about 600 lines until its last line, '=== END OF FLOOR'." % out_path)
+    o("NEXT: Read %s in parts, by these line ranges (each fits one Read): %s -- until its last "
+      "line, '=== END OF FLOOR'." % (out_path, ", ".join("%d-%d" % r for r in read_parts(floor))))
     o("  %d bytes, %d lines. INTENT and the newest learnings come first, the maps after." % (len(floor.encode("utf-8")), total))
     o("  Do not redirect or truncate this output: it is the index, not the content.")
     o("")
