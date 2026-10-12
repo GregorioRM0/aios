@@ -80,6 +80,33 @@ SKIP_NAMES = {"_index.md"}
 
 FM = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.S)
 
+# Role logs (/close-day § Role log) are written only when declared/role-expectations.md exists.
+# Nothing else verified the step ran: measured, two weeks of closes skipped it and the monthly
+# /role-report would have been built on two days. A gap past this many days is reported here,
+# where /today and /close-day already look. Informational: it never changes the exit code.
+ROLE_LOG_DAYS = 3
+ROLE_LOG_NAME = re.compile(r"^(\d{4}-\d{2}-\d{2})-role-log\.md$")
+
+
+def role_log_gap(observed_dir, today):
+    """None when role logs are not configured; else (days_since, last_date_or_None)."""
+    context = os.path.dirname(os.path.abspath(observed_dir))
+    if not os.path.isfile(os.path.join(context, "declared", "role-expectations.md")):
+        return None
+    logs = os.path.join(os.path.dirname(context), "logs", "role-logs")
+    last = None
+    for _dirpath, _dirs, files in os.walk(logs):
+        for f in files:
+            m = ROLE_LOG_NAME.match(f)
+            if m:
+                try:
+                    d = dt.date.fromisoformat(m.group(1))
+                except ValueError:
+                    continue
+                if d <= today and (last is None or d > last):
+                    last = d
+    return ((today - last).days if last else None, last)
+
 
 def frontmatter(text):
     m = FM.match(text)
@@ -169,13 +196,17 @@ def main():
         print(f"observed-staleness: cannot measure {a.directory} — {e}", file=sys.stderr)
         return 2
 
+    gap = role_log_gap(a.directory, today)
     stale = [r for r in rows if r["stale"]]
     exempt = [r for r in rows if r["exempt"]]
     clocked = [r for r in rows if r["exempt"] is None]
 
     if a.json:
         print(json.dumps({"today": today.isoformat(), "rows": rows,
-                          "stale": [r["file"] for r in stale], "errors": errors}, indent=2))
+                          "stale": [r["file"] for r in stale], "errors": errors,
+                          "role_log": None if gap is None else {"days_since": gap[0],
+                              "last": gap[1].isoformat() if gap[1] else None,
+                              "threshold": ROLE_LOG_DAYS}}, indent=2))
     else:
         if stale:
             print(f"⚠️  {len(stale)} observed file(s) past threshold:")
@@ -194,6 +225,16 @@ def main():
             print(f"   — {r['file']:<26} no clock ({r['exempt']}; updated {r['updated']})")
         for e in errors:
             print(f"   ❌ {e}", file=sys.stderr)
+        if gap is not None:
+            days, last = gap
+            if last is None:
+                print("⚠️  role log: role-expectations.md exists but no role log was ever written "
+                      "(/close-day § Role log writes one on each working day)")
+            elif days > ROLE_LOG_DAYS:
+                print(f"⚠️  role log: last written {days} days ago ({last.isoformat()}) — "
+                      f"/close-day § Role log skipped on working days, or say why")
+            else:
+                print(f"   role log: last written {last.isoformat()} ({days}d ago)")
 
     if errors:
         return 2

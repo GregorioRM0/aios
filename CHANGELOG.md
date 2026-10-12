@@ -81,7 +81,7 @@
 
 ## 2026-10-11 — Every session starts knowing what you decided, four new agents, videos you can direct, and no JSON at setup
 
-`hash: 23e868a · e1bb869 · f0b76b3 · 9195f02 · e0ccc43 · 24b0abf · 34df84b · 4f7b35b · 2c0e0ca · f9b258f · 17cb753 · e0410d5 · 74b0471 · a6b4c14 · 22dca6f · d45339a · c016a19 · 0e17dcf · af91491 · 2a25e4a · fd3b676 · 2fdf7e7 · 48d3fbd · 33c35e4 · 524cd36 · ce4fa90 · b2a7900 · 9c73d0b · 739aba9 · d14bf88 · 669c880 · ca49905 · 0e57f4d · c52e72e · 5e716fb · a5cecaf · dd780df · 2fae78f · 2164418 · 3a09130 · c93a900 · 6963dbe · f309cb7 · 5583417 · a72f2d9 · e887bfb · 9bf5f34 · ff3cfe2 · 49be6c2` · [#204](https://github.com/The-AIOS/aios/pull/204) · [#205](https://github.com/The-AIOS/aios/pull/205) · [#206](https://github.com/The-AIOS/aios/pull/206) · [#207](https://github.com/The-AIOS/aios/pull/207) · [#208](https://github.com/The-AIOS/aios/pull/208)
+`hash: 23e868a · e1bb869 · f0b76b3 · 9195f02 · e0ccc43 · 24b0abf · 34df84b · 4f7b35b · 2c0e0ca · f9b258f · 17cb753 · e0410d5 · 74b0471 · a6b4c14 · 22dca6f · d45339a · c016a19 · 0e17dcf · af91491 · 2a25e4a · fd3b676 · 2fdf7e7 · 48d3fbd · 33c35e4 · 524cd36 · ce4fa90 · b2a7900 · 9c73d0b · 739aba9 · d14bf88 · 669c880 · ca49905 · 0e57f4d · c52e72e · 5e716fb · a5cecaf · dd780df · 2fae78f · 2164418 · 3a09130 · c93a900 · 6963dbe · f309cb7 · 5583417 · a72f2d9 · e887bfb · 9bf5f34 · ff3cfe2 · 49be6c2 · 9fb9091 · a657cd0 · 5afbae2 · 7e4c1ef` · [#204](https://github.com/The-AIOS/aios/pull/204) · [#205](https://github.com/The-AIOS/aios/pull/205) · [#206](https://github.com/The-AIOS/aios/pull/206) · [#207](https://github.com/The-AIOS/aios/pull/207) · [#208](https://github.com/The-AIOS/aios/pull/208)
 
 > **What you can now do.** Open any session and have it already know your trust contract and what was learned lately. Report something about AIOS upstream without your vault leaving the machine. Ask for an explainer of a release, a quarter's objectives drafted from your vault, a dry run of publishing a book on Amazon KDP, or a short 3D video from a one-line ask. Give a spawned worker an effort level or an advisor. Paste text into another app and have the accents arrive intact. Set AIOS up without approving a wall of JSON.
 
@@ -105,7 +105,7 @@
 
 **Setup without JSON.** `hooks/install-settings.py` lists in plain words what each hook does for you and changes nothing; with `--apply` it merges them into your Claude settings, keeps everything else, backs up the old file and keeps its permissions. New installs also leave the framework's own test suite out of the working tree (`git sparse-checkout disable` brings it back).
 
-**Smaller fixes you may notice.** `/aios:housekeeping` adds four checks. They report when the model ladder falls behind Anthropic's catalog, which skills cost context without being used, when a claude.ai-synced skill collides with a bundled one, and which old explainers can be pruned. Hooks read and write text as UTF-8 on Windows, where some read accents wrongly. Hook scripts check out with Unix line endings on Windows, and your notes are left untouched. Design skills point to Refero Styles as a second catalog of `DESIGN.md` files. A prompt the spawn inbox delivers again after two weeks is labelled as the inbox's, not read as your typing. A message sent through the inbox to a session that is busy now waits for its next pause (up to 24 hours) instead of being lost after 30 minutes, once your App or Glass supports it: the inbox contract and its tests in this release say how. A vault running a branch other than the framework's main one (a release being tested) now says *testing that branch* instead of offering an update that would undo it, and goes back to normal once that branch is merged. `spawn` given a flag with no value now stops with a message instead of hanging. `install-settings.py` keeps a symlinked settings file as a link, and refuses settings it cannot read safely, in plain words, before changing anything.
+**Smaller fixes you may notice.** `/aios:housekeeping` adds four checks: a model ladder behind Anthropic's catalog, skills that cost context unused, claude.ai skills colliding with bundled ones, and old explainers to prune. On Windows, hooks read and write UTF-8 and check out with Unix line endings; your notes are untouched. An inbox message to a busy session waits for its next pause (up to 24 hours) once your App or Glass supports it, and a prompt re-sent after two weeks is labelled as the inbox's. A vault testing a release branch says *testing that branch* instead of offering an update that would undo it. `spawn` with a flag and no value stops with a message instead of hanging, and `install-settings.py` keeps a symlinked settings file as a link and refuses unreadable settings before changing anything.
 
 **Action required** — check each first; do only what applies:
 1. **Wire the two new hooks (E and F).** Run `python3 ~/aios/hooks/install-settings.py` (Windows: `python` or `py -3`) and read the operator what it prints. It changes nothing; if it lists anything to add, run it again with `--apply`. Expect one window asking to allow the command; it writes only `~/.claude/settings.json` and a backup beside it. If it says nothing to change, skip this.
@@ -113,6 +113,16 @@
 3. **One new skill (`motion-lab`) is registered** by `skills/setup.sh`, which `/aios:update` runs when a bundled skill changes. Nothing to approve beyond that script's usual run.
 4. **Optional, for a vault cloned before today:** leave the test suite out of the working tree with `git -C ~/aios sparse-checkout set --no-cone '/*' '!/tests/'`. Offer it once; skip it if they contribute to AIOS. Undo: `git -C ~/aios sparse-checkout disable`.
 5. **Start a new Claude session** after updating, so the new hooks, commands and agents load.
+
+### v0.8.10, later the same night
+
+> **What you can now do.** Every session reads its context floor in parts that fit, the plugin version you see follows each update, and a skipped role log shows up the next morning.
+
+- **The floor names its own read parts.** A fixed 600-line part could be too big for one read; the floor now lists exact line ranges that fit.
+- **`/aios:update` refreshes the plugin itself** (`claude plugin update aios@the-aios`), so the version shown matches the release.
+- **Role logs:** `/today` and `/close-day` report the days since the last one when role logs are set up.
+
+**Action required:** none; start a new session.
 
 ## 2026-10-04 — A two-machine vault reconciles itself, sessions know whose words they are reading, and a lighter floor
 

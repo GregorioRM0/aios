@@ -93,6 +93,7 @@ for spec in "startup CLAUDE_CODE_ENTRYPOINT=cli" "startup CLAUDE_CODE_ENTRYPOINT
 done
 OUT=$(hook startup CLAUDE_CODE_ENTRYPOINT=cli | ctx)
 case "$OUT" in *"context-floor-s1.md"*"END OF FLOOR"*) ok "INTENT alone over the cap: the floor pointer survives" ;; *) no "floor pointer lost when INTENT exceeds the cap" ;; esac
+case "$(printf '%s' "$OUT" | head -3)" in *"in these parts (line ranges, each fits one Read): 1-"*) ok "the pointer passes on the floor's own read parts" ;; *) no "the pointer has no computed read parts" "a fixed line count overflows one Read in a large floor" ;; esac
 case "$OUT" in *boundary-marker-yy*comms-marker-zz*) ok "boundary sections are chosen by heading, in order" ;; *) no "boundary sections missing" ;; esac
 printf '%s' "$OUT" | grep 'venture-marker-qq' >/dev/null && no "a non-boundary section was delivered" || ok "a non-boundary section is left out"
 case "$OUT" in *"(truncated; full text in "*"INTENT.md)"*) ok "trimmed INTENT names its full text" ;; *) no "no truncation marker" ;; esac
