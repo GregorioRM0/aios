@@ -9,26 +9,31 @@ session must remember to follow is the weakest kind; the harness can do it inste
 
 WHAT. At session start (and after /clear or a compaction, when the context is gone) this hook
 writes the full floor file exactly as `context-floor.py` does, and hands the session a COMPACT
-floor as additionalContext:
+floor as additionalContext, in this order, so that what matters survives any trimming:
 
-    1. INTENT.md, whole            -- the trust contract: what the session may do without asking
-    2. the titles of the newest entries of every observed file -- what was learned lately
-    3. the map                     -- every section of the full floor file, with its path
+    1. the instruction to read the full floor file (absolute path) to its END OF FLOOR line
+    2. INTENT.md's boundary sections -- autonomy, decisions, communication, escalation --
+       chosen by HEADING WORDS, never by a fixed layout (operators write INTENT their own way)
+    3. the titles of the newest entries of every observed file
+    4. the section list of the full floor file, if room is left
 
-The full file stays where the map says, for depth. Measured budget on a heavy vault: ~33 KB,
-about 8,000 tokens, once per new interactive session (cached across its turns), against ~47,000
-for the whole floor. INTENT ships whole rather than "rule sections" picked by heading: headings
-vary per vault, and INTENT is the one file that governs what a session may do.
+THE CEILING. Claude Code shows a SessionStart hook's additionalContext whole only up to about
+10,000 characters; above that it saves the text to a file and shows the model a ~2 KB preview,
+which on a heavy vault was the first lines of INTENT and no pointer to the floor at all. So
+every mode stays under CEILING_CHARS (characters, not bytes), each part trimmed to fit with an
+explicit "(truncated; full text in <path>)" marker. The pointer comes first and is never cut.
 
-WHO. The floor exists so every session starts with the highest intelligence -- the right
-information at the right time -- so the default is delivery, not opt-in:
-  - every INTERACTIVE session (CLAUDE_CODE_ENTRYPOINT=cli), named or not, including workers
-    another session spawned through the inbox -> the compact floor
-  - ROUTINES (CLAUDE_CODE_ENTRYPOINT=sdk-*: headless `claude -p` and the SDKs) -> INTENT.md
-    alone, about 6,700 tokens: they commit and send with nobody watching, so the trust contract
-    is the one thing they must carry; titles and the map are for a session that can go look
-  - AIOS_FLOOR_AT_START=0 opts any session out (a worker that truly needs nothing);
-    AIOS_FLOOR_AT_START=1 gives any session the compact floor
+WHO. The floor exists so every session starts with the right information, so the default is
+delivery -- but only to sessions whose working directory is INSIDE the vault (stdin `cwd`,
+else the process cwd, compared as resolved real paths; case-insensitive on Windows). The hook
+is registered at user level, so without that check every Claude session in every repo would
+receive this vault's private INTENT and learnings. Outside: nothing.
+  - every INTERACTIVE session (CLAUDE_CODE_ENTRYPOINT=cli) -> the compact floor
+  - ROUTINES (CLAUDE_CODE_ENTRYPOINT=sdk-*: headless `claude -p` and the SDKs) -> the pointer
+    to INTENT.md plus as much of its boundary sections as fits: they commit and send with
+    nobody watching, so the trust contract is the one thing they must carry
+  - a vault the floor refuses (a fresh one, exit 2) -> the same INTENT delivery, not silence
+  - AIOS_FLOOR_AT_START=0 opts any session out; =1 gives any (in-vault) session the compact floor
   - source "resume": nothing -- the resumed transcript already holds what was delivered
 
 Exit 0 always and print nothing on any failure: a context hook must never stop a session from
@@ -50,7 +55,36 @@ for _stream in (sys.stdout, sys.stderr):
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.environ.get("AIOS_ROOT") or os.path.dirname(HERE)
 FLOOR = os.path.join(HERE, "context-floor.py")
-MAX_BYTES = 60 * 1024  # a ceiling, not the budget: past it, deliver the map and pointer only
+# Claude Code previews (does not inline) SessionStart context past ~10,000 characters.
+CEILING_CHARS = 9000
+
+# Heading words that mark the parts of INTENT.md governing what a session may DO. Several
+# languages, matched case-insensitively anywhere in a heading. No match -> INTENT from the top.
+BOUNDARY_WORDS = re.compile(
+    r"autonom|boundar|decision|decide|communicat|escalat|andon|permission|approv|"
+    r"never|must not|not doing|forbid|red line|"
+    r"l[ií]mite|decis|comunica|escala|nunca|permis|aprob|aprova|prohib|proib|"
+    r"grenz|entscheid|kommunik|eskal|verbot",
+    re.IGNORECASE)
+HEADING = re.compile(r"^(#{1,6})\s+(.*\S)\s*$")
+
+
+def norm(path):
+    try:
+        p = os.path.realpath(os.path.abspath(path))
+    except (OSError, ValueError):
+        return ""
+    return os.path.normcase(p)  # lowercases on Windows, identity elsewhere
+
+
+def inside_root(cwd, root):
+    r, c = norm(root), norm(cwd)
+    if not r or not c:
+        return False
+    try:
+        return os.path.commonpath([r, c]) == r
+    except ValueError:  # different drives on Windows
+        return False
 
 
 def mode(data, env):
@@ -67,34 +101,116 @@ def mode(data, env):
     return "compact"
 
 
-def intent_text(root):
+def intent_path(root):
+    return os.path.join(root, "INTENT.md")
+
+
+def intent_raw(root):
     try:
-        return open(os.path.join(root, "INTENT.md"), encoding="utf-8").read().strip()
+        return open(intent_path(root), encoding="utf-8").read().strip()
     except OSError:
-        return "(no INTENT.md in this vault -- assume nothing is pre-authorised)"
-
-
-def compact(root, session_id):
-    env = dict(os.environ)
-    if session_id:
-        env["CLAUDE_CODE_SESSION_ID"] = session_id
-    run = subprocess.run([sys.executable, FLOOR, root], capture_output=True, text=True,
-                         encoding="utf-8", errors="replace", timeout=60, env=env)
-    if run.returncode != 0 or not run.stdout.strip():
         return None
-    the_map = run.stdout.strip()
-    m = re.search(r"NEXT: Read (.+?) in parts", the_map)
-    floor_path = m.group(1) if m else ""
 
-    sys.path.insert(0, HERE)
+
+def boundary_sections(text):
+    """[(heading line, section text)] for headings whose words mark a boundary, in order."""
+    lines = text.splitlines()
+    heads, fence = [], False
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        m = None if fence else HEADING.match(ln)
+        if m:
+            heads.append((i, len(m.group(1)), m.group(2)))
+    out, skip_to = [], -1
+    for k, (i, lvl, title) in enumerate(heads):
+        if i < skip_to or lvl < 2 or not BOUNDARY_WORDS.search(title):
+            continue
+        end = len(lines)
+        for j, l2, _ in heads[k + 1:]:
+            if l2 <= lvl:
+                end = j
+                break
+        out.append("\n".join(lines[i:end]).strip())
+        skip_to = end
+    return out or [text]
+
+
+def trim(text, cap, path):
+    """text cut at a line boundary to fit cap characters, with a marker naming the full text."""
+    if len(text) <= cap:
+        return text
+    marker = "(truncated; full text in %s)" % path
+    room = cap - len(marker) - 1
+    if room <= 0:
+        return marker if len(marker) <= cap else ""
+    cut = text[:room]
+    nl = cut.rfind("\n")
+    if nl > room // 2:
+        cut = cut[:nl]
+    return cut.rstrip() + "\n" + marker
+
+
+def fair_trim(parts, budget, path):
+    """Trim each part to share the budget fairly (short parts give their slack to long ones)."""
+    sep = 2
+    budget -= sep * max(0, len(parts) - 1)
+    caps = [0] * len(parts)
+    todo = list(range(len(parts)))
+    left = max(0, budget)
+    while todo:
+        share = left // len(todo)
+        fits = [i for i in todo if len(parts[i]) <= share]
+        if not fits:
+            for i in todo:
+                caps[i] = share
+            break
+        for i in fits:
+            caps[i] = len(parts[i])
+            left -= caps[i]
+            todo.remove(i)
+    kept = [trim(p, c, path) for p, c in zip(parts, caps)]
+    return "\n\n".join(k for k in kept if k)
+
+
+def intent_block(root, budget):
+    raw = intent_raw(root)
+    if raw is None:
+        return "(no INTENT.md in this vault -- assume nothing is pre-authorised)"[:budget]
+    return fair_trim(boundary_sections(raw), budget, intent_path(root))
+
+
+def assemble(head, blocks):
+    """head is never cut; blocks = [(label, body_fn(budget))] filled in order while room lasts."""
+    text = head
+    for label, fill in blocks:
+        room = CEILING_CHARS - len(text) - len(label) - 4
+        if room < 200:
+            break
+        body = fill(room)
+        if body:
+            text += "\n\n" + label + "\n" + body
+    return text[:CEILING_CHARS]
+
+
+def intent_only(root, why):
+    p = intent_path(root)
+    head = ("%s\nBEFORE ACTING: read %s in full -- the trust contract: what you may do without "
+            "asking. Below are its boundary sections, trimmed to fit the session-start limit."
+            % (why, p))
+    return assemble(head, [("== INTENT.md -- boundary sections ==",
+                            lambda b: intent_block(root, b))])
+
+
+def titles_of(root):
     import importlib.util
     spec = importlib.util.spec_from_file_location("context_floor", FLOOR)
     cf = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cf)
     base = os.path.join(root, "vault", "00 - notes", "context")
-    obs = cf.folder(base, "observed") or []
     titles = []
-    for fn, lines in obs:
+    for fn, lines in cf.folder(base, "observed") or []:
         if cf.is_restated(lines):
             continue
         es, is_lib, _ = cf.recent_slice(lines, cf.DEFAULT_RECENT)
@@ -102,26 +218,49 @@ def compact(root, session_id):
             continue
         for block in cf.newest(es, cf.DEFAULT_RECENT):
             titles.append("  %s: %s" % (fn, block[0].lstrip("#").strip()))
+    return titles
 
-    intent = intent_text(root)
 
-    out = ["CONTEXT FLOOR (compact, delivered at session start by hooks/floor-at-start.py)",
-           "",
-           "== 1. INTENT.md -- the trust contract: what you may do without asking ==",
-           intent,
-           "",
-           "== 2. What was learned lately -- the newest entries of each observed file (titles) ==",
-           "Open an entry in its file when the task touches it; the full floor file below has their bodies.",
-           *titles,
-           "",
-           "== 3. The full floor, for depth ==",
-           the_map.replace("THIS IS ONLY THE MAP -- THE CONTEXT FLOOR IS NOT LOADED YET.",
-                           "The compact floor above is loaded; the full floor is here for depth.")]
-    text = "\n".join(out)
-    if len(text.encode("utf-8")) > MAX_BYTES:
-        text = ("CONTEXT FLOOR: too large to deliver compactly in this vault (%d KB). Read the full "
-                "floor file to its END line before acting: %s" % (len(text.encode("utf-8")) // 1024, floor_path))
-    return text
+def compact(root, session_id):
+    env = dict(os.environ)
+    if session_id:
+        env["CLAUDE_CODE_SESSION_ID"] = session_id
+    try:
+        run = subprocess.run([sys.executable, FLOOR, root], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=60, env=env)
+        ok = run.returncode == 0 and run.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        ok = False
+    m = re.search(r"NEXT: Read (.+?) in parts", run.stdout) if ok else None
+    if not m:
+        # A fresh vault the floor refuses (exit 2): the trust contract still arrives.
+        return intent_only(root, "CONTEXT FLOOR: the full floor could not be built for this "
+                                 "vault (hooks/context-floor.py refused it); INTENT.md still applies.")
+    floor_path = m.group(1)
+    the_map = run.stdout.strip()
+    try:
+        titles = titles_of(root)
+    except Exception:
+        titles = []
+    sections = "\n".join(l for l in the_map.splitlines() if re.match(r"\s+\d+-\d+\s", l))
+
+    head = ("CONTEXT FLOOR (compact, delivered at session start by hooks/floor-at-start.py)\n"
+            "BEFORE ACTING: Read %s in parts of about 600 lines, to its last line "
+            "'=== END OF FLOOR'. What follows is a trimmed excerpt, not the floor.\n"
+            "The trust contract in full: %s" % (floor_path, intent_path(root)))
+    ttext = "\n".join(titles)
+
+    def intent_fill(room):
+        # leave the titles a third of the room, or what they need if less
+        return intent_block(root, room - min(len(ttext) + 120, room // 3))
+
+    return assemble(head, [
+        ("== INTENT.md -- boundary sections: what you may do without asking ==", intent_fill),
+        ("== Newest entries of each observed file (titles; bodies in the floor file) ==",
+         lambda b: trim(ttext, b, floor_path) if ttext else ""),
+        ("== Sections of the full floor file (lines, size) ==",
+         lambda b: trim(sections, b, floor_path) if sections else ""),
+    ])
 
 
 def main():
@@ -130,18 +269,22 @@ def main():
             data = json.load(sys.stdin)
         except ValueError:
             data = {}
+        if not isinstance(data, dict):
+            data = {}
+        if not inside_root(data.get("cwd") or os.getcwd(), ROOT):
+            return
         m = mode(data, os.environ)
         if m is None:
             return
         if m == "intent":
-            text = ("INTENT.md -- the trust contract, delivered at session start by "
-                    "hooks/floor-at-start.py. This run is unattended: nobody is present to approve "
-                    "anything outside it.\n\n" + intent_text(ROOT))
+            text = intent_only(ROOT, "INTENT.md -- the trust contract, delivered at session start "
+                                     "by hooks/floor-at-start.py. This run is unattended: nobody is "
+                                     "present to approve anything outside it.")
         else:
             text = compact(ROOT, data.get("session_id") or "")
         if text:
             print(json.dumps({"hookSpecificOutput": {"hookEventName": "SessionStart",
-                                                     "additionalContext": text}}))
+                                                     "additionalContext": text[:CEILING_CHARS]}}))
     except Exception:
         pass
 
