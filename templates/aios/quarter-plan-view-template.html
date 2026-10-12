@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quarter View</title>
+<meta name="description" content="Interactive view of one quarter's objectives and key results, rendered from the quarter note. Local check-ins only; the note is the source of truth.">
+<style>
+:root{
+  --bg:#f6f4ef; --surface:#ffffff; --surface-2:#efece5; --line:#d9d4c9;
+  --text:#1c1b19; --muted:#57534b; --accent:#1d5a86; --accent-ink:#ffffff;
+  --warn-bg:#fdefd2; --warn-ink:#6e4200; --warn-line:#e2b25c;
+  --lo-bg:#f8dcdc; --lo-ink:#7d1f1f; --mid-bg:#f6ebc8; --mid-ink:#5f4700; --hi-bg:#d7ecd9; --hi-ink:#1e5427;
+  --focus:#c2410c; --shadow:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121417; --surface:#1b1e22; --surface-2:#23272c; --line:#353a41;
+    --text:#ece9e2; --muted:#aaa59b; --accent:#86bde3; --accent-ink:#0d1a24;
+    --warn-bg:#3b2c0e; --warn-ink:#f5cd7f; --warn-line:#8a6420;
+    --lo-bg:#4a1d1d; --lo-ink:#f6c3c3; --mid-bg:#43380f; --mid-ink:#f3dc93; --hi-bg:#173a1e; --hi-ink:#b6e3bd;
+    --focus:#fb923c; --shadow:none; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121417; --surface:#1b1e22; --surface-2:#23272c; --line:#353a41;
+  --text:#ece9e2; --muted:#aaa59b; --accent:#86bde3; --accent-ink:#0d1a24;
+  --warn-bg:#3b2c0e; --warn-ink:#f5cd7f; --warn-line:#8a6420;
+  --lo-bg:#4a1d1d; --lo-ink:#f6c3c3; --mid-bg:#43380f; --mid-ink:#f3dc93; --hi-bg:#173a1e; --hi-ink:#b6e3bd;
+  --focus:#fb923c; --shadow:none; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;overflow-wrap:anywhere}
+.wrap{max-width:1080px;margin:0 auto;padding:24px 16px 64px}
+h1,h2,h3{line-height:1.25;margin:0}
+h1{font-size:clamp(1.6rem,4vw,2.2rem);letter-spacing:-.01em}
+h2{font-size:1.15rem;margin-bottom:10px}
+h3{font-size:1.05rem}
+p{margin:.4em 0}
+code{font:0.88em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:0 4px;white-space:nowrap}
+.wl{color:var(--accent);font-weight:600}
+.meta code{white-space:normal;overflow-wrap:anywhere}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
+button,select{font:inherit;color:inherit}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-height:40px;cursor:pointer}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+section{margin-top:22px}
+
+/* header */
+header .top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between}
+.meta{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:.9rem;color:var(--muted)}
+.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid var(--line);background:var(--surface-2);color:var(--text)}
+.badge.draft{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--warn-line)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.localbar{margin-top:14px;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;font-size:.9rem;color:var(--muted);background:var(--surface)}
+.localbar strong{color:var(--text)}
+.callout{border-left:4px solid var(--warn-line);background:var(--warn-bg);color:var(--warn-ink);padding:10px 14px;border-radius:0 10px 10px 0}
+.compass{border-left:4px solid var(--accent);padding:4px 14px;font-style:italic}
+.flag{display:inline-block;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:1px 8px;border-radius:999px;background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line);vertical-align:2px}
+
+/* weeks */
+.weeks{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin-top:8px}
+.wk{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 4px;text-align:center;cursor:pointer;min-height:44px;line-height:1.2}
+.wk b{display:block;font-size:.9rem}
+.wk span{font-size:.72rem;color:var(--muted)}
+.wk[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.wk[aria-pressed="true"] span{color:var(--accent-ink)}
+.wk.today{box-shadow:inset 0 0 0 2px var(--focus)}
+.wk .tag{display:block;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.todayline{margin-top:8px;font-size:.9rem}
+
+/* objectives */
+.obj{margin-top:16px}
+.obj-head{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:baseline;justify-content:space-between}
+.obj-id{font-weight:800;color:var(--accent);margin-right:6px}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg label{display:flex;align-items:center;gap:6px;padding:6px 10px;font-size:.85rem;cursor:pointer;border-right:1px solid var(--line);min-height:36px}
+.seg label:last-child{border-right:0}
+.seg input{accent-color:var(--accent);margin:0}
+.seg label:has(input:checked){background:var(--surface-2);font-weight:700}
+.seg label:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:-3px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+legend{font-size:.8rem;color:var(--muted);margin-bottom:4px;padding:0}
+.typehint{font-size:.85rem;margin-top:4px}
+.sayno{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--surface-2)}
+.sayno b{text-transform:uppercase;font-size:.75rem;letter-spacing:.05em;margin-right:6px}
+.objscore{font-size:.9rem;color:var(--muted)}
+.objscore b{color:var(--text)}
+
+.kr{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+.kr-head{display:flex;gap:10px;align-items:baseline}
+.kr-id{font-weight:700;white-space:nowrap}
+.btt{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:stretch;margin:10px 0}
+.btt .end{background:var(--surface-2);border-radius:8px;padding:8px 10px}
+.btt .lbl{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+.btt .val{font-weight:600}
+.btt .arrow{align-self:center;color:var(--muted);font-size:1.2rem}
+.btt .end.confirm{background:var(--warn-bg);color:var(--warn-ink);outline:1px solid var(--warn-line)}
+.btt .end.confirm .lbl{color:var(--warn-ink)}
+dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;margin:8px 0 0;font-size:.92rem}
+dl.facts dt{color:var(--muted);font-weight:600}
+dl.facts dd{margin:0}
+.controls{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;margin-top:12px}
+.ctl label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:3px}
+.ctl select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-height:40px;min-width:92px}
+.hist{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+.hist .c{width:26px;height:26px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.hist .c.sel{outline:2px solid var(--accent);outline-offset:1px}
+.lo{background:var(--lo-bg)!important;color:var(--lo-ink)!important;border-color:transparent!important}
+.mid{background:var(--mid-bg)!important;color:var(--mid-ink)!important;border-color:transparent!important}
+.hi{background:var(--hi-bg)!important;color:var(--hi-ink)!important;border-color:transparent!important}
+.changed{font-size:.72rem;font-weight:700;color:var(--accent);margin-left:6px;text-transform:uppercase;letter-spacing:.04em}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+ul.plain,ol.plain{margin:0;padding-left:1.2em}
+ul.plain li,ol.plain li{margin:.45em 0}
+ol.qs li::marker{color:var(--accent);font-weight:700}
+.pt dt{font-weight:700;margin-top:8px}
+.pt dd{margin:2px 0 0}
+footer{margin-top:32px;font-size:.85rem;color:var(--muted)}
+footer ul{padding-left:1.2em}
+a{color:var(--accent)}
+
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);width:min(640px,calc(100vw - 32px));padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog textarea{width:100%;min-height:220px;font:13px/1.45 ui-monospace,Menlo,monospace;background:var(--surface-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (max-width:720px){
+  .grid2{grid-template-columns:1fr}
+  .btt{grid-template-columns:1fr}
+  .btt .arrow{transform:rotate(90deg);justify-self:start;padding-left:12px}
+  dl.facts{grid-template-columns:1fr}
+  dl.facts dd{margin-bottom:6px}
+}
+@media print{
+  :root,:root[data-theme]{--bg:#fff;--surface:#fff;--surface-2:#f3f3f3;--text:#000;--muted:#333;--line:#bbb;--accent:#000;--accent-ink:#fff;color-scheme:light}
+  body{font-size:11pt}
+  .actions,.localbar,.weeks,.todayline,.noprint,footer .noprint{display:none!important}
+  .card{box-shadow:none;break-inside:avoid}
+  .obj{break-inside:auto}
+  .kr{break-inside:avoid}
+  .ctl select{border:0;appearance:none;padding:0;min-height:0}
+  .wrap{padding:0}
+}
+</style>
+</head>
+<body>
+<!-- TEMPLATE: the JSON below is a FICTIONAL example (Example Bakery, year 2099). Replace it with the
+     quarter note's content; keep every field name. Unset fields: null, [] or {}.
+     QUARTER DATA: a session fills this block from the quarter note
+     (vault/01 - calendar/{YYYY-MM}/{YYYY}-Q{N}-plan.md). Text fields accept
+     inline markdown: **bold**, *italic*, `code`, [[wikilink|alias]]. -->
+<script type="application/json" id="quarter">
+{
+  "quarter": "2099-Q1",
+  "title": "2099-Q1 — Objectives (EXAMPLE)",
+  "status": "draft",
+  "created": "2099-01-05",
+  "updated": "2099-01-05",
+  "review_date": "2099-03-27",
+  "source_note": "vault/01 - calendar/2099-01/2099-Q1-plan.md",
+  "weeks": {
+    "from": "2099-01-05",
+    "to": "2099-03-27"
+  },
+  "late_set": "",
+  "compass": null,
+  "diagnosis": {
+    "confirmed": false,
+    "text": "EXAMPLE DATA. The fictional Example Bakery sells out by noon but nobody knows **which** loaves sell out. The constraint is *knowing demand*, not baking more."
+  },
+  "health_metrics": [
+    "Bakers keep weekends off",
+    "Customer complaints stay at or below today's level"
+  ],
+  "objectives": [
+    {
+      "id": "O1",
+      "title": "Know what our customers actually buy",
+      "type": "committed",
+      "says_no_to": "a new pastry line until the sales instrument exists.",
+      "krs": [
+        {
+          "id": "KR 1.1",
+          "baseline": "confirm",
+          "baseline_note": "no per-loaf sales record exists yet",
+          "target": "daily per-loaf sales recorded",
+          "target_note": "",
+          "by": "2099-02-13",
+          "instrument": "**build first**: till export to a sheet",
+          "build_first": true,
+          "keys": [
+            "`EX-1`"
+          ],
+          "links": [
+            "[[example-bakery-ops]]"
+          ],
+          "confidence": {
+            "W02": 5,
+            "W03": 6
+          },
+          "score": null
+        },
+        {
+          "id": "KR 1.2",
+          "baseline": "40 loaves left unsold per week",
+          "baseline_note": "example number",
+          "target": "10 loaves left unsold per week",
+          "target_note": "",
+          "by": "2099-03-27",
+          "instrument": "Waste log (example sheet), weekly total",
+          "build_first": false,
+          "keys": [
+            "`EX-2`",
+            "`EX-3`"
+          ],
+          "links": [
+            "[[example-bakery-ops]]"
+          ],
+          "confidence": {
+            "W02": 4
+          },
+          "score": null
+        }
+      ]
+    },
+    {
+      "id": "O2",
+      "title": "Make Saturday mornings delightful",
+      "type": "aspirational",
+      "says_no_to": "weekday catering requests this quarter.",
+      "krs": [
+        {
+          "id": "KR 2.1",
+          "baseline": "3.9 of 5 average rating",
+          "baseline_note": "example number",
+          "target": "confirm",
+          "target_note": "the owner has not set a bar yet",
+          "by": "2099-03-27",
+          "instrument": "Example review site, Saturday reviews only",
+          "build_first": false,
+          "keys": [],
+          "links": [
+            "[[example-saturdays]]"
+          ],
+          "confidence": {},
+          "score": null
+        }
+      ]
+    },
+    {
+      "id": "O3",
+      "title": "Open one wholesale account without the founder selling",
+      "type": null,
+      "says_no_to": "*(example)* the second shop location.",
+      "krs": [
+        {
+          "id": "KR 3.1",
+          "baseline": "0 wholesale accounts",
+          "baseline_note": "",
+          "target": "1 signed account sourced without the founder",
+          "target_note": "",
+          "by": "2099-03-27",
+          "instrument": "Contracts folder",
+          "build_first": false,
+          "keys": [
+            "key: none (propose)"
+          ],
+          "links": [
+            "[[example-wholesale]]"
+          ],
+          "confidence": {},
+          "score": null
+        }
+      ]
+    }
+  ],
+  "b_minus": [
+    "**Website redesign**: it works; it waits until Q2.",
+    "**Recipe book**: paced on its own date, not an objective."
+  ],
+  "pressure_test": {
+    "title": "O1 (leading, because O2 and O3 depend on knowing demand)",
+    "items": [
+      {
+        "label": "Inversion",
+        "text": "O1 fails if the till export is built but nobody reads it weekly."
+      },
+      {
+        "label": "Pre-mortem",
+        "text": "It is late March and the sheet has six weeks of gaps. *Most preventable part:* who reads it, and on which day."
+      },
+      {
+        "label": "Tradeoff rules",
+        "text": "O2 strains *depth over breadth*. No objective breaks two or more rules."
+      }
+    ]
+  },
+  "open_questions": [
+    "**The diagnosis.** Is *knowing demand* the real challenge? (example)",
+    "**KR 2.1 target.** What rating is the bar? (example)",
+    "**O3 type.** Committed or aspirational? (example)"
+  ],
+  "review": null
+}
+</script>
+
+<div class="wrap">
+  <header>
+    <div class="top">
+      <div>
+        <h1 id="title">Quarter</h1>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="exportBtn" type="button">Export changes</button>
+        <button class="btn" id="printBtn" type="button">Print</button>
+        <button class="btn" id="themeBtn" type="button" aria-label="Switch colour theme">Theme</button>
+        <button class="btn" id="clearBtn" type="button">Clear local notes</button>
+      </div>
+    </div>
+    <p class="localbar" id="localbar"><strong>Local notes.</strong> Confidence, draft scores and committed/aspirational choices you set here live only in this browser. <strong>The quarter note is the source of truth</strong>: use <em>Export changes</em> and let a session write them back. <span id="changeCount"></span></p>
+  </header>
+
+  <main>
+    <section id="lateSet" hidden><p class="callout" id="lateSetText"></p></section>
+    <section id="compassSec" hidden><p class="compass" id="compassText"></p></section>
+
+    <section class="card" aria-labelledby="diagH">
+      <h2 id="diagH">Diagnosis <span id="diagFlag"></span></h2>
+      <p id="diagText"></p>
+    </section>
+
+    <section class="noprint" aria-labelledby="weeksH">
+      <h2 id="weeksH">Weekly check-in</h2>
+      <p class="muted small noprint">Pick a week, then set each key result's confidence for that week (1–10, Wodtke). Confidence is a forecast of hitting the target, not a measure of progress.</p>
+      <div class="weeks" id="weeks" role="group" aria-label="Weeks of the quarter"></div>
+      <p class="todayline" id="todayLine" aria-live="polite"></p>
+    </section>
+
+    <section aria-labelledby="objH">
+      <h2 id="objH" class="sr">Objectives</h2>
+      <div id="objectives"></div>
+    </section>
+
+    <section class="grid2">
+      <div class="card" aria-labelledby="hmH">
+        <h2 id="hmH">Health metrics</h2>
+        <div id="health"></div>
+      </div>
+      <div class="card" aria-labelledby="bH">
+        <h2 id="bH">B- this quarter (intentional)</h2>
+        <ul class="plain" id="bminus"></ul>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="ptH">
+      <h2 id="ptH">Pressure test</h2>
+      <dl class="pt" id="pt"></dl>
+    </section>
+
+    <section class="card" aria-labelledby="oqH">
+      <h2 id="oqH">Open questions for the operator</h2>
+      <ol class="plain qs" id="oq"></ol>
+    </section>
+
+    <section class="card" aria-labelledby="rvH">
+      <h2 id="rvH">Review</h2>
+      <div id="review"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>How to read this view.</strong></p>
+    <ul>
+      <li><b>Committed</b> OKRs are expected to land in full. <b>Aspirational</b> ones are stretch goals ("moonshots"). Doerr, <a href="https://www.whatmatters.com/faqs/okr-meaning-definition-example">What Matters</a>.</li>
+      <li>Scores run 0.0–1.0, and an objective scores the average of its KRs. Across stretch OKRs, about 0.6–0.7 is the healthy average, and consistently higher means the goals were not ambitious enough. <a href="https://rework.withgoogle.com/en/guides/set-goals-with-okrs">Google re:Work</a>.</li>
+      <li>Weekly confidence comes from the Monday check-in: priorities, forecast, confidence, and health metrics to protect. Wodtke, <a href="https://eleganthack.com/monday-commitments-and-friday-wins/">Radical Focus</a>.</li>
+      <li>Each key result reads baseline → target from a named instrument, so it measures an outcome, not the work. Castro, <a href="https://www.businessagility.institute/learn/from-outputs-to-business-outcomes-with-okr-the-elsevier-journey/457">outputs to outcomes</a>.</li>
+    </ul>
+    <p class="noprint">The score here is a <em>draft</em>. The official grade is written once, in the note's Review section, from each instrument read on the review day.</p>
+  </footer>
+</div>
+
+<dialog id="exportDlg" aria-labelledby="exportH">
+  <h2 id="exportH">Export changes</h2>
+  <p class="small muted" id="exportStatus" role="status"></p>
+  <label for="exportText" class="small">Markdown for the session to write back to the quarter note</label>
+  <textarea id="exportText" readonly></textarea>
+  <p style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+    <button class="btn" id="copyAgain" type="button">Copy</button>
+    <button class="btn primary" id="closeDlg" type="button">Close</button>
+  </p>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+var Q = JSON.parse(document.getElementById("quarter").textContent);
+var KEY = "quarter-view:" + Q.quarter;
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+/* ---------- storage (best effort) ---------- */
+function load(){ try { var s = JSON.parse(localStorage.getItem(KEY) || "{}"); return {conf:s.conf||{}, score:s.score||{}, type:s.type||{}}; } catch(e){ return {conf:{},score:{},type:{}}; } }
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){} }
+var state = load();
+
+/* ---------- theme ---------- */
+var root = document.documentElement;
+try { var t = localStorage.getItem("quarter-view:theme"); if (t) root.setAttribute("data-theme", t); } catch(e){}
+function effectiveTheme(){ var a = root.getAttribute("data-theme"); if (a) return a; return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; }
+function paintThemeBtn(){ var next = effectiveTheme()==="dark" ? "light" : "dark"; var b=document.getElementById("themeBtn"); b.textContent = next==="dark" ? "Dark theme" : "Light theme"; b.setAttribute("aria-label","Switch to "+next+" theme"); }
+document.getElementById("themeBtn").addEventListener("click", function(){
+  var next = effectiveTheme()==="dark" ? "light" : "dark";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("quarter-view:theme", next); } catch(e){}
+  paintThemeBtn();
+});
+paintThemeBtn();
+
+/* ---------- inline markdown (escape first) ---------- */
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function md(s){
+  if (!s) return "";
+  var codes = [];
+  var x = esc(String(s)).replace(/`([^`]+)`/g, function(_, c){ codes.push(c); return "\u0000"+(codes.length-1)+"\u0000"; });
+  x = x.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '<span class="wl" title="$1">$2</span>')
+       .replace(/\[\[([^\]]+)\]\]/g, '<span class="wl">$1</span>')
+       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+       .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>");
+  return x.replace(/\u0000(\d+)\u0000/g, function(_, i){ return "<code>"+codes[+i]+"</code>"; });
+}
+function el(tag, attrs, html){ var e=document.createElement(tag); if(attrs) for(var k in attrs){ if(k==="class") e.className=attrs[k]; else e.setAttribute(k, attrs[k]); } if(html!=null) e.innerHTML=html; return e; }
+
+/* ---------- dates & weeks ---------- */
+function parseD(s){ var p=s.split("-"); return new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); }
+function isoWeek(d){ var t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate())); var day=t.getUTCDay()||7; t.setUTCDate(t.getUTCDate()+4-day); var y0=new Date(Date.UTC(t.getUTCFullYear(),0,1)); return Math.ceil(((t-y0)/864e5+1)/7); }
+function fmt(d){ return MONTHS[d.getUTCMonth()]+" "+d.getUTCDate(); }
+function fmtLong(s){ var d=parseD(s); return ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getUTCDay()]+" "+fmt(d)+", "+d.getUTCFullYear(); }
+var qp = new URLSearchParams(location.search);
+var now = new Date(); var today = qp.get("today") ? parseD(qp.get("today")) : new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+var weeks = [];
+(function(){
+  var start=parseD(Q.weeks.from), end=parseD(Q.weeks.to);
+  var day=start.getUTCDay()||7; var m=new Date(start); m.setUTCDate(m.getUTCDate()-(day-1));
+  while (m<=end){ var fri=new Date(m); fri.setUTCDate(fri.getUTCDate()+4); weeks.push({id:"W"+String(isoWeek(m)).padStart(2,"0"), mon:new Date(m), fri:fri}); m=new Date(m); m.setUTCDate(m.getUTCDate()+7); }
+})();
+var todayWeekId = "W"+String(isoWeek(today)).padStart(2,"0");
+var todayIdx = weeks.findIndex(function(w){ var sun=new Date(w.mon); sun.setUTCDate(sun.getUTCDate()+6); return today>=w.mon && today<=sun; });
+var selIdx = todayIdx>=0 ? todayIdx : (today < weeks[0].mon ? 0 : weeks.length-1);
+
+/* ---------- header ---------- */
+document.title = "Quarter View · " + Q.quarter;
+document.getElementById("title").textContent = Q.title || Q.quarter;
+var meta = document.getElementById("meta");
+meta.innerHTML = '<span class="badge '+(Q.status==="draft"?"draft":"")+'">'+esc(Q.status)+'</span>'
+ + '<span>Weeks '+esc(weeks[0].id)+'–'+esc(weeks[weeks.length-1].id)+'</span>'
+ + '<span>Review '+esc(fmtLong(Q.review_date))+'</span>'
+ + '<span>Source <code>'+esc(Q.source_note)+'</code></span>'
+ + '<span>Updated '+esc(Q.updated)+'</span>';
+if (Q.late_set){ document.getElementById("lateSet").hidden=false; document.getElementById("lateSetText").innerHTML = "<strong>Late set.</strong> "+md(Q.late_set); }
+if (Q.compass){ document.getElementById("compassSec").hidden=false; document.getElementById("compassText").innerHTML = md(Q.compass); }
+document.getElementById("diagText").innerHTML = md(Q.diagnosis && Q.diagnosis.text);
+if (Q.diagnosis && !Q.diagnosis.confirmed) document.getElementById("diagFlag").innerHTML = '<span class="flag">Proposal · not yet confirmed</span>';
+
+/* ---------- weeks strip ---------- */
+var weeksEl = document.getElementById("weeks");
+function renderWeeks(){
+  weeksEl.innerHTML = "";
+  weeks.forEach(function(w,i){
+    var b = el("button", {type:"button", class:"wk"+(i===todayIdx?" today":""), "aria-pressed": String(i===selIdx)});
+    if (i===todayIdx) b.setAttribute("aria-current","date");
+    b.setAttribute("aria-label", w.id+", week of "+fmt(w.mon)+(i===todayIdx?", this week":""));
+    b.innerHTML = "<b>"+w.id+"</b><span>"+fmt(w.mon)+"</span>"+(i===todayIdx?'<span class="tag">today</span>':"");
+    b.addEventListener("click", function(){ selIdx=i; renderWeeks(); renderObjectives(); });
+    weeksEl.appendChild(b);
+  });
+  var line = document.getElementById("todayLine"), sel = weeks[selIdx];
+  var where = todayIdx>=0 ? "Today is in <strong>"+weeks[todayIdx].id+"</strong>." :
+    (today < weeks[0].mon ? "Today ("+fmt(today)+", "+todayWeekId+") is before the quarter's first week; "+weeks[0].id+" starts "+fmtLong(Q.weeks.from)+"." :
+     "Today ("+fmt(today)+") is after the quarter's last week.");
+  line.innerHTML = where + " Checking in for <strong>"+sel.id+"</strong> (week of "+fmt(sel.mon)+").";
+}
+
+/* ---------- helpers for values ---------- */
+function confOf(kr, wid){ var l=state.conf[kr.id]; if (l && l[wid]!=null) return l[wid]; return (kr.confidence||{})[wid]!=null ? kr.confidence[wid] : null; }
+function scoreOf(kr){ return state.score[kr.id]!==undefined ? state.score[kr.id] : (kr.score==null?null:kr.score); }
+function typeOf(o){ return state.type[o.id]!==undefined ? state.type[o.id] : (o.type||null); }
+function band(v){ return v==null?"":(v<=3?"lo":(v<=6?"mid":"hi")); }
+function bandWord(v){ return v==null?"":(v<=3?"low":(v<=6?"middling":"high")); }
+function isConfirm(s){ return /^confirm\b/i.test(String(s||"").trim()); }
+
+/* ---------- objectives ---------- */
+var objEl = document.getElementById("objectives");
+function typeHint(t){
+  if (t==="committed") return "Committed: expected to land in full (score 1.0).";
+  if (t==="aspirational") return "Aspirational: about 0.6–0.7 is the healthy shape.";
+  return '<span class="flag">Open question</span> The note does not say whether this objective is committed or aspirational, and the score reads differently for each.';
+}
+function renderObjectives(){
+  var wid = weeks[selIdx].id;
+  objEl.innerHTML = "";
+  Q.objectives.forEach(function(o){
+    var card = el("article", {class:"card obj", "aria-labelledby": "h-"+o.id});
+    var t = typeOf(o);
+    var head = el("div", {class:"obj-head"});
+    head.appendChild(el("h3", {id:"h-"+o.id}, '<span class="obj-id">'+esc(o.id)+'</span>'+md(o.title)));
+    var fs = el("fieldset", {class:"noprint-keep"});
+    fs.appendChild(el("legend", null, "Committed or aspirational?"));
+    var seg = el("div", {class:"seg"});
+    [["committed","Committed"],["aspirational","Aspirational"],["","Not declared"]].forEach(function(p){
+      var id = "t-"+o.id+"-"+(p[0]||"none");
+      var lab = el("label", {for:id});
+      var inp = el("input", {type:"radio", name:"type-"+o.id, id:id, value:p[0]});
+      if ((t||"")===p[0]) inp.checked = true;
+      inp.addEventListener("change", function(){ var v=p[0]||null; if (v===(o.type||null)) delete state.type[o.id]; else state.type[o.id]=v; save(); renderObjectives(); updateCount(); var f=document.getElementById(id); if(f) f.focus(); });
+      lab.appendChild(inp); lab.appendChild(document.createTextNode(p[1])); seg.appendChild(lab);
+    });
+    fs.appendChild(seg);
+    head.appendChild(fs);
+    card.appendChild(head);
+    card.appendChild(el("p", {class:"typehint muted"}, typeHint(t) + (state.type[o.id]!==undefined?'<span class="changed">local</span>':"")));
+
+    var scored = o.krs.map(scoreOf).filter(function(v){return v!=null;});
+    var avg = scored.length ? (scored.reduce(function(a,b){return a+b;},0)/scored.length) : null;
+    card.appendChild(el("p", {class:"objscore"}, "Draft objective score: " + (avg==null ? "<b>not scored</b>" : "<b>"+avg.toFixed(2)+"</b> (average of "+scored.length+" of "+o.krs.length+" KRs)")));
+
+    o.krs.forEach(function(kr){
+      var k = el("div", {class:"kr"});
+      var kid = kr.id.replace(/\W+/g,"-");
+      k.appendChild(el("div", {class:"kr-head"}, '<span class="kr-id">'+esc(kr.id)+'</span>' + (kr.build_first?'<span class="flag">build the instrument first</span>':"")));
+      var bc = isConfirm(kr.baseline), tc = isConfirm(kr.target);
+      k.appendChild(el("div", {class:"btt"},
+        '<div class="end'+(bc?" confirm":"")+'"><span class="lbl">Baseline'+(bc?" · confirm":"")+'</span><span class="val">'+md(bc?"to confirm":kr.baseline)+'</span>'+(kr.baseline_note?'<div class="small">'+md(kr.baseline_note)+'</div>':"")+'</div>'+
+        '<div class="arrow" aria-hidden="true">→</div>'+
+        '<div class="end'+(tc?" confirm":"")+'"><span class="lbl">Target by '+esc(kr.by)+(tc?" · confirm":"")+'</span><span class="val">'+md(tc?"to confirm":kr.target)+'</span>'+(kr.target_note?'<div class="small">'+md(kr.target_note)+'</div>':"")+'</div>'));
+      var facts = '<dt>Instrument</dt><dd>'+md(kr.instrument)+'</dd>';
+      facts += '<dt>Keys</dt><dd>'+(kr.keys && kr.keys.length ? kr.keys.map(md).join(" · ") : '<span class="muted">none cited</span>')+'</dd>';
+      if (kr.links && kr.links.length) facts += '<dt>Truth surface</dt><dd>'+kr.links.map(md).join(" · ")+'</dd>';
+      k.appendChild(el("dl", {class:"facts"}, facts));
+
+      var ctr = el("div", {class:"controls"});
+      // confidence
+      var cv = confOf(kr, wid);
+      var c1 = el("div", {class:"ctl"});
+      c1.appendChild(el("label", {for:"c-"+kid}, "Confidence "+esc(wid)+" (1–10)"));
+      var cs = el("select", {id:"c-"+kid});
+      cs.appendChild(el("option", {value:""}, "—"));
+      for (var i=1;i<=10;i++){ var op=el("option",{value:String(i)}, i+"/10"); if (cv===i) op.selected=true; cs.appendChild(op); }
+      if (cv!=null) cs.className = band(cv);
+      cs.addEventListener("change", function(){ var v = this.value===""?null:+this.value; state.conf[kr.id]=state.conf[kr.id]||{}; if (v==null) delete state.conf[kr.id][wid]; else state.conf[kr.id][wid]=v; if (!Object.keys(state.conf[kr.id]).length) delete state.conf[kr.id]; save(); renderObjectives(); updateCount(); var f=document.getElementById("c-"+kid); if(f) f.focus(); });
+      c1.appendChild(cs); ctr.appendChild(c1);
+      // score
+      var sv = scoreOf(kr);
+      var c2 = el("div", {class:"ctl"});
+      c2.appendChild(el("label", {for:"s-"+kid}, "Draft score (0.0–1.0)"));
+      var ss = el("select", {id:"s-"+kid});
+      ss.appendChild(el("option", {value:""}, "—"));
+      for (var j=0;j<=10;j++){ var val=(j/10); var op2=el("option",{value:val.toFixed(1)}, val.toFixed(1)); if (sv!=null && Math.abs(sv-val)<1e-9) op2.selected=true; ss.appendChild(op2); }
+      ss.addEventListener("change", function(){ var v = this.value===""?null:+this.value; if (v===(kr.score==null?null:kr.score)) delete state.score[kr.id]; else state.score[kr.id]=v; save(); renderObjectives(); updateCount(); var f=document.getElementById("s-"+kid); if(f) f.focus(); });
+      c2.appendChild(ss); ctr.appendChild(c2);
+      // history
+      var c3 = el("div", {class:"ctl"});
+      c3.appendChild(el("span", {class:"small muted", style:"display:block;margin-bottom:3px", id:"hl-"+kid}, "Confidence by week"));
+      var h = el("div", {class:"hist", role:"img"});
+      var desc = [];
+      weeks.forEach(function(w, wi){
+        var v = confOf(kr, w.id);
+        var c = el("span", {class:"c "+band(v)+(wi===selIdx?" sel":""), title: w.id+": "+(v==null?"no check-in":v+"/10")}, v==null?"·":String(v));
+        h.appendChild(c);
+        if (v!=null) desc.push(w.id+" "+v+" of 10");
+      });
+      h.setAttribute("aria-label", "Confidence history for "+kr.id+": "+(desc.length?desc.join(", "):"no check-ins yet"));
+      c3.appendChild(h); ctr.appendChild(c3);
+      var changed = (state.conf[kr.id] && Object.keys(state.conf[kr.id]).length) || state.score[kr.id]!==undefined;
+      if (changed) ctr.appendChild(el("span", {class:"changed"}, "local changes"));
+      if (cv!=null) ctr.appendChild(el("span", {class:"small muted"}, "Confidence "+bandWord(cv)+" this week"));
+      k.appendChild(ctr);
+      card.appendChild(k);
+    });
+
+    card.appendChild(el("p", {class:"sayno"}, "<b>Says no to</b>"+md(o.says_no_to)));
+    objEl.appendChild(card);
+  });
+}
+
+/* ---------- lists ---------- */
+var hm = document.getElementById("health");
+if (Q.health_metrics && Q.health_metrics.length){ var ul=el("ul",{class:"plain"}); Q.health_metrics.forEach(function(m){ ul.appendChild(el("li",null,md(m))); }); hm.appendChild(ul); }
+else hm.innerHTML = '<p class="muted">The quarter note names none.</p><p class="small muted">Wodtke\'s check-in pairs the OKRs with two or three things that must not break while you chase them. Naming them is the operator\'s call, in the note.</p>';
+var bm = document.getElementById("bminus"); (Q.b_minus||[]).forEach(function(b){ bm.appendChild(el("li",null,md(b))); });
+var pt = document.getElementById("pt");
+if (Q.pressure_test){ pt.appendChild(el("dt",null,"Leading objective")); pt.appendChild(el("dd",null,md(Q.pressure_test.title)));
+  (Q.pressure_test.items||[]).forEach(function(it){ pt.appendChild(el("dt",null,md(it.label))); pt.appendChild(el("dd",null,md(it.text))); }); }
+var oq = document.getElementById("oq"); (Q.open_questions||[]).forEach(function(q){ oq.appendChild(el("li",null,md(q))); });
+var rv = document.getElementById("review");
+rv.innerHTML = Q.review ? md(Q.review) : '<p class="muted">Written once, at scoring ('+esc(fmtLong(Q.review_date || Q.weeks.to))+'). Each KR\'s number is read from its instrument that day and graded 0.0–1.0. Empty until then.</p>';
+
+/* ---------- changes & export ---------- */
+function changes(){
+  var lines = [];
+  Q.objectives.forEach(function(o){
+    if (state.type[o.id]!==undefined) lines.push("- "+o.id+" · type: "+(state.type[o.id]||"not declared"));
+    o.krs.forEach(function(kr){
+      var bits = [];
+      var c = state.conf[kr.id];
+      if (c){ var ws = Object.keys(c).sort(); if (ws.length) bits.push("confidence "+ws.map(function(w){return w+": "+c[w]+"/10";}).join(", ")); }
+      if (state.score[kr.id]!==undefined) bits.push("draft score: "+(state.score[kr.id]==null?"cleared":state.score[kr.id].toFixed(1)));
+      if (bits.length) lines.push("- "+kr.id+" · "+bits.join(" · "));
+    });
+  });
+  return lines;
+}
+function updateCount(){ var n = changes().length; document.getElementById("changeCount").textContent = n ? n+" local change"+(n>1?"s":"")+" not yet in the note." : "No local changes."; }
+function snippet(){
+  var l = changes(); var nd = new Date(); var d = nd.getFullYear()+"-"+String(nd.getMonth()+1).padStart(2,"0")+"-"+String(nd.getDate()).padStart(2,"0");
+  if (!l.length) return "No local changes to export.";
+  return "<!-- quarter-view export · "+Q.quarter+" · "+d+" · local check-ins; write back to "+Q.source_note+" -->\n"
+    + "### Check-ins from the quarter view ("+d+")\n" + l.join("\n") + "\n";
+}
+function copyText(txt){
+  var fallback = function(){ var ta=document.getElementById("exportText"); ta.focus(); ta.select(); var ok=false; try{ ok=document.execCommand("copy"); }catch(e){} return ok; };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    var timeout = new Promise(function(r){ setTimeout(function(){ r("timeout"); }, 1500); });
+    return Promise.race([navigator.clipboard.writeText(txt).then(function(){return "ok";}, function(){return "fail";}), timeout])
+      .then(function(r){ return r==="ok" ? true : fallback(); });
+  }
+  return Promise.resolve(fallback());
+}
+var dlg = document.getElementById("exportDlg");
+function doExport(){
+  var txt = snippet();
+  document.getElementById("exportText").value = txt;
+  if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open","");
+  var st = document.getElementById("exportStatus");
+  if (!changes().length){ st.textContent = "Nothing to copy: no local changes yet."; return; }
+  st.textContent = "Copying…";
+  copyText(txt).then(function(ok){ st.textContent = ok ? "Copied to the clipboard. Paste it to a session to write back to the note." : "The browser blocked the clipboard. Select the text below and copy it."; });
+}
+document.getElementById("exportBtn").addEventListener("click", doExport);
+document.getElementById("copyAgain").addEventListener("click", function(){ var st=document.getElementById("exportStatus"); copyText(document.getElementById("exportText").value).then(function(ok){ st.textContent = ok ? "Copied." : "Copy blocked. Select the text and copy it."; }); });
+document.getElementById("closeDlg").addEventListener("click", function(){ if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); document.getElementById("exportBtn").focus(); });
+document.getElementById("printBtn").addEventListener("click", function(){ window.print(); });
+document.getElementById("clearBtn").addEventListener("click", function(){
+  if (!changes().length) { updateCount(); return; }
+  if (!confirm("Clear this browser's local check-ins for "+Q.quarter+"? The quarter note is not affected.")) return;
+  state = {conf:{},score:{},type:{}}; save(); renderObjectives(); updateCount();
+});
+
+renderWeeks(); renderObjectives(); updateCount();
+})();
+</script>
+</body>
+</html>

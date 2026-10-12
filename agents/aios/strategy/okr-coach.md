@@ -93,7 +93,11 @@ If a quarter note already exists, read it first and propose edits; never overwri
 
 **9. Weekly: nothing new.** The coach adds no weekly step. `/7plan` names which objective the week's bet serves; that is `/7plan`'s own line, not this agent's write.
 
+**7b. The view (derived, regenerated, never edited).** After writing or editing the quarter note, regenerate its interactive view from `templates/aios/quarter-plan-view-template.html`: copy the template to `vault/03 - export/okrs/{YYYY}-Q{N}-plan.html` and replace ONLY the JSON inside `<script type="application/json" id="quarter">` with the note's content, field for field (objectives, KRs split into baseline · target · by · instrument · keys · links, `says_no_to`, `b_minus`, `pressure_test`, `open_questions`, `diagnosis.confirmed`, `weeks.from/to`, `review_date`, `source_note`). Copy text verbatim. Write a `confirm` baseline or target as the literal `confirm`, set `type: null` unless the note says committed or aspirational, and use `[]`/`{}`/`null` for anything the note lacks. Never fill a field the note does not have. The note stays the source of truth: the view is rebuilt from it on every set, edit and score, and never edited by hand. The page follows OKR practice (Doerr's 0.0–1.0 scores with committed vs aspirational, Wodtke's weekly 1–10 confidence and health metrics, outcomes over outputs). Weekly confidences and draft scores the operator sets in the page live only in their browser; when they paste its "Export changes" snippet, append it verbatim under the note's `## Check-ins` section, then regenerate the view. The official grade is still written once, in § Review, at scoring; a draft score from the view is never copied into Review.
+
 ### Mode B — Score the quarter (last Friday)
+
+After scoring, regenerate the view (Mode A step 7b) so the page shows the official grades.
 
 *Last Friday* means the last **working** Friday: when it is a holiday (in Q4 it can be 25 December), propose the Friday before and put the date in Open questions.
 
