@@ -2,6 +2,23 @@
 
 Get the full system running in under 10 minutes (after the prereqs install).
 
+## What you're setting up
+
+**AIOS gives anyone the power of an AI that works on your computer, not just in a chat window.** It runs on Claude Code, which lives in a terminal. That sounds technical, and the point of AIOS is that it doesn't have to be: you talk to it in plain words, and it does the technical steps itself.
+
+**It is also a harness.** Think of a climber's harness: it doesn't do the climbing, it lets you go higher without being afraid of the fall. A harness is everything around the model: the files it remembers you in, the rules for what it may do without asking, and the small checks that run around it. That is what turns a clever chat into something that compounds. An AI that remembers you can:
+
+- **anticipate** what you will need, instead of waiting to be asked;
+- **act within your limits**, because you wrote down what it may do alone;
+- **hold your direction** across days, not only inside one conversation;
+- **multiply what you do**, by running agents on the work you hand it;
+- **notice your patterns and growth edges**, and tell you honestly;
+- **connect dots into new ideas** across everything it has seen of your work.
+
+"Learning" here means your vault, never the model: every session writes down what it noticed, and the next one reads it. Nothing trains Claude on you.
+
+**The setup is the beginning, not the product.** What makes it compound are a few short rituals you run every day (see [After Setup → The routines are the point](#the-routines-are-the-point)).
+
 <details>
 <summary><strong>📍 Reading this as Claude?</strong> (Operator said "set up my AI-OS" — click for your execution sequence)</summary>
 
@@ -35,6 +52,8 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
      || echo "missing: obsidian-app"
    ```
    > A blank result means it is installed and **nothing should be said about it**. Only `missing: obsidian-app` earns a sentence: *"One thing I can't install for you — Obsidian itself, the app you'll read your vault in. It's a normal download from obsidian.md; grab it whenever, nothing here waits on it."* Note the framing: the vault is plain Markdown on their disk and every ritual works without the GUI, so this is genuinely not a blocker, and saying so prevents a first-timer stalling on it.
+
+   **Open with the picture before any check:** two or three sentences, in the operator's language, from § What you're setting up: what AIOS is, the harness, and that the daily rituals are where it compounds. Many newcomers arrive having been told only "install this"; a setup that never says what it is for asks them to trust a sequence they cannot follow.
 
    **Before leaving step 1, ask for everything only the operator can do — in ONE message, now.** Two things in this sequence are out of your hands, and on a real Windows install through the App they surfaced as two separate stops: GitHub login halfway through step 2, and file access at step 8, after work had already been done around the block. Each stop is a moment the operator is handed a command they did not expect, mid-flow. Find both up front, ask for them together, and keep working while they do it:
 
@@ -291,6 +310,16 @@ Claude reads this file and walks you through the full onboarding — clone → i
 
 - **Sign in to GitHub (optional)** — type `! gh auth login --hostname github.com --git-protocol https --web` and approve in the browser. It backs your vault up to a private repo. **No account, or it fails? Setup carries on anyway** — your vault stays on this computer, and each morning's plan reminds you it isn't backed up until you connect. (If you came through the AIOS App, skip this: the App connects GitHub for you, as its own step.)
 - **Let Claude write your Claude settings** — type `/add-dir` followed by the path Claude gives you (your `.claude` folder), **then type `done`**. Claude does not see the `/add-dir` itself, so it waits for your next message. Setup installs skills, the plugin and three hooks there, and a session only writes outside its own folder when you say so.
+
+> **About the hooks, so they never feel like something done to you.** A *hook* is a small script Claude Code runs at a fixed moment: when you send a message, when a session starts, when it reads an email for you. AIOS adds five, and before anything is written you see them listed, one plain line each:
+>
+> - **the clock**: every message carries the real date and time, so plans aren't built on a wrong day;
+> - **provenance**: text you did not write (an email, a web page, a message from another agent) is marked as such, so instructions inside it are treated as information, not orders;
+> - **the floor at start**: each new session begins already knowing your trust contract and what was learned lately;
+> - **the model-switch log**: a note when a session is moved to another model, so you know which model did the work;
+> - **the status line**: how full the session's memory is, at the bottom of the screen.
+>
+> They run on your computer and send nothing anywhere. Your previous settings file is kept beside the new one, so undoing it is copying one file back.
 
 **The end-to-end flow:**
 
@@ -699,6 +728,17 @@ Claude reads `FORTRESS.md` end-to-end and configures both machines. Hard precond
 ---
 
 ## After Setup
+
+### The routines are the point
+
+Setup gives the AIOS somewhere to live. **The rituals are what make it yours**, because each one reads what the last one wrote:
+
+- **Morning — `/aios:today`.** It reads your calendar, your projects and what was learned yesterday, and proposes a plan for the day.
+- **After a piece of work — `/aios:close-session`.** One short capture: what shipped, what was learned. That note is what the next session starts from.
+- **Evening — `/aios:close-day`.** It closes the day, carries what didn't get done, and writes what it noticed about how you work into your observed context.
+- **Once a week — `/aios:7plan`.** The week's one bet, and what you are deliberately not doing.
+
+The first `/aios:today` will be sparse, and that is normal: it only knows what the interview told it. Every close adds to what the next morning reads. Skip the closes and nothing compounds; run them and, within days, it knows your projects, your rhythm and what you tend to avoid.
 
 ### 1. Open Obsidian
 
