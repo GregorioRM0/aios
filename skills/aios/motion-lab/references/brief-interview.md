@@ -44,6 +44,45 @@ one word.
 interview should end. Read it before your first interview: it shows the level of specificity that
 separates a piece from a demo.
 
+## A worked exchange (fictional)
+
+The operator writes: *"make a short animation of our new dark mode for the launch post"*. The
+session has read the product's `design.md` (ground `#101114`, accent `#7c9cff`, Inter) and finds no
+earlier motion pieces. Its first reply, whole:
+
+> Before I render anything, here is the brief I would work from: every line is a recommendation you
+> can accept with "yes". Three things only you can answer are marked **Q**.
+>
+> 1. **GOAL** (**Q1**): *the viewer sees the app switch to dark in one tap and wants to try it.* Who
+>    sees this first: the launch post on X/LinkedIn (muted autoplay), or the website?
+> 2. **STORY** (**Q2**): 1 the app screen in light, at rest · 2 a thumb-sized cursor taps the toggle ·
+>    3 the dark theme sweeps down the screen from the toggle · 4 the screen settles in dark · 5 a
+>    reset that sweeps back to light (if it loops). Does the sweep from the toggle match how the
+>    feature actually behaves?
+> 3. **TIME**: 6 s = 360 frames at 60 fps, 120 BPM grid; the tap on f90, the sweep f90-150.
+> 4. **HERO**: the sweep, 0 -> 100% of the screen height over 60 frames, in-out; full on f150.
+> 5. **LOOK**: from your `design.md`: ground `#101114`, accent `#7c9cff` on the toggle only, Inter.
+>    One phone, floating, no floor; key, fill and rim lights with the numbers in the brief.
+> 6. **CAMERA**: a three-quarter view, 25° off front; a push-in of 12% that peaks on the tap and
+>    eases back during the reset; the screen fills 60% of the frame height at the tap.
+> 7. **MOTION**: the cursor travels on a spring (zeta 0.8, w 12); the toggle knob on a spring
+>    (zeta 0.6, playful); the phone tilts 4° toward the camera on the tap, 100 ms after it.
+> 8. **BANNED** (**Q3**, the one part that is about your brand): the house list plus no app-store
+>    badge and no real device silhouette. Should the app's real icon and name appear, or stay off?
+> 9. **ENGINE**: Three.js 0.160.0 pinned; the phone as a rounded slab; both screens drawn on canvas.
+> 10. **QA**: contract, pops, determinism at f0, f90, f150; framing; speed with no corners; seam;
+>     assert f150 sweep = 1.0 and f359 matches f0 (`at(0)`, tol 0.001); audio N/A (silent).
+> 11. **OUTPUT**: 1920x1080 and a 1080x1080 cut with its own layout, MP4, `03 - export/motion/`;
+>     2-4 rounds; nothing posted.
+
+The operator answers in one line: *"1: X/LinkedIn, loop it. 2: yes. 3: icon yes, no name. Go."*
+The session reads back only what changed (*"A loop: the reset beat stays, seam is in QA; the app
+icon appears on the home screen, no name anywhere"*), saves `dark-mode.brief.md`, and renders.
+
+What to copy from it: the session **proposed** every element from what it already knew, asked
+three questions in total, tied each question to the element it changes, and read back only the
+edits.
+
 ## Why the interview, and not a longer template
 
 The template already exists (`references/prompt-template.md`). What was missing is that a session

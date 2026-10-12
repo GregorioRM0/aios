@@ -83,7 +83,7 @@ Sizes default to **1920×1080**. A **square cut is a second render with its own 
 
 - `references/contract.md` — the render contract + the fixes table (seed of the house contract)
 - `references/numbers.md` — easings, the closed-form spring, damping ratios, durations, stagger, beat grid, holds, accessibility limits, loudness targets
-- `references/brief-interview.md` — Step 0: turning a one-line ask into a full brief with the operator
+- `references/brief-interview.md` — Step 0: turning a one-line ask into a full brief with the operator, with a worked exchange
 - `references/example-brief.md` — a finished brief for a fictional product, at the level of detail to aim for
 - `references/three-d.md` — Three.js that renders deterministically: plumbing, lights, objects, text, first faults
 - `references/prompt-template.md` — the eleven-line brief, how to fill it, a worked example
