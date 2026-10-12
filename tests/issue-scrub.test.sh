@@ -212,5 +212,27 @@ out=$(printf 'the acme-private fork and the site venture\n' | $PYBIN "$H" --root
 case "$out" in *acme-private*) no "an org named only in .aios-update was allowlisted" "$out" ;; *) ok "an org from .aios-update (operator-controlled) is NOT allowlisted" ;; esac
 case "$out" in *" site venture"*) no "a venture equal to a public repo name was allowlisted" "$out" ;; *) ok "a private name equal to a public repo name is still redacted" ;; esac
 
+echo "── a quote that wraps across lines; a crash is not exit 1; an unreadable name source is named ──"
+printf 'Context:\n> She keeps postponing the quarterly pricing\n> conversation with the board because it feels like admitting the launch slipped.\nThe hook failed.\n' > "$T/wrap.md"
+out=$($PYBIN "$H" --root "$F" "$T/wrap.md" 2>/dev/null)
+case "$out" in *postponing*|*admitting*) no "a quoted passage wrapped across lines survived" "$out" ;; *) ok "a quoted passage wrapped across lines is redacted" ;; esac
+case "$out" in *"The hook failed."*) ok "the line after the wrapped quote is kept" ;; *) no "over-redacted past the quote" "$out" ;; esac
+printf 'clean text\n' | $PYBIN -c '
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("scrub", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+def boom(self, text): raise RuntimeError("planted")
+m.Scrubber.run = boom
+sys.argv = ["issue-scrub.py", "--root", sys.argv[2], "--check"]
+sys.exit(m._main_guarded())' "$H" "$F" >/dev/null 2>"$T/boom.err"; rc=$?
+[ "$rc" = 4 ] && grep -q 'failed (RuntimeError' "$T/boom.err" && ok "an unexpected error exits 4 with one plain line, never 1" || no "crash exit $rc" "$(cat "$T/boom.err")"
+grep -q '^  4 ' "$H" && ok "the usage text documents exit 4" || no "exit 4 not in the usage text"
+U="$T/unread"; mkdir -p "$U"; printf '## Identity\n| Name |\n|---|\n| `maplewood` |\n' > "$U/USER.md"; chmod 000 "$U/USER.md"
+if cat "$U/USER.md" >/dev/null 2>&1; then ok "skip: running as a user who can read a 000 file"
+else
+  printf 'x\n' | $PYBIN "$H" --root "$U" >/dev/null 2>"$T/unread.err"
+  grep -q 'could not read: USER.md' "$T/unread.err" && ok "an unreadable USER.md is named on the report line" || no "unreadable source not named" "$(cat "$T/unread.err")"
+fi
+chmod 600 "$U/USER.md"
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

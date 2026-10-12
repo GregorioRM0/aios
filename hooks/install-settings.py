@@ -21,8 +21,11 @@ USAGE
 
 Merge rules: a hook already present (matched by its script, however it is spelled) is left alone;
 an existing statusLine is never replaced (the summary says so, because hook B feeds the quota cache);
-every other key in the file is kept byte for byte in meaning. Exit 0 ok · 1 the file is not valid
-JSON (nothing written) · 2 the write could not be verified (the backup is named).
+every other key in the file is kept byte for byte in meaning. A symlinked settings.json stays a
+link: the file it points to is backed up and updated. Exit 0 ok · 1 the file is not valid JSON, or is
+JSON of a shape this cannot merge into (e.g. "statusLine": null, a hooks event that is not a list),
+or could not be written -- nothing written, no backup left · 2 the write could not be verified (the
+backup is named).
 """
 import argparse
 import datetime
@@ -72,8 +75,8 @@ def plan(platform, root, venture_guard):
         ]
         if venture_guard:
             rows.append(("C", "PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", h("guard-venture-mount.py"), 10))
-        status = ("bash -c 'tee >($HOME/aios/hooks/claude-identity/claude-identity.sh cache > /dev/null) | "
-                  "%s $HOME/aios/hooks/claude-identity/context-monitor.py'" % py)
+        status = ("bash -c 'tee >(\"%s/hooks/claude-identity/claude-identity.sh\" cache > /dev/null) | "
+                  "%s \"%s/hooks/claude-identity/context-monitor.py\"'" % (r, py, r))
     else:
         rows = [
             ("A", "UserPromptSubmit", None, "bash ~/aios/hooks/inject-datetime.sh", None),
@@ -121,6 +124,30 @@ def present(settings, event, cmd):
     return False
 
 
+def shape_problem(settings, events):
+    """Plain words for the first part of the file this cannot merge into, or None. Checked before
+    anything is written, so a surprise shape exits 1 with no backup and no partial write."""
+    if not isinstance(settings, dict):
+        return "a top-level %s where an object ({...}) is expected" % type(settings).__name__
+    if "statusLine" in settings and not isinstance(settings["statusLine"], dict):
+        return '"statusLine" set to %s where an object is expected' % json.dumps(settings["statusLine"])
+    if "hooks" not in settings:
+        return None
+    hooks = settings["hooks"]
+    if not isinstance(hooks, dict):
+        return '"hooks" set to %s where an object is expected' % json.dumps(hooks)
+    for ev in events:
+        if ev not in hooks:
+            continue
+        if not isinstance(hooks[ev], list):
+            return '"hooks" -> "%s" set to %s where a list is expected' % (ev, json.dumps(hooks[ev]))
+        for group in hooks[ev]:
+            if not isinstance(group, dict) or not isinstance(group.get("hooks", []), list) \
+                    or not all(isinstance(hk, dict) for hk in group.get("hooks", [])):
+                return '"hooks" -> "%s" holding an entry that is not {"hooks": [{...}]}' % ev
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(prog="install-settings.py")
     ap.add_argument("--apply", action="store_true")
@@ -129,27 +156,39 @@ def main():
     a = ap.parse_args()
     platform = a.platform or ("windows" if sys.platform == "win32" else "posix")
     cfg = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
-    path = a.settings or os.path.join(cfg, "settings.json")
+    # Absolute before anything else (a relative --settings used to fail after the backup existed),
+    # and the link resolved: writing over a symlink would replace it with a plain file.
+    path = os.path.abspath(os.path.expanduser(a.settings or os.path.join(cfg, "settings.json")))
+    real = os.path.realpath(path)
     venture_guard = bool(glob.glob(os.path.join(ROOT, "vault", "00 - notes", "context", "ventures", "*", ".*-sync")))
 
-    if os.path.exists(path):
+    if os.path.exists(real):
         try:
-            with open(path, encoding="utf-8") as f:
+            with open(real, encoding="utf-8") as f:
                 raw = f.read()
             settings = json.loads(raw) if raw.strip() else {}
         except ValueError as e:
             print("settings.json is not valid JSON (%s). Nothing was changed; fix or move it first: %s" % (e, path))
             return 1
+        except OSError as e:
+            print("settings.json could not be read (%s). Nothing was changed: %s" % (e.strerror or e, path))
+            return 1
     else:
         settings = {}
 
     rows, status = plan(platform, ROOT, venture_guard)
+    problem = shape_problem(settings, {ev for _, ev, _, _, _ in rows})
+    if problem:
+        print("settings.json has %s, which this helper cannot merge into. Nothing was changed; fix that "
+              "part by hand (SETUP §10 shows the shape) or move the file aside: %s" % (problem, path))
+        return 1
     adds, keeps = [], []
     for key, event, matcher, cmd, timeout in rows:
         (keeps if present(settings, event, cmd) else adds).append((key, event, matcher, cmd, timeout))
     status_add = "statusLine" not in settings
     status_note = None
-    if not status_add and "claude-identity.sh cache" not in str(settings.get("statusLine", {}).get("command", "")):
+    # Quotes stripped: the Windows form quotes the script path (claude-identity.sh" cache).
+    if not status_add and "claude-identity.sh cache" not in str(settings["statusLine"].get("command", "")).replace('"', ""):
         status_note = ("you already have your own status line, so it is left as it is -- the quota autopilot's "
                        "cache (hook B) will not be fed until it also runs claude-identity.sh cache (SETUP §10)")
 
@@ -191,22 +230,29 @@ def main():
         settings["statusLine"] = {"type": "command", "command": status}
 
     backup = None
-    if os.path.exists(path):
-        backup = path + ".bak-aios-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        shutil.copy2(path, backup)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    # Keep the file's permissions: settings.json can hold tokens and is often 0600. A temp file is
-    # created with the default umask (typically 0644), so without this the replace would loosen it.
-    mode = (os.stat(path).st_mode & 0o777) if os.path.exists(path) else 0o600
-    tmp = path + ".aios-tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(settings, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-    os.chmod(tmp, mode)
-    os.replace(tmp, path)
+    tmp = real + ".aios-tmp"
     try:
-        with open(path, encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(real), exist_ok=True)
+        if os.path.exists(real):
+            backup = real + ".bak-aios-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            shutil.copy2(real, backup)
+        # Keep the file's permissions: settings.json can hold tokens and is often 0600. A temp file is
+        # created with the default umask (typically 0644), so without this the replace would loosen it.
+        mode = (os.stat(real).st_mode & 0o777) if os.path.exists(real) else 0o600
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+        os.chmod(tmp, mode)
+        os.replace(tmp, real)
+    except OSError as e:
+        for leftover in (tmp, backup):
+            if leftover and os.path.exists(leftover):
+                os.remove(leftover)
+        print("settings.json could not be written (%s). Nothing was changed: %s" % (e.strerror or e, path))
+        return 1
+    try:
+        with open(real, encoding="utf-8") as f:
             back = json.load(f)
         ok = all(present(back, ev, cmd) for _, ev, _, cmd, _ in rows) and "statusLine" in back
     except (OSError, ValueError):

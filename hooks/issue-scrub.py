@@ -52,6 +52,11 @@ EXIT CODES
   3  REFUSED, nothing written: a loaded name is still readable once markup is ignored, or the
      scrub did not converge. Fail closed -- a pattern scrubber cannot know every way a page can
      render a word, so the last check reads the output the coarsest way a person could.
+  4  the scrubber itself failed (an unexpected error, printed in one line); nothing written.
+     Distinct from 1 so a caller never reads a crash as "something would be removed".
+A name source that exists but could not be read (permissions, a git that will not run) is named
+on the report line ("could not read: ..."), because a scrub that silently skipped one loads fewer
+names and looks the same as a complete one.
 Stdlib only. Runs on macOS, Linux and Windows.
 """
 import argparse
@@ -122,12 +127,25 @@ WORD = re.compile(r"[A-Za-z0-9\u00C0-\u024F']+")
 SHINGLE = 10
 
 
-def read_text(path):
+UNREADABLE = []  # name sources that exist but could not be read; named on the report line
+
+
+def read_text(path, label=None):
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             return f.read()
     except OSError:
+        if label and os.path.exists(path):
+            UNREADABLE.append(label)
         return ""
+
+
+def list_dir(path, label):
+    try:
+        return os.listdir(path) if os.path.isdir(path) else []
+    except OSError:
+        UNREADABLE.append(label)
+        return []
 
 
 def section(text, heading):
@@ -187,14 +205,14 @@ def load_terms(root, extra):
         terms.setdefault(term, role)
 
     vault = os.path.join(root, "vault", "00 - notes")
-    user = read_text(os.path.join(root, "USER.md"))
+    user = read_text(os.path.join(root, "USER.md"), "USER.md")
     for name in table_first_column(section(user, "Identity")):
         add(name, "the primary session")
     for name in table_first_column(section(user, "Companies")):
         add(name, "a company")
         add(kebab_words(name), "a company")
 
-    about = read_text(os.path.join(vault, "context", "declared", "about_me.md"))
+    about = read_text(os.path.join(vault, "context", "declared", "about_me.md"), "about_me.md")
     fm = re.match(r"^---\n(.*?)\n---", about, re.S)
     if fm:
         al = re.search(r"^aliases:\s*\n((?:\s+-\s+.*\n?)+)", fm.group(1) + "\n", re.M)
@@ -208,24 +226,22 @@ def load_terms(root, extra):
             add(part, "the operator")
 
     ventures = os.path.join(vault, "context", "ventures")
-    if os.path.isdir(ventures):
-        for d in os.listdir(ventures):
-            if os.path.isdir(os.path.join(ventures, d)) and not d.startswith((".", "_")):
-                add(d, "a company")
-                add(kebab_words(d), "a company")
+    for d in list_dir(ventures, "context/ventures/"):
+        if os.path.isdir(os.path.join(ventures, d)) and not d.startswith((".", "_")):
+            add(d, "a company")
+            add(kebab_words(d), "a company")
 
     projects = os.path.join(vault, "projects")
-    if os.path.isdir(projects):
-        for f in os.listdir(projects):
-            base, ext = os.path.splitext(f)
-            for prefix, role in (("advisory-", "a client"), ("space-", "a company")):
-                if ext == ".md" and base.startswith(prefix):
-                    slug = base[len(prefix):]
-                    add(slug, role)
-                    add(kebab_words(slug), role)
-                    add(base, role)
+    for f in list_dir(projects, "projects/"):
+        base, ext = os.path.splitext(f)
+        for prefix, role in (("advisory-", "a client"), ("space-", "a company")):
+            if ext == ".md" and base.startswith(prefix):
+                slug = base[len(prefix):]
+                add(slug, role)
+                add(kebab_words(slug), role)
+                add(base, role)
 
-    eco = read_text(os.path.join(vault, "context", "observed", "ecosystem.md"))
+    eco = read_text(os.path.join(vault, "context", "observed", "ecosystem.md"), "ecosystem.md")
     for h in re.findall(r"^#{2,4}\s+(.+)$", eco, re.M):
         h = re.sub(r"[\[\]*_`]", "", h).split("(")[0].split("—")[0].split(" - ")[0].strip()
         add(h, "a contact")
@@ -236,12 +252,14 @@ def load_terms(root, extra):
                                text=True, encoding="utf-8", timeout=5).stdout.strip()
         except (OSError, subprocess.SubprocessError, ValueError):
             v = ""
+            if "git config" not in UNREADABLE:
+                UNREADABLE.append("git config")
         add(v, role)
     try:
         import getpass
         add(getpass.getuser(), "the operator")
     except Exception:
-        pass
+        UNREADABLE.append("the OS login")
 
     for t in extra:
         add(t, "<name redacted>", explicit=True)
@@ -381,12 +399,18 @@ class Scrubber:
     def quotes(self, text):
         if not self.shingles:
             return text
+        # Words are matched across line breaks (whitespace normalised): a quoted passage that wraps,
+        # or is re-flowed into a blockquote, is the same passage. Every line it touches is redacted.
         lines = text.split("\n")
-        for n, line in enumerate(lines):
-            words = [w.lower() for w in WORD.findall(line)]
-            if any(" ".join(words[i:i + SHINGLE]) in self.shingles for i in range(len(words) - SHINGLE + 1)):
-                lead = re.match(r"^\s*(?:[-*>]\s*)*", line).group(0)
-                lines[n] = lead + self._hit("quotes", line, "<vault content redacted>")
+        seq = [(w.lower(), n) for n, line in enumerate(lines) for w in WORD.findall(line)]
+        hit = set()
+        for i in range(len(seq) - SHINGLE + 1):
+            if " ".join(w for w, _ in seq[i:i + SHINGLE]) in self.shingles:
+                hit.update(n for _, n in seq[i:i + SHINGLE])
+        for n in sorted(hit):
+            line = lines[n]
+            lead = re.match(r"^\s*(?:[-*>]\s*)*", line).group(0)
+            lines[n] = lead + self._hit("quotes", line, "<vault content redacted>")
         return "\n".join(lines)
 
     def names(self, text):
@@ -466,11 +490,13 @@ class Scrubber:
         return text
 
 
-def summary(counts, n_terms, n_shingles):
+def summary(counts, n_terms, n_shingles, unreadable=()):
     parts = [f"{counts['hidden']} normalised", f"{counts['paths']} paths", f"{counts['vault']} vault paths", f"{counts['links']} vault links",
              f"{counts['quotes']} vault quotes", f"{counts['names']} names", f"{counts['emails']} emails",
              f"{counts['ids']} ids", f"{counts['secrets']} secrets"]
     ctx = f"names loaded: {n_terms}" + ("" if n_shingles else "; no private context files found for quote check")
+    if unreadable:
+        ctx += "; could not read: " + ", ".join(unreadable)
     return "issue-scrub: redacted: " + ", ".join(parts) + f" ({ctx})"
 
 
@@ -511,9 +537,9 @@ def main(argv=None):
 
     if a.json:
         print(json.dumps({"redacted": s.counts, "names_loaded": len(terms),
-                          "quote_check": bool(shingles)}), file=sys.stderr)
+                          "quote_check": bool(shingles), "unreadable": UNREADABLE}), file=sys.stderr)
     else:
-        print(summary(s.counts, len(terms), len(shingles)), file=sys.stderr)
+        print(summary(s.counts, len(terms), len(shingles), UNREADABLE), file=sys.stderr)
     if a.show_removed:
         for kind, orig in s.removed:
             print(f"  removed [{kind}] {orig!r}", file=sys.stderr)
@@ -536,5 +562,13 @@ def main(argv=None):
     return 0
 
 
+def _main_guarded():
+    try:
+        return main()
+    except Exception as e:  # never exit 1 on a crash: 1 means "would redact" under --check
+        print(f"issue-scrub: failed ({type(e).__name__}: {e}). Nothing was written.", file=sys.stderr)
+        return 4
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(_main_guarded())

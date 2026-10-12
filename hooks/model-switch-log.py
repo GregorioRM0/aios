@@ -54,7 +54,8 @@ def registry_name(session_id):
     cfg = os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude")
     for f in glob.glob(os.path.join(cfg, "sessions", "*.json")):
         try:
-            d = json.load(open(f, encoding="utf-8"))
+            with open(f, encoding="utf-8") as fh:
+                d = json.load(fh)
         except Exception:
             continue
         if d.get("sessionId") == session_id:
@@ -69,7 +70,8 @@ def report(argv):
     since = argv[argv.index("--since") + 1] if "--since" in argv[:-1] else ""
     sid = argv[argv.index("--session") + 1] if "--session" in argv[:-1] else ""
     try:
-        lines = open(LOG, encoding="utf-8").read().splitlines()
+        with open(LOG, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
     except OSError:
         return
     for ln in lines:

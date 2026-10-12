@@ -175,7 +175,7 @@ If you want a different model, call it as a tool (§3). That gets you the model 
 anyone between your session and Anthropic.
 
 **The same rule covers classifier routers.** A cheap classification model is sold as a way to pick
-the model for each task (TypeSafe's Jev is the current example). It comes in two forms, with two
+the model for each task (usually by a third-party hosted service). It comes in two forms, with two
 verdicts. As a **tool** the session calls (it asks "which model fits this?", then launches the
 helper itself), it is rail-class (§3): the task text leaves your machine on every call, so it is
 never always-on, and the decision it makes is one the orchestrating session already has the

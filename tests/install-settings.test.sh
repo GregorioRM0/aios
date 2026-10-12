@@ -61,6 +61,38 @@ rm -f "$S"; run --platform posix --apply >/dev/null
 perm=$($PYBIN -c 'import os,sys; print(oct(os.stat(sys.argv[1]).st_mode & 0o777))' "$S")
 [ "$perm" = "0o600" ] && ok "a new settings.json is created 0600" || no "new file created $perm"
 
+echo "── a symlinked settings.json stays a link; surprising shapes exit 1 with no backup ──"
+mkdir -p "$T/real"; printf '{"model": "x"}\n' > "$T/real/target.json"; rm -f "$S"
+if ln -s "$T/real/target.json" "$S" 2>/dev/null && [ -L "$S" ]; then
+  out=$(run --platform posix --apply); rc=$?
+  [ "$rc" = 0 ] && [ -L "$S" ] && ok "a symlinked settings.json is still a link after --apply" || no "symlink replaced (rc=$rc)" "$out"
+  grep -q 'floor-at-start' "$T/real/target.json" && ok "and the file it points to was updated" || no "link target not updated"
+  ls "$T/real"/target.json.bak-aios-* >/dev/null 2>&1 && ok "the backup sits beside the real file" || no "no backup of the link target"
+  rm -f "$S"
+else ok "skip: this filesystem cannot make a symlink"; fi
+shape(){ # $1 label, $2 file content
+  local D="$T/shape"; rm -rf "$D"; mkdir -p "$D"; printf '%s\n' "$2" > "$D/settings.json"; cp "$D/settings.json" "$D/orig"
+  out=$(AIOS_ROOT="$T/aios" $PYBIN "$H" --settings "$D/settings.json" --platform posix --apply 2>&1); rc=$?
+  if [ "$rc" = 1 ] && cmp -s "$D/settings.json" "$D/orig" && ! ls "$D"/settings.json.bak-aios-* >/dev/null 2>&1 \
+     && ! ls "$D"/*.aios-tmp >/dev/null 2>&1 && case "$out" in *Traceback*) false ;; *"Nothing was changed"*) true ;; *) false ;; esac
+  then ok "$1: exit 1, plain error, file untouched, no backup"
+  else no "$1 (rc=$rc)" "$out"; fi
+}
+shape '"statusLine": null' '{"statusLine": null}'
+shape 'a hooks event that is not a list' '{"hooks": {"SessionStart": {"hooks": []}}}'
+shape '"hooks": null' '{"hooks": null}'
+shape 'a hooks entry that is not an object' '{"hooks": {"UserPromptSubmit": ["bash x"]}}'
+shape 'a top-level []' '[]'
+R="$T/rel"; mkdir -p "$R"; printf '{}\n' > "$R/s.json"
+out=$(cd "$R" && AIOS_ROOT="$T/aios" $PYBIN "$H" --settings s.json --platform posix --apply 2>&1); rc=$?
+[ "$rc" = 0 ] && grep -q floor-at-start "$R/s.json" && case "$out" in *Traceback*) false ;; *) true ;; esac \
+  && ok "a relative --settings path works" || no "relative --settings (rc=$rc)" "$out"
+rm -f "$S"; AIOS_WIN_PYTHON=python AIOS_ROOT="D:/tools/aios" $PYBIN "$H" --settings "$S" --platform windows --apply >/dev/null
+grep -q 'D:/tools/aios/hooks/claude-identity/context-monitor.py' "$S" && ! grep -q 'HOME/aios' "$S" \
+  && ok "the Windows status line uses the framework root, not \$HOME/aios" || no "Windows status line ignores the root" "$(grep statusLine -A2 "$S")"
+out=$(AIOS_WIN_PYTHON=python AIOS_ROOT="D:/tools/aios" $PYBIN "$H" --settings "$S" --platform windows)
+case "$out" in *"! note"*) no "the helper's own Windows status line is reported as foreign" "$out" ;; *) ok "a second Windows run recognises its own status line" ;; esac
+
 echo "── parity: every command written is one SETUP §10 prints ──"
 for plat in posix windows; do
   rm -f "$S"; AIOS_WIN_PYTHON=python AIOS_ROOT="C:/Users/<you>/aios" $PYBIN "$H" --settings "$S" --platform $plat --apply >/dev/null

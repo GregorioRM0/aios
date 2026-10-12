@@ -56,7 +56,7 @@ body = s.split(marker, 1)[1].split('```json', 1)[1].split('```', 1)[0]
 cfg = json.loads(body)
 cmds = [h['command'] for ev in cfg['hooks'].values() for g in ev for h in g['hooks']] + [cfg['statusLine']['command']]
 bad = [c for c in cmds if 'python3' in c or 'pwsh ' in c]
-need = ['inject-datetime', 'guard-venture-mount', 'claude-identity.sh cache', 'provenance.py" --prompt', 'provenance.py" --tool', 'bus_log.py" --hook', 'floor-at-start.py"', 'model-switch-log.py"']
+need = ['inject-datetime', 'guard-venture-mount', 'claude-identity.sh" cache', 'provenance.py" --prompt', 'provenance.py" --tool', 'bus_log.py" --hook', 'floor-at-start.py"', 'model-switch-log.py"']
 missing = [n for n in need if not any(n in c for c in cmds)]
 sys.exit(1 if bad or missing else 0)
 PY
@@ -108,7 +108,7 @@ sed 's#git clone https://github.com/The-AIOS/aios.git \.#git clone https://githu
 clone_in_place "$M" && no "clone check passed with a sibling clone" "" || ok "clone check fires on a sibling clone"
 sed 's#(Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File skills/setup.ps1`)#(Windows: `pwsh skills/setup.ps1`)#' SETUP.md > "$M"
 no_pwsh "$M" && no "pwsh check passed with pwsh reintroduced" "" || ok "pwsh check fires when pwsh is reintroduced"
-sed 's#| python \$HOME/aios/hooks/claude-identity/context-monitor.py#| python3 $HOME/aios/hooks/claude-identity/context-monitor.py#' SETUP.md > "$M"
+sed 's#| python \\"C:/Users/<you>/aios/hooks/claude-identity/context-monitor.py#| python3 \\"C:/Users/<you>/aios/hooks/claude-identity/context-monitor.py#' SETUP.md > "$M"
 win_block_runs "$M" && no "Windows block check passed with python3 reintroduced" "" || ok "Windows block check fires on python3"
 
 sed '/remote remove origin/d' SETUP.md > "$M"
