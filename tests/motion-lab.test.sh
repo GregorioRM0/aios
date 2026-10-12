@@ -86,7 +86,7 @@ if command -v ffmpeg >/dev/null 2>&1; then
   out=$($PYBIN "$C" audio "$T/beep.wav" --events "$T/late.json" --fps 60 2>&1)
   case "$out" in *"FAIL hit for frame 50"*) ok "a hit 9 frames late fails" ;; *) no "a late hit passed" "$out" ;; esac
   ffmpeg -v error -f lavfi -i "color=c=black:s=64x64:d=1" -c:v libx264 -pix_fmt yuv420p "$T/mute.mp4"
-  $PYBIN "$C" audio "$T/mute.mp4" --silent 2>&1 | grep -q "PASS silent by brief  N/A" && ok "a silent film under --silent is N/A, not a run failure" || no "--silent did not report N/A"
+  $PYBIN "$C" audio "$T/mute.mp4" --silent 2>&1 | grep -q "^N/A  audio  silent by brief" && ok "a silent film under --silent is N/A, not a run failure" || no "--silent did not report N/A"
   $PYBIN "$C" audio "$T/beep.wav" --silent >/dev/null 2>&1 && no "--silent passed a file that has sound" || ok "caught: sound present in a silent brief"
 else skip "ffmpeg not installed"; fi
 
@@ -135,7 +135,7 @@ if $PYBIN -c 'import playwright, PIL' 2>/dev/null && $PYBIN "$R" frames "$EX" --
   $PYBIN "$C" seam "$T/f" >/dev/null 2>&1 && ok "seam green" || no "example seam" "$($PYBIN "$C" seam "$T/f" 2>&1)"
   $PYBIN "$C" pops "$T/f" >/dev/null 2>&1 && ok "pops green" || no "example pops" "$($PYBIN "$C" pops "$T/f" 2>&1)"
   $PYBIN "$C" determinism "$EX" --frames 0,84 --size 240x240 --fps 30 >/dev/null 2>&1 && ok "determinism green" || no "example not deterministic"
-  printf '[{"frame":0,"expr":"p.phase","expect":0,"tol":1e-9},{"frame":90,"expr":"p.phase","expect":0.5,"tol":1e-9}]' > "$T/a.json"
+  printf '[{"frame":0,"expr":"p.phase","expect":0,"tol":1e-9},{"frame":90,"expr":"p.phase","expect":0.5,"tol":1e-9},{"frame":90,"expr":"p.phase - at(0).phase","expect":0.5,"tol":1e-9}]' > "$T/a.json"
   $PYBIN "$C" assert "$EX" "$T/a.json" --fps 30 --size 240x240 >/dev/null 2>&1 && ok "assert green against __probe" || no "assert failed"
   $PYBIN "$R" speed "$EX" --out "$T/speed.png" --size 240x240 --fps 30 >/dev/null 2>&1 && ok "speed: the example has no corners" || no "speed flagged the example" "$($PYBIN "$R" speed "$EX" --out "$T/speed.png" --size 240x240 --fps 30 2>&1)"
   # a value launched from rest at full speed (an ease-out from a standstill) is a corner

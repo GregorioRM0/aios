@@ -28,7 +28,7 @@ Defaults a model reaches for when nothing stops it. Paste the list under every p
 grows by name each time a render surprises you.
 
 - a floor plane, a lit sweep, a grey table under the subject (unless asked)
-- a static camera when no one asked for one
+- a static camera in 3D when no one asked for one
 - primitive stand-ins: a plain cylinder for a cup, a box for a phone, a blob for a lid
 - particles, lens flares, glow halos, bokeh dust, light leaks
 - a spinning turntable, a camera shake, a whip pan

@@ -17,7 +17,9 @@ USAGE
                                                            ground that stays ground; hero height per frame
   motion-check.py assert      PAGE.html CHECKS.json [--fps 60] [--size WxH]
                                                            [{"frame":84,"expr":"p.scale","expect":1.08,"tol":0.01}]
-                                                           evaluated against window.__probe(t) as `p`
+                                                           evaluated against window.__probe(t) as `p`;
+                                                           `at(F)` is the probe at another frame, e.g.
+                                                           {"frame":479,"expr":"p.x - at(0).x","expect":0,"tol":0.001}
   motion-check.py audio       FILM.mp4|SOUND.wav [--events EVENTS.json --fps 60] [--silent]
                                                            --silent: the brief has no sound, so N/A
                                                            (and FAIL if a sound track is present)
@@ -234,7 +236,8 @@ def cmd_assert(a):
             tol = float(c.get("tol", 0))
             t = fr / float(fps)
             st.page.evaluate(mr.FREEZE_JS, t)
-            got = st.page.evaluate("([t, e]) => { const p = window.__probe(t); return Function('p', 'return (' + e + ')')(p); }", [t, expr])
+            got = st.page.evaluate("([t, e, fps]) => { const p = window.__probe(t); const at = (f) => window.__probe(f / fps);"
+                                   " return Function('p', 'at', 'return (' + e + ')')(p, at); }", [t, expr, fps])
             if isinstance(expect, (int, float)) and isinstance(got, (int, float)):
                 ok = abs(got - expect) <= tol
             else:
@@ -298,11 +301,12 @@ def cmd_audio(a):
     peak = re.findall(r"Peak:\s*(-?[\d.]+|-inf)\s*dBFS", err)
     if a.silent:
         # A silent brief: the check does not apply, and saying so is a verdict, not a failure to run.
-        has_audio = bool(lufs) and rc == 0
-        line("FAIL" if has_audio else "PASS", "silent by brief",
-             "a sound track is present (%.1f LUFS) but the brief is silent" % float(lufs[-1]) if has_audio
-             else "N/A -- no sound track, as the brief says")
-        return finish()
+        if bool(lufs) and rc == 0:
+            line("FAIL", "silent by brief", "a sound track is present (%.1f LUFS) but the brief is silent" % float(lufs[-1]))
+            return finish()
+        print("N/A  audio  silent by brief: no sound track, as the brief says")
+        print("RESULT N/A")
+        sys.exit(0)
     if rc != 0 or not lufs:
         die("could not measure loudness (no audio stream?); if the brief is silent, pass --silent")
     L = float(lufs[-1])
