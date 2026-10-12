@@ -199,10 +199,20 @@ function Invoke-ClaudeWithRespawn {
     $effortArgs = @()
     if ($env:CLAUDE_EFFORT) { $effortArgs = @('--effort', $env:CLAUDE_EFFORT) }
     $advisorArgs = @()
+    $advFile = $null
     if ($env:CLAUDE_ADVISOR_MODEL) {
-        $advFile = Join-Path $env:TEMP "aios-advisor-$Name.json"
-        Set-Content -Path $advFile -Value ('{"advisorModel":"' + $env:CLAUDE_ADVISOR_MODEL + '"}') -Encoding ASCII
-        $advisorArgs = @('--settings', $advFile)
+        # Validated HERE as well as in spawn: an inbox request or a hand-set env var reaches this
+        # function without passing through spawn, and the id is concatenated into JSON below -- a
+        # double quote or a backslash would break the settings file or inject keys into it.
+        if ($env:CLAUDE_ADVISOR_MODEL -notmatch '^[A-Za-z0-9._\[\]-]+$') {
+            Write-Warning "spawn: CLAUDE_ADVISOR_MODEL '$($env:CLAUDE_ADVISOR_MODEL)' is not a model id -- starting without an advisor."
+        } else {
+            # A unique name per session (two workers may share a name across restarts); removed
+            # in the finally below when the session ends.
+            $advFile = Join-Path $env:TEMP ('aios-advisor-' + [guid]::NewGuid().ToString('N') + '.json')
+            Set-Content -Path $advFile -Value ('{"advisorModel":"' + $env:CLAUDE_ADVISOR_MODEL + '"}') -Encoding ASCII
+            $advisorArgs = @('--settings', $advFile)
+        }
     }
     # Resolve the claude EXECUTABLE explicitly (not via function lookup) to
     # avoid recursion if the operator NAMES their session "claude" in USER.md --
@@ -225,23 +235,28 @@ function Invoke-ClaudeWithRespawn {
         if ($hit) { $claudeExe = $hit.Source; break }
     }
     if (-not $claudeExe) { $claudeExe = $claudeCmds[0].Source }
-    while ($true) {
-        $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $resumeArgs + @('--remote-control', '--name', $Name)
-        if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
-            $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
+    try {
+        while ($true) {
+            $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $resumeArgs + @('--remote-control', '--name', $Name)
+            if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
+                $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
+            }
+            & $claudeExe @claudeArgs
+            if (Test-Path $marker) {
+                $sid = ''
+                if (Test-Path $sidFile) { $sid = (Get-Content $sidFile -Raw).Trim() }
+                Remove-Item $marker, $sidFile -Force -ErrorAction SilentlyContinue
+                if (-not $sid) { break }
+                $resumeArgs    = @('--resume', $sid)
+                $BootstrapFile = Join-Path $env:TEMP "resume-prompt-$Name.md"
+                Start-Sleep -Seconds 3
+            } else {
+                break
+            }
         }
-        & $claudeExe @claudeArgs
-        if (Test-Path $marker) {
-            $sid = ''
-            if (Test-Path $sidFile) { $sid = (Get-Content $sidFile -Raw).Trim() }
-            Remove-Item $marker, $sidFile -Force -ErrorAction SilentlyContinue
-            if (-not $sid) { break }
-            $resumeArgs    = @('--resume', $sid)
-            $BootstrapFile = Join-Path $env:TEMP "resume-prompt-$Name.md"
-            Start-Sleep -Seconds 3
-        } else {
-            break
-        }
+    } finally {
+        # The advisor settings file lives as long as the session. finally also runs on Ctrl+C.
+        if ($advFile) { Remove-Item -LiteralPath $advFile -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -277,7 +292,7 @@ function spawn {
         #   The launcher always passes `Read <task-file> and follow the instructions inside.`
         #   as the bootstrap, so a task file whose contents are `Start session.` is a prompt
         #   pointing at a file with nothing to follow. The worker takes its turn, finds no
-        #   instruction, answers blandly, and never runs the Session Start Ritual: no declared
+        #   instruction, answers blandly, and never runs its context loading (CLAUDE.md, Identity & Greeting step 4): no declared
         #   or observed context, no agent match for the session name, no greeting. The terminal
         #   is open and the session looks idle, which reads as a hang rather than a default.
         #
@@ -301,7 +316,7 @@ function spawn {
         # .sh case block and with the bare-word guard below.
         [ValidateSet('frontier','judgment','scale','fast','mechanical')] [string] $Tier,
         # -Model <id> overrides -Tier; pins an explicit/specialist model (e.g.
-        # claude-fable-5) per-spawn with NO global env mutation (set for the call
+        # claude-fable-5-1) per-spawn with NO global env mutation (set for the call
         # only, then restored below).
         [string] $Model,
         # -Effort low|medium|high|xhigh|max -- the worker's effort (Claude Code's --effort).
@@ -347,7 +362,7 @@ function spawn {
         Write-Host "[spawn] No name given -- using handle: $Name"
         Write-Host "[spawn] Tip: name a specific agent for matched expertise (e.g. ``spawn accountant``)."
         Write-Host "[spawn] Tip: -Tier fast (high-frequency) | scale (volume) | judgment (default: reasoning) | frontier (hardest, long-running autonomy)."
-        Write-Host "[spawn] Tip: add ``-Model <id>`` to pin a specific model (e.g. ``-Model claude-fable-5``) -- no global env hack."
+        Write-Host "[spawn] Tip: add ``-Model <id>`` to pin a specific model (e.g. ``-Model claude-fable-5-1``) -- no global env hack."
         Write-Host "[spawn] See agents/_index.md for the full list."
         Write-Host "[spawn] Opening session: $Name"
     }
@@ -409,7 +424,7 @@ function spawn {
       'It WRITES the floor to a file and prints only a MAP. The map is not the floor: read the',
       'file it names, in parts, until its last line is "=== END OF FLOOR".',
       '',
-      'The floor file holds both _index.md, EVERY HEADING in both folders, THE NEWEST 5 three-hash',
+      'The floor file holds both _index.md, EVERY HEADING in both folders, THE NEWEST 5 ###',
       'ENTRIES OF EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries, not',
       'by file position, because the tail is the newest in only about 5 of 8 files -- plus',
       'INTENT.md and the ventures listing. One exception: a RULE LIBRARY like antifragile.md',
@@ -419,7 +434,7 @@ function spawn {
       'different question from whether your output sounds like them, and the one that binds a',
       'mechanical worker hardest (least contextualised, most able to commit, push, send or',
       'delete). Absent the hook, glob it by hand -- grep -h ''^#'' on declared/*.md, grep -h',
-      '''^three-hash'' on observed/*.md, then the newest entries of each observed file -- but prefer the',
+      '''^###'' on observed/*.md, then the newest entries of each observed file -- but prefer the',
       'hook: a floor assembled by hand gets done partially or skipped, and afterwards nothing',
       'can tell the difference.',
       '',

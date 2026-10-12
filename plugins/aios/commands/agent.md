@@ -116,6 +116,6 @@ If no scheduled agents: "No agents scheduled. Run `/agent schedule {name}` to se
 ## Important
 
 - **Do NOT change `CLAUDE_AGENT_NAME`** — the env var stays as-is. This is a behavioral overlay, not an identity change.
-- **Do NOT skip the Session Start Ritual** — if context hasn't been loaded yet, load it before applying the agent hat.
+- **Do NOT skip context loading (CLAUDE.md § Identity & Greeting step 4)** — if context hasn't been loaded yet, load it before applying the agent hat.
 - **The agent's Instructions section is the soul** — follow it closely, but you still have access to the full vault context your session already loaded.
 - **Stack with vault context** — the agent hat adds expertise on top of your existing vault knowledge. A `/agent lawyer` in a buddai session means you have both the vault's strategic context AND the lawyer's legal framework.

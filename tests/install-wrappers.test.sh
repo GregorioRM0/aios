@@ -87,17 +87,32 @@ echo ""
 echo "── --effort / --advisor reach the claude command line (and nothing when omitted) ──"
 # The REAL spawn + launcher functions against a stand-in claude that records its arguments.
 tmp=$(mktemp -d); mkdir -p "$tmp/aios" "$tmp/bin"
-printf '#!/bin/sh\nprintf "%%s\\n" "$@" > "%s/args"\n' "$tmp" > "$tmp/bin/claude"; chmod +x "$tmp/bin/claude"
+# It also copies any --settings file it is handed: the launcher deletes that file when the session
+# ends, so reading it after spawn returns would find nothing.
+cat > "$tmp/bin/claude" <<STUB
+#!/bin/sh
+printf "%s\\n" "\$@" > "$tmp/args"
+prev=""; for a in "\$@"; do [ "\$prev" = "--settings" ] && cat "\$a" > "$tmp/settings" && printf "%s" "\$a" > "$tmp/settings-path"; prev="\$a"; done
+exit 0
+STUB
+chmod +x "$tmp/bin/claude"
 FNS=$( for f in _spawn_adj_animal _spawn_task_preamble _spawn_advisor_block _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
 runspawn(){ env -u CLAUDECODE -u AIOS_GLASS_TERM -u CLAUDE_EFFORT -u CLAUDE_ADVISOR_MODEL HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; shift; spawn "$@"' _ "$FNS" "$@" >/dev/null 2>&1; }
 rm -f "$tmp/args"; runspawn --effort low --advisor scale worker "task"
 A=$(cat "$tmp/args" 2>/dev/null)
 printf '%s\n' "$A" | grep -x -- '--effort' >/dev/null && printf '%s\n' "$A" | grep -x low >/dev/null && ok "--effort low reaches claude as --effort low" || no "--effort did not reach claude" "$A"
 SET=$(printf '%s\n' "$A" | grep -A1 -x -- '--settings' | tail -1)
-[ -n "$SET" ] && grep -q '"advisorModel":"claude-sonnet-5-5"' "$SET" 2>/dev/null && ok "--advisor scale reaches claude as a settings file naming claude-sonnet-5-5" || no "--advisor did not reach claude" "settings: $SET"
-rm -f "$tmp/args"; runspawn --advisor claude-opus-5-5 worker "task"
+[ -n "$SET" ] && grep -q '"advisorModel":"claude-sonnet-5-5"' "$tmp/settings" 2>/dev/null && ok "--advisor scale reaches claude as a settings file naming claude-sonnet-5-5" || no "--advisor did not reach claude" "settings: $SET"
+[ -n "$SET" ] && [ ! -e "$SET" ] && ok "the advisor settings file is deleted when the session exits" || no "advisor settings file left behind" "$SET"
+rm -f "$tmp/args" "$tmp/settings"; runspawn --advisor claude-opus-5-5 worker "task"
 SET=$(grep -A1 -x -- '--settings' "$tmp/args" 2>/dev/null | tail -1)
-[ -n "$SET" ] && grep -q '"advisorModel":"claude-opus-5-5"' "$SET" && ok "--advisor <model id> is passed through as given" || no "--advisor model id not passed"
+[ -n "$SET" ] && grep -q '"advisorModel":"claude-opus-5-5"' "$tmp/settings" && ok "--advisor <model id> is passed through as given" || no "--advisor model id not passed"
+# The launcher validates too: an inbox request or a hand-set env var reaches it without spawn().
+rm -f "$tmp/args" "$tmp/settings"
+out=$( env -u CLAUDECODE CLAUDE_ADVISOR_MODEL='x","permissions":{"allow":["Bash"]},"y":"' HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; _claude_with_respawn worker ""' _ "$FNS" 2>&1 )
+[ -f "$tmp/args" ] && ! grep -x -- '--settings' "$tmp/args" >/dev/null && case "$out" in *"not a model id"*) true ;; *) false ;; esac \
+  && ok "_claude_with_respawn refuses an advisor id that would inject settings JSON (starts without one)" || no "launcher wrote an unvalidated advisor id into settings JSON" "$out"
+ls "$tmp"/aios-advisor-* >/dev/null 2>&1 && no "a refused advisor still left a settings file" || ok "no advisor settings file left in TMPDIR"
 rm -f "$tmp/args"; runspawn worker "task"
 grep -x -- '--effort\|--settings' "$tmp/args" >/dev/null 2>&1 && no "a spawn without the flags passed --effort or --settings" || ok "without the flags, no --effort and no --settings (byte-identical to before)"
 out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --effort ultra worker task' _ "$FNS" 2>&1 ); rc=$?
@@ -144,5 +159,29 @@ grep -q "\$advisorArgs = @('--settings', \$advFile)" "$PS1" && ok "ps1 passes th
 grep -q '\$modelArgs + \$effortArgs + \$advisorArgs' "$PS1" && ok "ps1 effort/advisor args reach the claude invocation" || no "ps1 args built but never passed"
 grep -q 'CLAUDE_ADVISOR_MODEL = .\$spawnAdvisor' "$PS1" && ok "ps1 new-window path carries the advisor" || no "ps1 new-window path drops the advisor"
 
-echo "── RESULT: $PASS passed, $FAIL failed  (bash $BASH_VERSION) ──"
+echo "── a flag given LAST with no value fails fast (it used to spin the argument loop forever) ──"
+# `shift 2` with one argument left fails WITHOUT shifting in bash and zsh, so the loop never ended.
+# Each case runs under a watchdog: a hang is reported as a hang, not as a stuck test run.
+FNS=$( for f in _spawn_adj_animal spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
+# A stub claude and no CLAUDECODE: if a guard ever regresses, the spawn runs in place against the
+# stub instead of opening a real terminal or a real session.
+tmp=$(mktemp -d); mkdir -p "$tmp/aios" "$tmp/bin"; printf '#!/bin/sh\nexit 0\n' > "$tmp/bin/claude"; chmod +x "$tmp/bin/claude"
+for sh in bash zsh; do
+  command -v "$sh" >/dev/null 2>&1 || { echo "  (skip: $sh not installed)"; continue; }
+  for flag in --tier --model --profile --effort --advisor; do
+    env -u CLAUDECODE -u AIOS_GLASS_TERM HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" "$sh" -c 'eval "$1"; shift; spawn "$@"' _ "$FNS" worker "$flag" > "$tmp/out" 2>&1 &
+    pid=$!; n=0
+    while kill -0 "$pid" 2>/dev/null && [ $n -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+    if kill -0 "$pid" 2>/dev/null; then
+      kill -9 "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+      no "$sh: spawn worker $flag HANGS (killed after 5s)"
+    else
+      wait "$pid"; rc=$?
+      [ "$rc" != 0 ] && grep -q -- "$flag needs a value" "$tmp/out" && ok "$sh: spawn worker $flag -> rc=$rc with a plain error" || no "$sh: spawn worker $flag -> rc=$rc" "$(cat "$tmp/out")"
+    fi
+  done
+done
+rm -rf "$tmp"
+
+echo "── RESULT: $PASS passed, $FAIL failed  (${BASH_VERSION:+bash $BASH_VERSION}${ZSH_VERSION:+zsh $ZSH_VERSION}) ──"
 [ "$FAIL" = "0" ] || exit 1

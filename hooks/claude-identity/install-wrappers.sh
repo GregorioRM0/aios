@@ -148,7 +148,7 @@ _claude_with_respawn() {
   local initial_sid="${3:-}"
 
   # Anchor every spawned session in the vault so Claude Code auto-loads ~/aios/CLAUDE.md
-  # and runs the Session Start Ritual. The launcher's `cd ~/aios` only covers the
+  # and runs its context loading (CLAUDE.md § Identity & Greeting step 4). The launcher's `cd ~/aios` only covers the
   # macOS AppleScript path; the in-shell spawn path (and any plain-terminal spawn on
   # Linux) calls this function directly from whatever cwd the terminal happened to be
   # in — landing sessions in $HOME with no CLAUDE.md, so nothing loaded. cd'ing here
@@ -220,11 +220,20 @@ _claude_with_respawn() {
   # argument, and one form for both platforms keeps them testable against each other.
   local -a effort_args=() advisor_args=()
   [ -n "$CLAUDE_EFFORT" ] && effort_args=(--effort "$CLAUDE_EFFORT")
+  local _adv=""
   if [ -n "$CLAUDE_ADVISOR_MODEL" ]; then
-    # mktemp, not a predictable name: a fixed path in a shared /tmp can be pre-created or
-    # symlinked by another user. The id is validated in spawn() before it gets here.
-    local _adv; _adv="$(mktemp "${TMPDIR:-/tmp}/aios-advisor-XXXXXX")" \
-      && printf '{"advisorModel":"%s"}\n' "$CLAUDE_ADVISOR_MODEL" > "$_adv" && advisor_args=(--settings "$_adv")
+    # Validated HERE as well as in spawn(): an inbox request or a hand-set env var reaches this
+    # function without passing through spawn(), and the id is printf-ed into JSON below -- a `"`
+    # or a backslash would break the settings file or inject keys into it.
+    case "$CLAUDE_ADVISOR_MODEL" in
+      *[!A-Za-z0-9._\[\]-]*)
+        echo "spawn: CLAUDE_ADVISOR_MODEL '$CLAUDE_ADVISOR_MODEL' is not a model id -- starting without an advisor." >&2 ;;
+      *)
+        # mktemp, not a predictable name: a fixed path in a shared /tmp can be pre-created or
+        # symlinked by another user. Removed when the respawn loop ends (below).
+        _adv="$(mktemp "${TMPDIR:-/tmp}/aios-advisor-XXXXXX")" \
+          && printf '{"advisorModel":"%s"}\n' "$CLAUDE_ADVISOR_MODEL" > "$_adv" && advisor_args=(--settings "$_adv") ;;
+    esac
   fi
 
   export CLAUDE_AGENT_NAME="$name"
@@ -312,6 +321,10 @@ _claude_with_respawn() {
     fi
     sleep 2
   done
+  # The advisor settings file lives as long as the session; every exit from the loop is a
+  # `break`, so this is the one place it ends. (No EXIT trap: on the in-shell path this function
+  # runs in the operator's interactive shell, and a trap would replace theirs.)
+  [ -n "$_adv" ] && rm -f "$_adv"
 }
 
 # NOTE: The primary-session function (e.g. `primary() { ... }` for fresh
@@ -500,7 +513,7 @@ spawn() {
   # so it auto-tracks as the model lineup evolves — no hard-coding the frontier).
   # `judgment` (or no flag) keeps the frontier default (_claude_with_respawn's
   # CLAUDE_MODEL fallback). --model <id> — optional, overrides --tier; pins an
-  # explicit/specialist model per-spawn (e.g. `--model claude-fable-5`) with NO
+  # explicit/specialist model per-spawn (e.g. `--model claude-fable-5-1`) with NO
   # global env mutation. Strip the flags first, THEN parse positionals so
   # `spawn name task` is byte-identical to before when no flag is passed.
   # --effort low|medium|high|xhigh|max — the worker's effort (Claude Code's --effort).
@@ -510,15 +523,15 @@ spawn() {
   local -a _args=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --tier)      tier="$2"; shift 2 ;;
+      --tier)      [ $# -ge 2 ] || { echo "spawn: --tier needs a value" >&2; return 2; }; tier="$2"; shift 2 ;;
       --tier=*)    tier="${1#*=}"; shift ;;
-      --model)     model="$2"; shift 2 ;;
+      --model)     [ $# -ge 2 ] || { echo "spawn: --model needs a value" >&2; return 2; }; model="$2"; shift 2 ;;
       --model=*)   model="${1#*=}"; shift ;;
-      --profile)   profile="$2"; shift 2 ;;
+      --profile)   [ $# -ge 2 ] || { echo "spawn: --profile needs a value" >&2; return 2; }; profile="$2"; shift 2 ;;
       --profile=*) profile="${1#*=}"; shift ;;
-      --effort)    effort="$2"; shift 2 ;;
+      --effort)    [ $# -ge 2 ] || { echo "spawn: --effort needs a value" >&2; return 2; }; effort="$2"; shift 2 ;;
       --effort=*)  effort="${1#*=}"; shift ;;
-      --advisor)   advisor="$2"; shift 2 ;;
+      --advisor)   [ $# -ge 2 ] || { echo "spawn: --advisor needs a value" >&2; return 2; }; advisor="$2"; shift 2 ;;
       --advisor=*) advisor="${1#*=}"; shift ;;
       *)           _args+=("$1"); shift ;;
     esac
@@ -532,7 +545,7 @@ spawn() {
   #   The launcher always passes `Read <task-file> and follow the instructions inside.`
   #   as the bootstrap, so a task file whose contents are `Start session.` is a prompt
   #   pointing at a file with nothing to follow. The worker takes its turn, finds no
-  #   instruction, answers blandly, and never runs the Session Start Ritual: no declared
+  #   instruction, answers blandly, and never runs its context loading (CLAUDE.md § Identity & Greeting step 4): no declared
   #   or observed context, no agent match for the session name, no greeting. The terminal
   #   is open and the session looks idle, which reads as a hang rather than a default.
   #
@@ -589,7 +602,7 @@ spawn() {
     *) echo "⚠️  spawn: unknown --tier '$tier' (use: frontier | judgment | scale | fast — 'mechanical' also still accepted)" >&2; return 1 ;;
   esac
   # --model <id> pins an explicit model (overrides --tier) — for a temporary or
-  # specialist model outside the tier ladder (e.g. --model claude-fable-5). It sets
+  # specialist model outside the tier ladder (e.g. --model claude-fable-5-1). It sets
   # spawn_model, which the launcher exports as CLAUDE_MODEL for THIS spawn only —
   # no global ~/.zshrc export (that hack risked leaving every future terminal
   # pinned to the model if the revert was ever missed).
@@ -646,7 +659,7 @@ spawn() {
     echo "[spawn] No name given — using handle: $name"
     echo "[spawn] Tip: name a specific agent for matched expertise (e.g. \`spawn accountant\`)."
     echo "[spawn] Tip: --tier fast (high-frequency) | scale (volume) | judgment (default: reasoning) | frontier (hardest, long-running autonomy)."
-    echo "[spawn] Tip: add \`--model <id>\` to pin a specific model (e.g. \`--model claude-fable-5\`) — no global env hack."
+    echo "[spawn] Tip: add \`--model <id>\` to pin a specific model (e.g. \`--model claude-fable-5-1\`) — no global env hack."
     echo "[spawn] Tip: --profile <name> loads only the MCP servers in ~/.aios/mcp-profiles/<name>.json."
     echo "[spawn] See agents/_index.md for the full list."
     echo "[spawn] Opening session: $name"
@@ -842,7 +855,7 @@ tell application "System Events"
     delay 0.6
     -- Step 2: deliver the launcher via PASTE — swap the clipboard to the launcher
     -- command (staged in a temp file), paste, and run.
-    do shell script "f=/tmp/spawn-launch-cmd-$name; if [ -x ~/aios/hooks/clip ]; then ~/aios/hooks/clip \"\$f\"; else LC_ALL=en_US.UTF-8 pbcopy < \"\$f\"; fi"
+    do shell script "f=/tmp/spawn-launch-cmd-$name; if [ -x ~/aios/hooks/clip ]; then ~/aios/hooks/clip --no-verify \"\$f\" || true; else LC_ALL=en_US.UTF-8 pbcopy < \"\$f\"; fi"
     keystroke "v" using {command down}
     delay 0.4
     keystroke return
@@ -983,7 +996,7 @@ cat >> "$RC" <<EOF
 #
 # A FRESH session is launched with a bootstrap prompt. Without one, \`claude\` opens
 # idle and waits: CLAUDE.md is loaded (the cwd is the vault) but nothing has taken a
-# turn, so the Session Start Ritual never runs — no declared/observed context, no
+# turn, so context loading (CLAUDE.md § Identity & Greeting step 4) never runs — no declared/observed context, no
 # greeting. \`spawn\` never had this problem, but only by accident: it ALWAYS passes
 # a bootstrap ("Read <task-file> …"), and that turn is what triggers the ritual. The
 # primary shorthand passing none looks like an oversight rather than a decision, so
@@ -996,7 +1009,7 @@ $PRIMARY_NAME() {
   case "\$1" in
     -c|--continue) _claude_with_respawn $PRIMARY_NAME "" --continue ;;
     -r|--resume)   _claude_with_respawn $PRIMARY_NAME "" "\${2:-}" ;;
-    *)             _claude_with_respawn $PRIMARY_NAME "Session start — follow the Session Start Ritual in CLAUDE.md: load declared + observed context, then greet me." ;;
+    *)             _claude_with_respawn $PRIMARY_NAME "Session start — follow CLAUDE.md § Identity & Greeting, step 4 (context loading) included, then greet me." ;;
   esac
 }
 # ==== END claude-primary-session ====
