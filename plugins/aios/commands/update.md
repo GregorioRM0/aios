@@ -200,7 +200,17 @@ Concrete rules for what's currently in the framework (the operator-environment-s
   # Report + prescribe the re-resolve. Do NOT copy the manifest and do NOT delete a directory.
   ```
 
-  If `$CACHED` names anything other than `$MANIFEST`, say so once and prescribe the **re-resolve**: *"plugin cache is at {cached} while the manifest declares {manifest} — `claude plugin update aios@the-aios` realigns it. Your commands are current either way (the sync is version-agnostic); this stops a second cache directory appearing later."*
+  If `$CACHED` does not include `$MANIFEST`, **run the re-resolve yourself** — it is a state-producer like the wrapper installer, idempotent, and it touches only Claude Code's own plugin cache and registry, so the version the operator sees follows the release instead of staying one behind until they act on a prescription:
+
+  ```bash
+  if command -v claude >/dev/null 2>&1; then
+    claude plugin update aios@the-aios 2>&1 | tail -3
+  else
+    echo "claude CLI not on PATH — the operator runs: claude plugin update aios@the-aios"
+  fi
+  ```
+
+  Report its last line in one sentence, then re-list `$CACHED`. Two answers are both success: a GitHub-source install mints the `{manifest}` directory, and a **directory-source** install answers *"read from its folder … nothing to update"* because it reads `~/aios` in place, so its label refreshes at the next session start. Either way the commands were already current (the sync is version-agnostic). Only if the command is missing or fails, fall back to the old prescription: *"plugin cache is at {cached} while the manifest declares {manifest} — `claude plugin update aios@the-aios` realigns it."* (Verified 2026-10-11: the command runs from inside a session, exit 0, on a directory-source install.)
 
   > **Two things NOT to do here, both tempting and both worse than the drift.**
   > - **Do not copy `plugin.json` into the cache.** It looks like the obvious completion of the sync, but the directory is *named* for the version, so writing a `0.5.0` manifest into a directory called `0.4.0` makes the cache **internally inconsistent** — a state no re-resolve produces and none of the tooling expects. Stale-but-coherent beats fresh-but-contradictory. Only `claude plugin update` can mint a correctly-named directory.
