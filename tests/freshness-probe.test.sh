@@ -109,6 +109,13 @@ run(){ AIOS_ROOT="$TB/v" bash "$S" --aios-update; }
 tracker "$MAIN"; expect "on the default branch's head: synced" "$(run)" "aios-update: synced"
 tracker "$TIP"; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "the tip of another branch reads TESTING rel" ;; *) no "another branch's tip read as: $out" ;; esac
 tracker 0123456789012345678901234567890123456789 rel; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "ref= names the test even after the branch moved" ;; *) no "ref= ignored: $out" ;; esac
+printf 'repo=%s\r\nhash=0123456789012345678901234567890123456789\r\nref=rel\r\n' "$TB/remote.git" > "$TB/v/.aios-update"
+out=$(run); case "$out" in "aios-update: TESTING rel (local="*) ok "a CRLF tracker's ref= still names the branch" ;; *) no "CRLF ref= read as: $(printf '%s' "$out" | od -c | head -2)" ;; esac
+tracker 0123456789012345678901234567890123456789 gone; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "ref= naming a branch deleted from the remote is not TESTING" ;; *) no "a deleted ref branch pinned the state: $out" ;; esac
+git -C "$TB/remote.git" branch -q -D rel
+tracker 0123456789012345678901234567890123456789 rel; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "after the test branch is merged+deleted, ref= falls through to BEHIND" ;; *) no "stuck after deletion: $out" ;; esac
+tracker "$MAIN" rel; expect "ref= of a deleted branch on main's head: synced" "$(run)" "aios-update: synced"
+tracker 0123456789012345678901234567890123456789 rel; out=$(PATH="$T/bin:$PATH" AIOS_ROOT="$TB/v" bash -c 'sed -i.bak "s#^repo=.*#repo=https://offline.invalid/x.git#" "$AIOS_ROOT/.aios-update"; bash "$0" --aios-update' "$S"); case "$out" in "aios-update: unreachable"*) ok "offline with ref=: unreachable, not a guess" ;; *) no "offline ref= read as: $out" ;; esac
 tracker 0123456789012345678901234567890123456789; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "control: an old default-branch hash still reads BEHIND" ;; *) no "control broke: $out" ;; esac
 tracker 0123456789012345678901234567890123456789 main; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "ref=main is not a test" ;; *) no "ref=main read as: $out" ;; esac
 rm -rf "$TB"

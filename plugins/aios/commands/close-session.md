@@ -178,6 +178,8 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
 
    Walk through whatever the operator asks about (the *why* + failure modes, not a line reading). What they decline to grasp goes into the session block's `**Comprehension:**` field and an `**Open threads:**` carry — marked *un-grasped*, not *done* — so `/close-day` can resurface it. The debt is the operator's (they're the one who owns the system in a room); your job is to keep it low, never to wave agent output through on their behalf. Full mechanism: the `comprehension-debt` skill.
 
+   **c. Model-switch check** (SETUP Hook F) — no question, so it runs under `--auto` too: `UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/model-switch-log.py --report --session "$CLAUDE_CODE_SESSION_ID"`. Empty output means this session ran on the model it asked for, or Hook F is not wired: say nothing. A line means part of this session ran on another model, usually after a flagged message: add `**Model:** finished on {to} (asked for {requested})` to the session block (after `**Comprehension:**`) before step 5 appends it, so `/close-day` and whoever reads the work later know which model wrote it.
+
 5. **Append the session block via the race-safe helper — never write the note directly** (a concurrent Close-all broadcast fires several vault sessions at once; a direct read-append-write would clobber). Write the block (format below) to a temp file, then:
    ```bash
    ~/aios/hooks/aios-note-append \
@@ -229,8 +231,6 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
    - `/close-day` runs the digest across all sessions, the daily note, and recent antifragile/session-insights, then writes to Tier B files when the substance bar passes (see `/close-day` § Tier B observation pass for the bar + per-file feed-in sources).
    - **Why this split:** close-session is single-session scope; close-day has cross-session + daily synthesis context. Writing Tier B from close-session would amplify per-session noise (same insight surfacing 3 times across 3 close-sessions, written 3 times). Close-day consolidates the signal.
 8. **Comprehension ledger — verify, don't ask again.** The recap and the offer ran at step 4.7, before the block was written, and their outcome is already in the block: the `**Comprehension:**` field, and an `**Open threads:**` carry for anything the operator declined to walk through (marked *un-grasped*, not *done*). This step only confirms both are there. **Never repeat the recap or the offer here** — the block is committed, the helper only appends, and an answer given now would have nowhere to go. If nothing agent-authored shipped, the field reads "All operator-authored".
-
-8.5. **Model-switch check** (SETUP Hook F): `UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/model-switch-log.py --report --session "$CLAUDE_CODE_SESSION_ID"`. Empty output means this session ran on the model it asked for, or Hook F is not wired: say nothing. A line means part of this session ran on another model, usually after a flagged message: add `**Model:** finished on {to} (asked for {requested})` to the session block, so `/close-day` and whoever reads the work later know which model wrote it.
 
 9. **Self-update verification** — before commit, walk the CLAUDE.md Session End rules to confirm step 7 wasn't skipped. The compounding promise of the AI-OS lives in routing, not logging.
 

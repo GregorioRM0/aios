@@ -63,10 +63,14 @@ probe() {  # $1 label · $2 repo url · $3 local hash · $4 tracker ref (optiona
   fi
   rm -f "$e"
   if [ -n "$r" ]; then
-    local tip_of
+    local tip_of ref_live=""
+    # ref= counts only while its branch still exists on the remote we just listed: a release
+    # branch merged and deleted must fall through to BEHIND/synced, or the vault reads TESTING
+    # forever. (Offline never reaches here -- an empty listing is reported as unreachable.)
+    [ -n "$ref" ] && printf '%s\n' "$refs" | awk -v r="refs/heads/$ref" '$2==r{f=1} END{exit !f}' && ref_live=1
     tip_of=$(printf '%s\n' "$refs" | awk -v h="$h" '$1==h && $2 ~ /^refs\/heads\// {sub("refs/heads/","",$2); print $2; exit}')
     if [ "$h" = "$r" ]; then echo "$label: synced"
-    elif [ -n "$ref" ] && [ "$ref" != main ] && [ "$ref" != master ] && [ "$ref" != HEAD ]; then
+    elif [ -n "$ref_live" ] && [ "$ref" != main ] && [ "$ref" != master ] && [ "$ref" != HEAD ]; then
       echo "$label: TESTING $ref (local=${h:0:7} main=${r:0:7})"
     elif [ -n "$tip_of" ] && [ "$tip_of" != main ] && [ "$tip_of" != master ]; then
       echo "$label: TESTING $tip_of (local=${h:0:7} main=${r:0:7})"
@@ -88,7 +92,8 @@ esac
 if [ "$mode" = all ] || [ "$mode" = --aios-update ]; then
   cfg="$ROOT/.aios-update"
   if [ -f "$cfg" ]; then
-    probe aios-update "$(grep ^repo= "$cfg" | cut -d= -f2)" "$(grep ^hash= "$cfg" | cut -d= -f2)" "$(grep ^ref= "$cfg" | cut -d= -f2)"
+    # tr -d '\r': a tracker written with CRLF endings (Windows) must not carry the CR into the value.
+    probe aios-update "$(grep ^repo= "$cfg" | cut -d= -f2 | tr -d '\r')" "$(grep ^hash= "$cfg" | cut -d= -f2 | tr -d '\r')" "$(grep ^ref= "$cfg" | cut -d= -f2 | tr -d '\r')"
   else
     echo "aios-update: no-config"
   fi
