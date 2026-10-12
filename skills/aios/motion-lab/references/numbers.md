@@ -45,7 +45,7 @@ Damping ratio translates across every library: **1.0** no bounce · **0.7–0.85
 ## Durations and stagger
 
 - Micro (a tick, a toggle): 120–200 ms. Small moves: 200–350 ms. Large moves: 400–700 ms.
-- **One hero move per shot.** Secondary moves travel 50–70% as far and start 100–200 ms later.
+- **One hero move per shot.** Secondary moves travel 50–70% as far and start 100–200 ms later; a move that must happen first (something clearing the way) ends 100–200 ms before the hero starts, and is still the smaller move.
 - Anticipation: about 3 frames at 60 fps before a big move.
 
 ## Beat grid

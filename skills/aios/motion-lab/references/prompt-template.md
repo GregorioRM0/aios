@@ -17,7 +17,8 @@ CAMERA  Lens (mm or FOV), the angle (a three-quarter view, 15-35° off front, un
         end position, the one move and its frames; what fills the frame at the hero beat and its
         share of the frame height; the 3% safe margin.
 MOTION  Every other move: property, from -> to, easing name or spring (zeta, w), frames, distance in
-        metres (3D) or px (flat). Secondary moves 50-70% of the hero's travel, 100-200 ms later.
+        metres (3D) or px (flat). Secondary moves 50-70% of the hero's travel, 100-200 ms after it (or
+        ending 100-200 ms before it, when they clear the way).
 BANNED  Named defaults you do not want: e.g. "no floor plane, no lens flare, no particles, no glow,
         no invented tagline, no real-world marks, no spinning turntable".
 ENGINE  Plain HTML/canvas, or Three.js at an exact version; how objects are built.

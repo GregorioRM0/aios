@@ -80,6 +80,7 @@ dirLight(0xffffff, 3.2, 160, 32);  // rim: behind, separates the object from a d
     return (Math.max(...ys) - Math.min(...ys)) / 2;
   }
   // in __probe(t), after renderAt(t): heroH: screenHeight(cup)  -> assert heroH >= 0.33 on the hero frame
+  // a box corner projects beyond the silhouette, so this reads ~5-10% high: aim a little above 0.33
   ```
 - **The square cut** reads `?aspect=1`: set the camera aspect to 1, then move the camera back (or
   widen the fov) **and re-lay out the objects** where the wide arrangement does not fit a square
