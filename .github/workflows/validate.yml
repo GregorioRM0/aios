@@ -107,6 +107,9 @@ jobs:
           # logic answers differently on that same input — so neither can pass vacuously.
           bash tests/close-session-idempotency.test.sh
           echo "OK: the duplicate branch is reachable and the fix is falsifiable"
+      - name: close-session resumes a run cut after the append, and counts uncommitted work
+        # The stamp lands at step 5 and routing runs at 6-10: a run cut in between must not read as a duplicate and skip observed-context routing forever.
+        run: bash tests/close-session-resume.test.sh
 
       - name: CLAUDE.md integrity — § references resolve, pinned literals present
         run: |
@@ -1039,6 +1042,9 @@ jobs:
 
       - name: aios-commit / aios-note-append / secret-scan regression test
         run: bash tests/aios-commit.test.sh
+      - name: Commands commit their own paths, not the whole changed vault
+        # aios-commit --vault sweeps other sessions' uncommitted files into a commit stamped as this command's; each command must name what it wrote.
+        run: bash tests/commands-commit-own-paths.test.sh
       - name: a diverged push with disjoint changes reconciles itself
         run: bash tests/aios-commit-reconcile.test.sh
 
@@ -1131,6 +1137,9 @@ jobs:
       - name: /today's precondition and backup probes, and its carry rules
         # Both probes are extracted from today.md and run against temp vaults; the carry rules are anchored on the wording that removes each contradiction.
         run: bash tests/today-carries-and-probes.test.sh
+      - name: /today re-reads the daily note before writing it
+        # A write_note from the copy read in Message 1b replaces the whole note, losing any [x] or block another session added in between.
+        run: bash tests/today-reread-before-write.test.sh
       - name: /close-day redraws on its own clock and reads everything it summarises
         # The ecosystem redraw keyed on rederived:, Tier B reading what Tier A routed out, reports by the date being closed, and snapshots read by section — each proven able to fail by a mutated copy.
         run: bash tests/close-day-derivation-and-sources.test.sh
@@ -1640,6 +1649,12 @@ jobs:
         # it globs rather than naming files; and it REFUSES rather than printing a short
         # floor, which is indistinguishable from a complete one once printed.
         run: bash tests/context-floor.test.sh
+      - name: the floor is delivered at session start, compact and opt-out for routines
+        run: bash tests/floor-at-start.test.sh
+      - name: the model-switch log records silent fallbacks and reports only what matters
+        run: bash tests/model-switch-log.test.sh
+      - name: clip copies paste-bound text intact (forced UTF-8, read-back verified)
+        run: bash tests/clip.test.sh
 
       - name: the floor's PRESCRIBED INVOCATION runs where sessions actually run
         # CLAUDE.md names one command as the mandatory first context load, and its whole
@@ -1654,6 +1669,9 @@ jobs:
         # pass vacuously. It needs uv on PATH, installed above, or the execution half skips and
         # guards nothing.
         run: bash tests/context-floor-invocation.test.sh
+      - name: Every uv run a command prescribes carries UV_CACHE_DIR
+        # A sandboxed session cannot write ~/.cache/uv, so a bare uv run dies before running and prints nothing — indistinguishable from a check that passed.
+        run: bash tests/commands-uv-cache-dir.test.sh
 
       - name: context hooks never match on a per-vault filename
         # A filename in a comment is an example; a filename in code is a matcher, and
@@ -1703,6 +1721,35 @@ jobs:
         # it. CI runs on ubuntu, so this class is invisible here by construction — the lint
         # is the only thing standing between it and every Windows operator.
         run: python3 tests/lint-windows-stdout.py
+
+      - name: every text-mode file read/write in hooks/ names its encoding
+        # Without encoding=, Python uses the locale: UTF-8 here on ubuntu, cp1252 on a stock
+        # Windows install -- so this class cannot show up in CI except through a lint.
+        run: python3 tests/lint-text-encoding.py
+
+      - name: hooks/.gitattributes alone gives every hook script an LF checkout (it ships to vaults)
+        run: bash tests/hooks-gitattributes.test.sh
+
+      - name: no pipefail suite pipes into grep -q (SIGPIPE turns a match into "not found")
+        run: bash tests/no-grep-q-after-pipe.test.sh
+
+      - name: motion-lab instruments (contract lint always; frame checks where Pillow/ffmpeg/a browser exist)
+        run: bash tests/motion-lab.test.sh
+
+      - name: issue-scrub keeps the vault out of an upstream issue (planted-name test)
+        run: bash tests/issue-scrub.test.sh
+
+      - name: install-settings wires SETUP's hooks without a JSON prompt, and matches SETUP verbatim
+        run: bash tests/install-settings.test.sh
+
+      - name: SETUP's sparse-checkout leaves tests/ out of an operator clone, reversibly
+        run: bash tests/operator-clone-slim.test.sh
+
+      - name: inbox contract 4 — fixture parses; advisor rungs agree across spec, fixture and both wrappers
+        run: bash tests/inbox-contract-4.test.sh
+
+      - name: every .ps1 is ASCII or carries a BOM (Windows PowerShell 5.1 reads BOM-less files as ANSI)
+        run: bash tests/ps1-encoding.test.sh
 
       - name: every tracked file passes the secret scanner
         # THE GAP THIS CLOSES. tests/secret-scan.test.sh proves the scanner behaves

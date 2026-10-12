@@ -41,11 +41,11 @@ done
 echo "-- 2. the replaced approach leaves no prose behind --"
 # The splice was abandoned because it drops additions outside one section. Any
 # surviving instruction to carry a single section back is the data-losing rule.
-printf '%s' "$SEC" | grep -qiE "carry the operator's \`## Bundling candidates\` body" \
+printf '%s' "$SEC" | grep -iE "carry the operator's \`## Bundling candidates\` body" >/dev/null \
   && no "the abandoned section-splice is still instructed" "it silently drops operator additions written in any other section -- measured on a live vault" \
   || ok "no instruction to splice a single section"
 # keep-local-and-report must be the one that IS stated
-printf '%s' "$SEC" | grep -qF 'KEEP LOCAL AND REPORT' \
+printf '%s' "$SEC" | grep -F 'KEEP LOCAL AND REPORT' >/dev/null \
   && ok "keep-local-and-report is the stated rule" \
   || no "keep-local-and-report is missing" "without it a session falls back to the plain overwrite, which loses the operator's registry rows"
 

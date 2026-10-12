@@ -454,11 +454,13 @@ def main(argv):
     total = floor.count("\n")
     out = []
     o = out.append
-    o("CONTEXT FLOOR -- written in full to:")
-    o("  %s" % out_path)
-    o("  %d bytes, %d lines. READ THAT FILE TO THE END BEFORE ACTING: this map is not the floor." % (len(floor.encode("utf-8")), total))
-    o("  It is larger than one read returns: read it in parts (about 600 lines at a time) until")
-    o("  you reach its last line. INTENT and the newest learnings come first, the maps after.")
+    # The map must be impossible to mistake for the floor, whichever end of it a session sees:
+    # measured 10-03 -> 10-11, sessions piped this through head/tail or redirected it to a file
+    # and then worked from the map as if it were the floor. So BOTH ends name the next action.
+    o("THIS IS ONLY THE MAP -- THE CONTEXT FLOOR IS NOT LOADED YET.")
+    o("NEXT: Read %s in parts of about 600 lines until its last line, '=== END OF FLOOR'." % out_path)
+    o("  %d bytes, %d lines. INTENT and the newest learnings come first, the maps after." % (len(floor.encode("utf-8")), total))
+    o("  Do not redirect or truncate this output: it is the index, not the content.")
     o("")
     o("Sections (lines in that file, size):")
     for k, (ln, label) in enumerate(starts):
@@ -466,7 +468,7 @@ def main(argv):
         size = len("\n".join(floor.split("\n")[ln - 1:nxt]).encode("utf-8"))
         o("  %5d-%-5d %6.1f KB  %s" % (ln, nxt, size / 1024.0, label))
     o("")
-    o("The file's last line is '=== END OF FLOOR'. If your read did not reach it, read on.")
+    o("THIS WAS ONLY THE MAP. NEXT: Read %s to its last line, '=== END OF FLOOR'." % out_path)
     print("\n".join(out))
     return 0
 

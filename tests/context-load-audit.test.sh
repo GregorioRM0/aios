@@ -146,7 +146,7 @@ N=$(printf '%s' "$OUT" | $PYBIN -c 'import json,sys; print(json.load(sys.stdin)[
 echo "── 4. CONTROL: with no scoring primary, it must ABORT, not reassure ──"
 mk worker-zero ze000004 'echo "did no context reading at all"'
 OUT="$(run --min-tools 0)"; RC=$?
-if printf '%s' "$OUT" | grep -q 'ABORT'; then
+if printf '%s' "$OUT" | grep 'ABORT' >/dev/null; then
   ok "no primary scored → aborts instead of reporting a clean number"
 else
   no "reported worker numbers with no working control" "$(printf '%s' "$OUT" | head -3)"
@@ -155,9 +155,9 @@ fi
 echo "── 5. with a scoring primary, it reports and flags the zero ──"
 mk main-seat pr000005 'cat "/Users/x/aios/vault/00 - notes/context/observed/patterns.md"'
 OUT="$(run --min-tools 0)"
-printf '%s' "$OUT" | grep -q 'control — primary sessions: 1/1' \
+printf '%s' "$OUT" | grep 'control — primary sessions: 1/1' >/dev/null \
   && ok "primary recognised as the control" || no "primary not detected" "$(printf '%s' "$OUT" | head -2)"
-printf '%s' "$OUT" | grep -q 'worker-zero' \
+printf '%s' "$OUT" | grep 'worker-zero' >/dev/null \
   && ok "the zero-context worker is named" || no "a worker at zero was not surfaced"
 
 echo "── 6. the detector knows what CORRECT looks like under the rule it audits ──"
@@ -217,7 +217,7 @@ else
 fi
 NV="$TMP/nouser"; mkdir -p "$NV/vault/00 - notes/context/declared" "$NV/vault/00 - notes/context/observed"
 OUT="$(HOME="$HOME_FAKE" USERPROFILE="$HOME_FAKE" AIOS_VAULT="$NV" $PYBIN "$H" --min-tools 0 2>&1)"; RC=$?
-{ [ "$RC" = 2 ] && printf '%s' "$OUT" | grep -q 'Identity' && printf '%s' "$OUT" | grep -q -- '--primary'; } \
+{ [ "$RC" = 2 ] && printf '%s' "$OUT" | grep 'Identity' >/dev/null && printf '%s' "$OUT" | grep -- '--primary' >/dev/null; } \
   && ok "no USER.md → aborts and says how to declare a primary" || no "no-USER.md run did not explain itself (rc=$RC)" "$OUT"
 
 echo "── 9. FIT reads the whole transcript and respects order ──"
@@ -269,8 +269,8 @@ if git cat-file -e "$PIN:$H" 2>/dev/null && git show "$PIN:$H" > "$OLD" && ! cmp
   rm -f "$HOME_FAKE/.claude/projects/proj/ob000009.jsonl"
   # The old run must be a VALID report -- a scoring control and a fit section -- before an
   # empty flag list means anything. An aborted or crashed run also flags nothing.
-  { printf '%s' "$OLDOUT" | grep -q 'control — primary sessions: [1-9]' \
-    && printf '%s' "$OLDOUT" | grep -q '^fit — workers whose output went outward: [1-9]' \
+  { printf '%s' "$OLDOUT" | grep 'control — primary sessions: [1-9]' >/dev/null \
+    && printf '%s' "$OLDOUT" | grep '^fit — workers whose output went outward: [1-9]' >/dev/null \
     && [ "$OLDF" = "" ]; } \
     && ok "OLD: neither case was flagged (the cap hid the late ship, order was ignored)" \
     || no "old hook flagged [$OLDF]; the reproduction no longer holds" "check the pin"

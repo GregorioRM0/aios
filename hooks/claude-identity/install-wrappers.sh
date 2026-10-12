@@ -148,7 +148,7 @@ _claude_with_respawn() {
   local initial_sid="${3:-}"
 
   # Anchor every spawned session in the vault so Claude Code auto-loads ~/aios/CLAUDE.md
-  # and runs the Session Start Ritual. The launcher's `cd ~/aios` only covers the
+  # and runs its context loading (CLAUDE.md § Identity & Greeting step 4). The launcher's `cd ~/aios` only covers the
   # macOS AppleScript path; the in-shell spawn path (and any plain-terminal spawn on
   # Linux) calls this function directly from whatever cwd the terminal happened to be
   # in — landing sessions in $HOME with no CLAUDE.md, so nothing loaded. cd'ing here
@@ -214,6 +214,28 @@ _claude_with_respawn() {
     fi
   fi
 
+  # Effort and advisor (optional, set by `spawn --effort/--advisor` or an inbox request). Unset
+  # -> no flags at all, so a spawn that omits them is byte-identical to before. The advisor goes
+  # through a settings FILE, not inline JSON: on Windows the claude shim mangles quotes inside an
+  # argument, and one form for both platforms keeps them testable against each other.
+  local -a effort_args=() advisor_args=()
+  [ -n "$CLAUDE_EFFORT" ] && effort_args=(--effort "$CLAUDE_EFFORT")
+  local _adv=""
+  if [ -n "$CLAUDE_ADVISOR_MODEL" ]; then
+    # Validated HERE as well as in spawn(): an inbox request or a hand-set env var reaches this
+    # function without passing through spawn(), and the id is printf-ed into JSON below -- a `"`
+    # or a backslash would break the settings file or inject keys into it.
+    case "$CLAUDE_ADVISOR_MODEL" in
+      *[!A-Za-z0-9._\[\]-]*)
+        echo "spawn: CLAUDE_ADVISOR_MODEL '$CLAUDE_ADVISOR_MODEL' is not a model id -- starting without an advisor." >&2 ;;
+      *)
+        # mktemp, not a predictable name: a fixed path in a shared /tmp can be pre-created or
+        # symlinked by another user. Removed when the respawn loop ends (below).
+        _adv="$(mktemp "${TMPDIR:-/tmp}/aios-advisor-XXXXXX")" \
+          && printf '{"advisorModel":"%s"}\n' "$CLAUDE_ADVISOR_MODEL" > "$_adv" && advisor_args=(--settings "$_adv") ;;
+    esac
+  fi
+
   export CLAUDE_AGENT_NAME="$name"
   export CLAUDE_RESPAWN_CAPABLE=1
   # A spawned worker is an INDEPENDENT, named session — NOT a sub-agent child. But it
@@ -238,9 +260,9 @@ _claude_with_respawn() {
     # CLI — see detect_primary_session; this guard now covers only the explicit
     # "claude" session-name case.) Safe for all primary names.
     if [ -n "$bootstrap" ]; then
-      command claude "${model_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name" "$bootstrap"
+      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name" "$bootstrap"
     else
-      command claude "${model_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name"
+      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name"
     fi
     local exit_code=$?
 
@@ -299,6 +321,10 @@ _claude_with_respawn() {
     fi
     sleep 2
   done
+  # The advisor settings file lives as long as the session; every exit from the loop is a
+  # `break`, so this is the one place it ends. (No EXIT trap: on the in-shell path this function
+  # runs in the operator's interactive shell, and a trap would replace theirs.)
+  [ -n "$_adv" ] && rm -f "$_adv"
 }
 
 # NOTE: The primary-session function (e.g. `primary() { ... }` for fresh
@@ -346,32 +372,39 @@ FITS what you were asked to do.
                                        touches. about_business.md is a ~1:100 summary of
                                        it and does NOT substitute.
 
-FIRST ACTION, before you answer or plan anything — THE MAP, whatever the task is:
-list both folders, read both `_index.md` (one line per file), then read the `###` ENTRY
-THE FLOOR, in one command:
+FIRST ACTION, before you answer or plan anything -- THE FLOOR, whatever the task is.
 
-  uv run ~/aios/hooks/context-floor.py
+If your context already holds a block that begins "CONTEXT FLOOR", the floor was
+delivered at session start (Hook E): INTENT.md, the titles of the newest entries of
+every observed/ file, and the map. Its last section names the FULL floor file -- open it
+for depth whenever a title or the work points there. If there is no such block, run it:
 
-It emits both _index.md, EVERY HEADING in both folders, THE NEWEST 5 ### ENTRIES OF
-EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries, not by file
-position, because the tail is the newest in only about 5 of 8 files -- and INTENT.md.
-One exception: a RULE LIBRARY like antifragile.md emits its meta-pattern INDEX instead
-of its newest entries, because an entry from four months ago binds exactly as hard as
-one from this week and the file's job is to fire BEFORE the mistake -- which is at the floor because it governs what
-you may DO, a different question from whether your output sounds like them, and the one
-that binds a mechanical worker hardest (least contextualised, most able to commit, push,
-send or delete). Absent the hook, glob it by hand — grep -h '^#' on
-declared/*.md, grep -h '^###' on observed/*.md, then the tail of each observed file —
-but prefer the hook: a floor assembled by hand gets done partially or skipped, and
-afterwards nothing can tell the difference.
+    UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-floor.py
+
+It WRITES the floor to a file and prints only a MAP. The map is not the floor: read the
+file it names, in parts, until its last line is "=== END OF FLOOR".
+
+The floor file holds both _index.md, EVERY HEADING in both folders, THE NEWEST 5 ###
+ENTRIES OF EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries, not
+by file position, because the tail is the newest in only about 5 of 8 files -- plus
+INTENT.md and the ventures listing. One exception: a RULE LIBRARY like antifragile.md
+gives its meta-pattern INDEX instead of its newest entries, because an entry from four
+months ago binds exactly as hard as one from this week and the file's job is to fire
+BEFORE the mistake. INTENT.md is at the floor because it governs what you may DO, a
+different question from whether your output sounds like them, and the one that binds a
+mechanical worker hardest (least contextualised, most able to commit, push, send or
+delete). Absent the hook, glob it by hand -- grep -h '^#' on declared/*.md, grep -h
+'^###' on observed/*.md, then the newest entries of each observed file -- but prefer the
+hook: a floor assembled by hand gets done partially or skipped, and afterwards nothing
+can tell the difference.
 
 The floor carries LEARNED CONTENT, not only titles. Headings tell you what exists; they
 tell you nothing the system has learned. Every close-session and close-day appends to
 observed/ — if the next session never reads what was appended, the loop does not close.
 
-It reads the TAIL because the folders are written differently: declared/ is RESTATED
+It reads the NEWEST end because the folders are written differently: declared/ is RESTATED
 (identity, rewritten in place, no newest end), observed/ ACCUMULATES (dated and
-append-ordered, so its newest end is what the last sessions wrote). The tail is BOUNDED —
+dated, so its newest entries are what the last sessions wrote). That slice is BOUNDED —
 at ten times the entries it reads the same five per file while the headings still index
 all of them. Recency is not relevance: an older entry that matters is one title away, and
 antifragile's titles are all in front of you, which is what "scan for relevant rules
@@ -451,6 +484,28 @@ thing you do is the `ls`.
 PREAMBLE
 }
 
+_spawn_advisor_block() {
+  # Appended to the task file of an ADVISED worker on a Sonnet- or Haiku-class model: measured by
+  # Anthropic, those executors called an Opus advisor on none of 198 questions without an
+  # instruction, while the tool definition still cost ~1,000 tokens a request. Opus and Fable
+  # call it well on their own, and the instruction lowered their pass rates, so they never get
+  # it. MODEL-ROUTING.md § The advisor.
+  cat <<'ADVISOR'
+
+# You have an advisor
+
+This worker runs with an advisor: a stronger model you can consult through the `advisor`
+tool. It sees everything you have done so far and returns short advice. It only helps if
+you call it, and workers on your model rarely do unprompted, so:
+
+- Call it once BEFORE substantive work, with your plan.
+- Call it once BEFORE you declare the task done. Save your work first (write the file,
+  commit if the task says to), so nothing is lost if the call is slow.
+- Call it when you are stuck, or about to choose between two approaches.
+- Ask it to keep its guidance under 80 words.
+ADVISOR
+}
+
 spawn() {
   # --tier frontier|judgment|scale|fast — optional, position-independent (plus the
   # legacy `mechanical`). See the map below for what each rung is for. `mechanical` routes
@@ -458,19 +513,26 @@ spawn() {
   # so it auto-tracks as the model lineup evolves — no hard-coding the frontier).
   # `judgment` (or no flag) keeps the frontier default (_claude_with_respawn's
   # CLAUDE_MODEL fallback). --model <id> — optional, overrides --tier; pins an
-  # explicit/specialist model per-spawn (e.g. `--model claude-fable-5`) with NO
+  # explicit/specialist model per-spawn (e.g. `--model claude-fable-5-1`) with NO
   # global env mutation. Strip the flags first, THEN parse positionals so
   # `spawn name task` is byte-identical to before when no flag is passed.
-  local tier="" model="" profile=""
+  # --effort low|medium|high|xhigh|max — the worker's effort (Claude Code's --effort).
+  # --advisor <rung|model> — an advisor model for the worker (a rung name resolves like --tier;
+  # anything else is a model id). No rung has a default advisor. MODEL-ROUTING § Advisor.
+  local tier="" model="" profile="" effort="" advisor=""
   local -a _args=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --tier)      tier="$2"; shift 2 ;;
+      --tier)      [ $# -ge 2 ] || { echo "spawn: --tier needs a value" >&2; return 2; }; tier="$2"; shift 2 ;;
       --tier=*)    tier="${1#*=}"; shift ;;
-      --model)     model="$2"; shift 2 ;;
+      --model)     [ $# -ge 2 ] || { echo "spawn: --model needs a value" >&2; return 2; }; model="$2"; shift 2 ;;
       --model=*)   model="${1#*=}"; shift ;;
-      --profile)   profile="$2"; shift 2 ;;
+      --profile)   [ $# -ge 2 ] || { echo "spawn: --profile needs a value" >&2; return 2; }; profile="$2"; shift 2 ;;
       --profile=*) profile="${1#*=}"; shift ;;
+      --effort)    [ $# -ge 2 ] || { echo "spawn: --effort needs a value" >&2; return 2; }; effort="$2"; shift 2 ;;
+      --effort=*)  effort="${1#*=}"; shift ;;
+      --advisor)   [ $# -ge 2 ] || { echo "spawn: --advisor needs a value" >&2; return 2; }; advisor="$2"; shift 2 ;;
+      --advisor=*) advisor="${1#*=}"; shift ;;
       *)           _args+=("$1"); shift ;;
     esac
   done
@@ -483,7 +545,7 @@ spawn() {
   #   The launcher always passes `Read <task-file> and follow the instructions inside.`
   #   as the bootstrap, so a task file whose contents are `Start session.` is a prompt
   #   pointing at a file with nothing to follow. The worker takes its turn, finds no
-  #   instruction, answers blandly, and never runs the Session Start Ritual: no declared
+  #   instruction, answers blandly, and never runs its context loading (CLAUDE.md § Identity & Greeting step 4): no declared
   #   or observed context, no agent match for the session name, no greeting. The terminal
   #   is open and the session looks idle, which reads as a hang rather than a default.
   #
@@ -534,17 +596,35 @@ spawn() {
   case "$tier" in
     frontier)    spawn_model='claude-fable-5-1' ;;
     judgment|"") spawn_model="" ;;
-    scale)       spawn_model='claude-sonnet-5' ;;
-    fast)        spawn_model='claude-haiku-4-5-20251001' ;;
+    scale)       spawn_model='claude-sonnet-5-5' ;;
+    fast)        spawn_model='claude-haiku-5-5' ;;
     mechanical)  spawn_model='claude-sonnet-4-6' ;;   # legacy alias — do not remap
     *) echo "⚠️  spawn: unknown --tier '$tier' (use: frontier | judgment | scale | fast — 'mechanical' also still accepted)" >&2; return 1 ;;
   esac
   # --model <id> pins an explicit model (overrides --tier) — for a temporary or
-  # specialist model outside the tier ladder (e.g. --model claude-fable-5). It sets
+  # specialist model outside the tier ladder (e.g. --model claude-fable-5-1). It sets
   # spawn_model, which the launcher exports as CLAUDE_MODEL for THIS spawn only —
   # no global ~/.zshrc export (that hack risked leaving every future terminal
   # pinned to the model if the revert was ever missed).
   [ -n "$model" ] && spawn_model="$model"
+
+  local spawn_effort=""
+  case "$effort" in
+    "") ;;
+    low|medium|high|xhigh|max) spawn_effort="$effort" ;;
+    *) echo "⚠️  spawn: unknown --effort '$effort' (use: low | medium | high | xhigh | max)" >&2; return 1 ;;
+  esac
+  local spawn_advisor=""
+  case "$advisor" in
+    "") ;;
+    frontier) spawn_advisor='claude-fable-5-1' ;;
+    judgment) spawn_advisor='claude-opus-5-5' ;;
+    scale)    spawn_advisor='claude-sonnet-5-5' ;;
+    fast)     spawn_advisor='claude-haiku-5-5' ;;
+    -*)       echo "⚠️  spawn: --advisor needs a rung or a model id" >&2; return 1 ;;
+    *[!A-Za-z0-9._\[\]-]*) echo "⚠️  spawn: --advisor '$advisor' is not a rung or a model id" >&2; return 1 ;;
+    *)        spawn_advisor="$advisor" ;;
+  esac
 
   # --profile <name> — load ONLY the MCP servers declared in
   # ~/.aios/mcp-profiles/<name>.json. Fail loudly here rather than in the launcher:
@@ -579,7 +659,7 @@ spawn() {
     echo "[spawn] No name given — using handle: $name"
     echo "[spawn] Tip: name a specific agent for matched expertise (e.g. \`spawn accountant\`)."
     echo "[spawn] Tip: --tier fast (high-frequency) | scale (volume) | judgment (default: reasoning) | frontier (hardest, long-running autonomy)."
-    echo "[spawn] Tip: add \`--model <id>\` to pin a specific model (e.g. \`--model claude-fable-5\`) — no global env hack."
+    echo "[spawn] Tip: add \`--model <id>\` to pin a specific model (e.g. \`--model claude-fable-5-1\`) — no global env hack."
     echo "[spawn] Tip: --profile <name> loads only the MCP servers in ~/.aios/mcp-profiles/<name>.json."
     echo "[spawn] See agents/_index.md for the full list."
     echo "[spawn] Opening session: $name"
@@ -628,6 +708,9 @@ spawn() {
   # CLAUDE.md § Identity & Greeting step 4 carries the same rule, so workers spawned by another
   # surface (which never reads this file) get it too; this is the reinforcement on the wrapper path.
   { _spawn_task_preamble; printf '%s\n' "$task"; } > "$task_file"
+  if [ -n "$spawn_advisor" ]; then
+    case "$spawn_model" in *sonnet*|*haiku*) _spawn_advisor_block >> "$task_file" ;; esac
+  fi
 
   local launcher="/tmp/spawn-launch-$name.sh"
   # Match the launcher's shell + rc to the user's LOGIN shell — the same
@@ -647,6 +730,8 @@ spawn() {
 [ -f "$_rc" ] && source "$_rc"
 ${spawn_model:+export CLAUDE_MODEL='$spawn_model'}
 ${spawn_profile:+export CLAUDE_MCP_PROFILE='$spawn_profile'}
+${spawn_effort:+export CLAUDE_EFFORT='$spawn_effort'}
+${spawn_advisor:+export CLAUDE_ADVISOR_MODEL='$spawn_advisor'}
 cd ~/aios 2>/dev/null
 _claude_with_respawn '$name' 'Read $task_file and follow the instructions inside.'
 LAUNCHER
@@ -728,9 +813,13 @@ LAUNCHER
         # Clipboard staging: save the user's clipboard to restore afterward (spawning
         # must not eat what they had copied), stage the launcher in a temp file (avoids
         # AppleScript escaping), and prime the clipboard with the create command.
-        local saved_clip; saved_clip=$(pbpaste 2>/dev/null)
+        # Every clipboard call forces a UTF-8 locale: pbcopy/pbpaste decode with the process
+        # locale and fall back to Mac Roman without one, and `do shell script` below runs with an
+        # almost empty environment -- so non-ASCII in a launcher or a saved clipboard would be
+        # mangled. hooks/clip does the same with a read-back; it is used where it is installed.
+        local saved_clip; saved_clip=$(LC_ALL=en_US.UTF-8 pbpaste 2>/dev/null)
         printf '%s' "$launcher" > "/tmp/spawn-launch-cmd-$name"
-        printf '%s' 'Terminal: Create New Terminal' | pbcopy
+        printf '%s' 'Terminal: Create New Terminal' | LC_ALL=en_US.UTF-8 pbcopy
         cat > "$applescript_file" <<APPLESCRIPT
 $activate_clause
 -- Focus-settle 1.2s: let the IDE become fully frontmost before the first keystroke.
@@ -766,7 +855,7 @@ tell application "System Events"
     delay 0.6
     -- Step 2: deliver the launcher via PASTE — swap the clipboard to the launcher
     -- command (staged in a temp file), paste, and run.
-    do shell script "cat /tmp/spawn-launch-cmd-$name | pbcopy"
+    do shell script "f=/tmp/spawn-launch-cmd-$name; if [ -x ~/aios/hooks/clip ]; then ~/aios/hooks/clip --no-verify \"\$f\" || true; else LC_ALL=en_US.UTF-8 pbcopy < \"\$f\"; fi"
     keystroke "v" using {command down}
     delay 0.4
     keystroke return
@@ -787,7 +876,7 @@ APPLESCRIPT
         # Caught 2026-06-08.
         sleep 1.5
         # Restore the user's clipboard + clean the staged launcher command file.
-        printf '%s' "$saved_clip" | pbcopy
+        printf '%s' "$saved_clip" | LC_ALL=en_US.UTF-8 pbcopy
         rm -f "/tmp/spawn-launch-cmd-$name"
       else
         osascript -e "tell application \"Terminal\" to do script \"$launcher\""
@@ -817,11 +906,14 @@ APPLESCRIPT
     # In-shell path. A literal `VAR=val cmd` assignment-prefix must be WRITTEN
     # literally — an EXPANDED `${x:+VAR=val}` is not re-parsed as an assignment
     # (the shell would try to run `VAR=val` as a command). So branch explicitly.
-    if [ -n "$spawn_model" ]; then
-      CLAUDE_MODEL="$spawn_model" _claude_with_respawn "$name" "Read $task_file and follow the instructions inside."
-    else
+    # A subshell scopes every per-spawn variable to this one worker, so none leaks into the
+    # operator's shell (the reason the old branch used an assignment prefix).
+    (
+      [ -n "$spawn_model" ]   && export CLAUDE_MODEL="$spawn_model"
+      [ -n "$spawn_effort" ]  && export CLAUDE_EFFORT="$spawn_effort"
+      [ -n "$spawn_advisor" ] && export CLAUDE_ADVISOR_MODEL="$spawn_advisor"
       _claude_with_respawn "$name" "Read $task_file and follow the instructions inside."
-    fi
+    )
   fi
 }
 
@@ -904,7 +996,7 @@ cat >> "$RC" <<EOF
 #
 # A FRESH session is launched with a bootstrap prompt. Without one, \`claude\` opens
 # idle and waits: CLAUDE.md is loaded (the cwd is the vault) but nothing has taken a
-# turn, so the Session Start Ritual never runs — no declared/observed context, no
+# turn, so context loading (CLAUDE.md § Identity & Greeting step 4) never runs — no declared/observed context, no
 # greeting. \`spawn\` never had this problem, but only by accident: it ALWAYS passes
 # a bootstrap ("Read <task-file> …"), and that turn is what triggers the ritual. The
 # primary shorthand passing none looks like an oversight rather than a decision, so
@@ -917,7 +1009,7 @@ $PRIMARY_NAME() {
   case "\$1" in
     -c|--continue) _claude_with_respawn $PRIMARY_NAME "" --continue ;;
     -r|--resume)   _claude_with_respawn $PRIMARY_NAME "" "\${2:-}" ;;
-    *)             _claude_with_respawn $PRIMARY_NAME "Session start — follow the Session Start Ritual in CLAUDE.md: load declared + observed context, then greet me." ;;
+    *)             _claude_with_respawn $PRIMARY_NAME "Session start — follow CLAUDE.md § Identity & Greeting, step 4 (context loading) included, then greet me." ;;
   esac
 }
 # ==== END claude-primary-session ====

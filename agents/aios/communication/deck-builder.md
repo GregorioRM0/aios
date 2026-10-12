@@ -80,7 +80,7 @@ Before outlining content, surface (a) the design intent and (b) the output forma
 > Four paths:
 > 1. **Use an existing design doc** — apply {vault design.md} as the style spec, build in Google Slides via MCP
 > 2. **Copy from a past deck** — duplicate {Drive deck} and adapt content, edit in Google Slides
-> 3. **Propose a new design** — suggest 2-3 candidates from the awesome-design-md catalog (or a combination), build in Google Slides
+> 3. **Propose a new design** — suggest 2-3 candidates from the awesome-design-md catalog or Refero Styles (or a combination), build in Google Slides
 > 4. **Use venture template library** — assemble from {`templates/{venture}/decks/`}, output as **self-contained HTML** (brand-locked rapid pipeline — single file, F11-presentable, optional Chrome-headless PDF). Best for: brand-locked decks, offline-portable deliverables, when speed matters more than collaborative editing.
 >
 > Which path?"
@@ -101,7 +101,7 @@ Save to outline frontmatter as `theme: dark|light`. Both themes must be brand-al
 
 **Process:**
 1. Read the deck's audience + theme from the task description and venture context.
-2. WebFetch the awesome-design-md README to get the current catalog.
+2. WebFetch the awesome-design-md README to get the current catalog. For a register the catalog lacks, [Refero Styles](https://styles.refero.design) (2,000+ real sites as DESIGN.md files, same format) is the second place to look; a pointer, not a bundled dependency, and the same brand-identity guardrail applies.
 3. Curate 2-3 candidates matching the deck's audience/theme. Heuristics (adapt as needed):
    - **AI demo** → Claude / OpenAI / Mistral / Cohere
    - **Investor / financial** → Stripe / Coinbase / Wise / Linear

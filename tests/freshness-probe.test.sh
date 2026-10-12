@@ -45,11 +45,11 @@ cls=$(printf '%s' "$BOTH" | bash "$S" --classify)
 eval "$(sed -n '/^ACCESS_RE=/p;/^NET_RE=/p' "$S")"
 eval "$(sed -n '/^reason() {/,/^}/p' "$S")"
 got=$(reason "$BOTH" access-denied)
-printf '%s' "$got" | grep -Eq "$ACCESS_RE" \
+printf '%s' "$got" | grep -E "$ACCESS_RE" >/dev/null \
   && ok "access-denied quotes the refusal ($got)" \
   || no "access-denied quoted '$got'" "quoting a network error beside access-denied contradicts itself"
 got2=$(reason "$BOTH" unreachable)
-printf '%s' "$got2" | grep -Eq "$NET_RE" \
+printf '%s' "$got2" | grep -E "$NET_RE" >/dev/null \
   && ok "unreachable quotes the network error ($got2)" \
   || no "unreachable quoted '$got2'"
 
@@ -89,6 +89,41 @@ old="$(PATH="$T/bin:$PATH"; repo=git@github.com:acme/denied.git
   [ -z "$r" ] && { hr=$(echo "$repo" | sed -E 's#git@github\.com:#https://github.com/#'); r=$(git ls-remote "$hr" HEAD 2>/dev/null | awk '{print $1}'); }
   [ -z "$r" ] && echo unreachable || echo reachable)"
 expect "the stock probe calls a refused key 'unreachable'" "$old" unreachable
+
+echo "-- a vault on a test branch is TESTING (ahead), never BEHIND --"
+# Measured: a release dogfooded from its branch read as BEHIND, and the App offered an update
+# that would have pulled main over the test.
+TB="$(mktemp -d)"
+git init -q --bare "$TB/remote.git"
+git -C "$TB" init -q w 2>/dev/null || git init -q "$TB/w"
+git -C "$TB/w" -c user.name=t -c user.email=t@t commit -q --allow-empty -m a
+DEF=$(git -C "$TB/w" branch --show-current); MAIN=$(git -C "$TB/w" rev-parse HEAD)
+git -C "$TB/w" checkout -q -b rel
+git -C "$TB/w" -c user.name=t -c user.email=t@t commit -q --allow-empty -m b
+TIP=$(git -C "$TB/w" rev-parse HEAD)
+git -C "$TB/w" push -q "$TB/remote.git" "$DEF" rel 2>/dev/null
+git -C "$TB/remote.git" symbolic-ref HEAD "refs/heads/$DEF"
+mkdir -p "$TB/v"
+tracker(){ printf 'repo=%s\nhash=%s\n' "$TB/remote.git" "$1" > "$TB/v/.aios-update"; [ -n "${2:-}" ] && printf 'ref=%s\n' "$2" >> "$TB/v/.aios-update"; :; }
+run(){ AIOS_ROOT="$TB/v" bash "$S" --aios-update; }
+tracker "$MAIN"; expect "on the default branch's head: synced" "$(run)" "aios-update: synced"
+tracker "$TIP"; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "another branch's tip WITHOUT ref= reads BEHIND (TESTING is never inferred)" ;; *) no "TESTING inferred from a branch tip: $out" ;; esac
+tracker "$TIP" rel; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "the same tip WITH ref=rel reads TESTING rel" ;; *) no "explicit ref= on a branch tip read as: $out" ;; esac
+tracker 0123456789012345678901234567890123456789 rel; out=$(run); case "$out" in "aios-update: TESTING rel "*) ok "ref= names the test even after the branch moved" ;; *) no "ref= ignored: $out" ;; esac
+printf 'repo=%s\r\nhash=0123456789012345678901234567890123456789\r\nref=rel\r\n' "$TB/remote.git" > "$TB/v/.aios-update"
+out=$(run); case "$out" in "aios-update: TESTING rel (local="*) ok "a CRLF tracker's ref= still names the branch" ;; *) no "CRLF ref= read as: $(printf '%s' "$out" | od -c | head -2)" ;; esac
+tracker 0123456789012345678901234567890123456789 gone; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "ref= naming a branch deleted from the remote is not TESTING" ;; *) no "a deleted ref branch pinned the state: $out" ;; esac
+git -C "$TB/remote.git" branch -q -D rel
+tracker 0123456789012345678901234567890123456789 rel; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "after the test branch is merged+deleted, ref= falls through to BEHIND" ;; *) no "stuck after deletion: $out" ;; esac
+tracker "$MAIN" rel; expect "ref= of a deleted branch on main's head: synced" "$(run)" "aios-update: synced"
+tracker 0123456789012345678901234567890123456789 rel; out=$(PATH="$T/bin:$PATH" AIOS_ROOT="$TB/v" bash -c 'sed -i.bak "s#^repo=.*#repo=https://offline.invalid/x.git#" "$AIOS_ROOT/.aios-update"; bash "$0" --aios-update' "$S"); case "$out" in "aios-update: unreachable"*) ok "offline with ref=: unreachable, not a guess" ;; *) no "offline ref= read as: $out" ;; esac
+tracker 0123456789012345678901234567890123456789; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "control: an old default-branch hash still reads BEHIND" ;; *) no "control broke: $out" ;; esac
+tracker 0123456789012345678901234567890123456789 main; out=$(run); case "$out" in "aios-update: BEHIND "*) ok "ref=main is not a test" ;; *) no "ref=main read as: $out" ;; esac
+rm -rf "$TB"
+grep -F '`TESTING <branch>`' plugins/aios/commands/today.md >/dev/null && grep -F 'Never auto-fire' plugins/aios/commands/today.md >/dev/null \
+  && ok "/today renders TESTING and never auto-updates on it" || no "/today has no TESTING rule"
+grep -F 'TESTING <branch>' plugins/aios/commands/close-day.md >/dev/null && ok "/close-day renders TESTING" || no "/close-day has no TESTING rule"
+grep -F 'delete any `ref=` line' plugins/aios/commands/update.md >/dev/null && ok "/aios:update clears ref= when it syncs the default branch" || no "update never clears ref="
 
 echo "$PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

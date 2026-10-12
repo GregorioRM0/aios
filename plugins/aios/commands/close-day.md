@@ -32,6 +32,7 @@ Step 1 runs `uv run ~/aios/hooks/pipeline-executor.py --command close-day` which
    - `Bash(uv run ~/aios/hooks/pipeline-executor.py --command close-day)` — pre-loads Calendar (detailed, with attachments), Calendar next 14 days, Tasks, Slack
    - `Bash(bash ~/aios/hooks/freshness-probe.sh --aios-update)` — **infrastructure freshness check** (the same script `/today` runs — one implementation, so the two surfaces can't drift; SSH `ls-remote` falls back to public HTTPS, and git's error output is kept so a refused credential reads `access-denied`, never `unreachable`). Render per § Aios-update freshness rendering below — at end-of-day, the framing shifts from "before working today" to "before the secondary machine's overnight queue (or first thing tomorrow)".
    - `Bash(uv run ~/aios/hooks/bus-dead-letters.py)` — **bus dead-letter + unclaimed-request check** (same script `/today` runs — one implementation, so the two surfaces can't drift; through `uv` for the reason spelled out in `/today`). It reports two distinct shapes: a retired `.undelivered` request, and a plain `*.json` **nobody ever claimed** — the second is invisible everywhere else, because retirement needs a surface to perform it and a surface that quit performs nothing. Retirement to `.undelivered` stops a request *blocking another surface*; it does not deliver it, and nothing reads that directory. At close-day this matters more than in the morning: an undelivered handoff means a worker was never told to start, so whatever it was meant to produce **will not exist overnight** — and the sender still believes it landed. Render per § Bus dead-letter rendering below.
+   - `Bash(UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/model-switch-log.py --report --since {today YYYY-MM-DD})` — **model-switch check** (SETUP Hook F). Each line is a session that finished on a model other than the one it asked for, usually a silent fallback after a flagged message. Empty output (or no log, when Hook F is not wired) means nothing to say: say nothing. Otherwise surface one line per row in the `## Close of Day` block, above the verdict line: `> 🔀 **{name} finished on {to}** (asked for {requested}; {reason})` — and treat that session's unattended output as written by that model when you weigh it.
    - `Read` → `USER.md` (for dev project paths, growth routines, session cascade, organization, and `### /close-day` command personalizations)
    - `Read` → `INTENT.md` (if it exists — for focus alignment check, parked item handling in carries)
    - Read the daily note to close: **if invoked with a date** (*"close {date}"* — `/today`'s precondition guard does this), close exactly that note. Otherwise list files in `01 - calendar/{YYYY-MM}/`, pick the **most recent `YYYY-MM-DD.md` dated on or before today** (exclude weekly plans like `W{N}-plan.md`, and the future-dated skeletons `/7plan` creates for the week ahead). If it's after midnight and no note exists for today, the most recent note is yesterday's — close that one. If it already has a `## Close of Day` section, update it (merge new info, don't duplicate). **Always tell the user which date you're closing:** "Closing {date}."
@@ -90,7 +91,9 @@ Apply the result from step 1's dead-letter check:
 
 ## Aios-update freshness rendering
 
-Apply the result from step 1's `.aios-update` check (BEHIND / synced / access-denied / unreachable / no-config):
+Apply the result from step 1's `.aios-update` check (BEHIND / TESTING / synced / access-denied / unreachable / no-config):
+
+- **`TESTING <branch>`** → one line in the `## Close of Day` block: *"Framework: testing `{branch}`, ahead of main — not an update to take."* Never offer `/aios:update` for it.
 
 - **`synced`** → silent. No surface in the close-of-day section.
 - **`BEHIND`** → surface as a callout at the top of the `## Close of Day` block, before the verdict line: `> 🆕 **Aios-update pending** — local hash `{h}`, upstream `{r}`. Run `/aios:update` before the secondary machine's overnight queue (or first thing tomorrow morning) so fresh commands/templates land in her shift.` This is consequential at close-day specifically because that queue is generated FROM your local state — stale local = stale handoff.
@@ -615,7 +618,7 @@ For each entry in `## Reinforced` section of `session-insights.md`:
    - Write the entry to each target file under the appropriate section (use the entry's content + evidence + cross-references to existing sections)
    - **Remove the entry from `## Reinforced` using the surgical excision helper** (do NOT hand-edit multi-line buffer blocks — it's fragile and risks corrupting the compounding file):
      ```bash
-     uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
+     UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
        --match "<unique substring of the entry line — a `### ` heading OR a top-level `- ` bullet>" \
        --marker "<!-- ROUTED {date} (Tier A): {title} → [[{target}]]. Removed from buffer post-route. -->"
      ```
@@ -703,7 +706,7 @@ For each Tier B file (`growth.md`, `profile.md`, `ecosystem.md`):
 1. **Reinforce** — for each Emerging entry that got a **2nd instance today** (a session block / meeting / observation that confirms it), promote it to `## Reinforced` with a `Route to:` tag. If it's clearly route-ready now, route it this pass via the Tier-A helper; otherwise it routes next close-day.
 2. **Expire** — for each remaining Emerging entry, apply the **inverse substance bar** (an entry expires only if ALL hold): (a) **age** — older than ~2 weeks / unreferenced across the last several close-days (don't expire fresh entries that haven't had a chance to reinforce); (b) **no 2nd instance** ever landed; (c) **wouldn't matter in 90 days** (fails the timeline test); (d) **not essential** — nothing real is lost. Expire via the surgical helper with an EXPIRED trail marker:
    ```bash
-   uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
+   UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/route-insight.py "$HOME/aios/vault/00 - notes/context/observed/session-insights.md" \
      --match "<unique substring of the entry line — a `### ` heading OR a top-level `- ` bullet>" \
      --marker "<!-- EXPIRED {date}: never reinforced, fails inverse substance bar (age + no-2nd-instance + not-90-day-relevant). -->"
    ```
@@ -753,9 +756,21 @@ If any unchecked, complete it now before commit.
 
 **Never `git add -A`.** Close-day is the day's consolidator; by now the workers have closed + committed their own work via `aios-commit`. Commit the vault paths *this close-day* changed — which is close-day's own writes **plus the human's ambient Obsidian edits** (this scoped sweep is what replaces the dropped 2-min autosave: the human's live edits are captured here, at end of day, not by a background timer). Exclude per-machine runtime/state files.
 
+Two commits, in this order, so the history says which is which.
+
+**First, close-day's own writes, by name** — the closed note, and every observed, project, index or snapshot file this run edited:
+
 ```bash
-cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Close day {date}"
+cd ~/aios && ~/aios/hooks/aios-commit -m "Close day {date}" -- "vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md" {every other path this run wrote}
 ```
+
+**Then the sweep, under a subject that says it is one:**
+
+```bash
+cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Sweep uncommitted vault edits at close of day {date}"
+```
+
+Why two. The sweep picks up whatever is uncommitted, and that is not only the human's Obsidian edits. A session still running, or one that closed without committing, has files in it too. In one commit called "Close day", that work would read as close-day's, and nobody could tell afterwards which lines close-day wrote. Separate, the first commit holds the files close-day wrote and the second is plainly labelled a sweep. The split is by **file**, not by line: if someone else also left uncommitted edits in a file close-day wrote (the closed note, typically, edited in Obsidian), those go in whole with the first commit. `aios-commit` stages whole files, and telling one writer's lines from another's in the same file is not something it can do. When there is nothing left to sweep, the second command reports that and commits nothing.
 
 `--vault` sweeps the dirty vault paths for you — **space- and rename-safe** (it enumerates `git diff --name-only HEAD` ∪ untracked under `vault/` + `.aios-update`, minus the machine-local noise), so it never truncates a path like `vault/00 - notes/…` the way a `git status | awk '{print $2}'` sweep would. It stages only those paths via a throwaway index (working tree untouched), self-scans for secrets, and pushes with defer-on-offline. Run `/close-day` when active sessions have closed (that's what the Glass Close-all button is for) so nothing is mid-write.
 

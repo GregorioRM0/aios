@@ -28,17 +28,17 @@ out=$(bash mcps/setup.sh definitely-not-an-mcp 2>&1); rc=$?
 [ "$rc" -ne 0 ] \
   && ok "unknown name exits non-zero (got $rc)" \
   || no "unknown name exited 0" "this is the bug: nothing installed, success reported"
-printf '%s' "$out" | grep -q "Nothing matched" \
+printf '%s' "$out" | grep "Nothing matched" >/dev/null \
   && ok "and says so in words" \
   || no "no 'Nothing matched' line" "the operator is left believing it worked"
-printf '%s' "$out" | grep -q "All MCPs installed" \
+printf '%s' "$out" | grep "All MCPs installed" >/dev/null \
   && no "it STILL printed the success line" "the guard must come before it" \
   || ok "the success line did not print"
 
 echo "── 2. both spellings select the same MCP ──"
 for name in nano-banana nano-banana-mcp; do
   out=$(bash mcps/setup.sh "$name" 2>&1); rc=$?
-  if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep -q "Nothing matched"; then
+  if [ "$rc" -eq 0 ] && ! printf '%s' "$out" | grep "Nothing matched" >/dev/null; then
     ok "'$name' matches"
   else
     no "'$name' did not match" "callers hold the connector id; this file spoke only folder names"
@@ -50,10 +50,10 @@ echo "── 3. --list names both spellings, or the error message lies ──"
 # match, SIGPIPEs the script, and the pipeline reports 141 — a green script read as a failure.
 # The first version of this test did exactly that and failed against a working --list.
 lst=$(bash mcps/setup.sh --list 2>&1)
-printf '%s' "$lst" | grep -q -- "-mcp" \
+printf '%s' "$lst" | grep -- "-mcp" >/dev/null \
   && ok "--list shows the folder names" \
   || no "--list shows no folder names"
-printf '%s' "$lst" | grep -qi "connector id" \
+printf '%s' "$lst" | grep -i "connector id" >/dev/null \
   && ok "--list also says the id works — matching what the error message promises" \
   || no "--list omits the id spelling" "the failure message tells operators it works; --list must agree"
 

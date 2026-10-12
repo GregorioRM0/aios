@@ -85,11 +85,11 @@ mkfix "$TMP/proj" <<'J'
  "projects":{"/Users/someone/aios":{"mcpServers":{"google-workspace":{"args":["--permissions","drive:full"]}}}}}
 J
 OUT="$(runsnip "$TMP/proj")"
-if printf '%s' "$OUT" | grep -q 'NOT REGISTERED'; then
+if printf '%s' "$OUT" | grep 'NOT REGISTERED' >/dev/null; then
   no "project-scoped registration reported as NOT REGISTERED" \
      "this is the live-vault defect: the connector works and the check says it does not
         got: $OUT"
-elif printf '%s' "$OUT" | grep -q '/Users/someone/aios'; then
+elif printf '%s' "$OUT" | grep '/Users/someone/aios' >/dev/null; then
   ok "found it, and named the project it belongs to"
 else
   no "unexpected output for a project-scoped registration" "$OUT"
@@ -100,7 +100,7 @@ mkfix "$TMP/user" <<'J'
 {"mcpServers":{"google-workspace":{"args":["--permissions","drive:full"]}},"projects":{}}
 J
 OUT="$(runsnip "$TMP/user")"
-printf '%s' "$OUT" | grep -q 'user' \
+printf '%s' "$OUT" | grep 'user' >/dev/null \
   && ok "user scope reported" || no "user-scoped registration missed" "$OUT"
 
 echo "── 4. genuinely absent reads as absent ──"
@@ -108,7 +108,7 @@ mkfix "$TMP/none" <<'J'
 {"mcpServers":{"railway":{}},"projects":{"/Users/someone/aios":{"mcpServers":{"slack":{}}}}}
 J
 OUT="$(runsnip "$TMP/none")"
-printf '%s' "$OUT" | grep -q 'NOT REGISTERED' \
+printf '%s' "$OUT" | grep 'NOT REGISTERED' >/dev/null \
   && ok "absent → NOT REGISTERED (the check can still say no)" \
   || no "an absent server was reported as present — the check cannot fail" "$OUT"
 
@@ -120,7 +120,7 @@ mkfix "$TMP/both" <<'J'
  "projects":{"/Users/someone/aios":{"mcpServers":{"google-workspace":{}}}}}
 J
 OUT="$(runsnip "$TMP/both")"
-{ printf '%s' "$OUT" | grep -q 'user' && printf '%s' "$OUT" | grep -q '/Users/someone/aios'; } \
+{ printf '%s' "$OUT" | grep 'user' >/dev/null && printf '%s' "$OUT" | grep '/Users/someone/aios' >/dev/null; } \
   && ok "both registrations named in one answer" \
   || no "a duplicate registration was not fully reported" "$OUT
         two registrations drift independently; the operator must be told there are two"

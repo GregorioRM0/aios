@@ -332,7 +332,7 @@ def _load_google_creds(creds_path):
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
 
-    creds_data = json.loads(creds_path.read_text())
+    creds_data = json.loads(creds_path.read_text(encoding="utf-8"))
     expiry_str = creds_data.get("expiry")
     expiry = None
     if expiry_str:
@@ -361,14 +361,14 @@ def _load_google_creds(creds_path):
 def _save_refreshed_token(creds, creds_path):
     """Save refreshed token back to disk (thread-safe, re-reads before writing)."""
     with _creds_lock:
-        current = json.loads(creds_path.read_text())
+        current = json.loads(creds_path.read_text(encoding="utf-8"))
         if creds.token != current["token"]:
             current["token"] = creds.token
             if creds.expiry:
                 current["expiry"] = creds.expiry.isoformat()
             if creds.refresh_token and creds.refresh_token != current.get("refresh_token"):
                 current["refresh_token"] = creds.refresh_token
-            creds_path.write_text(json.dumps(current, indent=2))
+            creds_path.write_text(json.dumps(current, indent=2), encoding="utf-8")
 
 
 # Calendars that are feeds, not commitments. Holiday and birthday calendars are
@@ -672,7 +672,7 @@ def slack_unreads():
     if not SLACK_TOKENS_PATH.exists():
         raise FileNotFoundError(f"Slack tokens not found at {SLACK_TOKENS_PATH}. Run `npx -y @jtalk22/slack-mcp@5.0.0 --setup` to configure.")
 
-    tokens = json.loads(SLACK_TOKENS_PATH.read_text())
+    tokens = json.loads(SLACK_TOKENS_PATH.read_text(encoding="utf-8"))
     token = tokens.get("SLACK_TOKEN", "")
     cookie = tokens.get("SLACK_COOKIE", "")
     headers = {"Authorization": f"Bearer {token}"}
@@ -738,7 +738,7 @@ def slack_daily_recap(channels_skip, timezone_name):
     if not SLACK_TOKENS_PATH.exists():
         raise FileNotFoundError(f"Slack tokens not found at {SLACK_TOKENS_PATH}")
 
-    tokens = json.loads(SLACK_TOKENS_PATH.read_text())
+    tokens = json.loads(SLACK_TOKENS_PATH.read_text(encoding="utf-8"))
     token = tokens.get("SLACK_TOKEN", "")
     cookie = tokens.get("SLACK_COOKIE", "")
     headers = {"Authorization": f"Bearer {token}"}

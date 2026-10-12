@@ -28,6 +28,19 @@ cp "$REPO/TOOLS.md" "$REPO/README.md" "$WORK/" 2>/dev/null
 cp -r "$REPO/agents" "$REPO/plugins" "$REPO/skills" "$WORK/" 2>/dev/null
 run() { AIOS_REPO_ROOT="$WORK" bash "$FIX" ${1:-}; }
 
+echo "-- 0. run as its callers run it (no AIOS_REPO_ROOT), it finds the repo --"
+# CI and the failure explainer call `bash .github/scripts/autofix.sh` with no root set. It once
+# resolved its root as .github/ (one level up from scripts/), found no count claims there, and
+# reported "nothing to repair" on every run, so a stale count was never fixed. A copy with the
+# script at its real depth and a planted stale count must be caught.
+mkdir -p "$WORK/self/.github/scripts"; cp "$FIX" "$WORK/self/.github/scripts/"
+cp "$REPO/TOOLS.md" "$REPO/README.md" "$WORK/self/"; cp -r "$REPO/agents" "$REPO/plugins" "$REPO/skills" "$WORK/self/"
+sed -E 's/(AIOS-built — )[0-9]+( skills)/\199\2/' "$WORK/self/TOOLS.md" > "$WORK/self/t" && mv "$WORK/self/t" "$WORK/self/TOOLS.md"
+if (unset AIOS_REPO_ROOT; bash "$WORK/self/.github/scripts/autofix.sh" --check >/dev/null 2>&1); then
+  no "with no AIOS_REPO_ROOT the script did not find the planted stale count (wrong root?)"
+else ok "with no AIOS_REPO_ROOT it resolves the repo root and catches a stale count"; fi
+rm -rf "$WORK/self"
+
 echo "-- 1. a tree that is already right is left ALONE --"
 if run --check >/dev/null 2>&1; then ok "--check on an unmodified copy exits 0"
 else no "--check reports work to do on a tree that matches the repo" "$(run --check 2>&1 | head -3)"; fi

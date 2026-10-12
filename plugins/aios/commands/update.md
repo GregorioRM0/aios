@@ -247,7 +247,10 @@ Aggregate the cleanup report: *"Cleaned N duplicates across {layer1, layer2, ...
 repo={framework upstream URL}
 hash={last APPLIED commit hash}
 synced={date this vault was last VERIFIED against canonical}
+ref={optional: a branch other than the default this vault is testing}
 ```
+
+**`ref=` is written only by someone testing a branch** (a maintainer dogfooding a release, a contributor trying one); a normal install never has it. While its branch exists on the remote, the freshness checks say `TESTING <branch>` instead of offering an update over the test. **Every run of this command deletes any `ref=` line** (Step 1's already-current path and Step 7 alike), because syncing the default branch is leaving the test.
 
 **The two fields answer different questions and advance on different conditions.** `hash=` is *what you have* — it moves only on a run that fully applied, because an over-advanced hash orphans content (§ Step 7). `synced=` is *when we last checked* — it moves on **any** run that verified the vault against canonical and found it clean, including a run that applied nothing.
 
@@ -303,7 +306,7 @@ fi
 rm -rf /tmp/aios-update-check && git clone --single-branch "$clone_url" /tmp/aios-update-check 2>&1
 ```
 
-If the SSH clone fails on a non-Windows machine, retry with the HTTPS form (`git@github.com:org/repo` → `https://github.com/org/repo`). Get current HEAD: `git -C /tmp/aios-update-check rev-parse HEAD`. If HEAD matches stored hash → run the **completeness reconcile** (§ Step 6.5 — catches drift even when the tracker says "current") → if also clean, **stamp `synced={today}` (leave `hash=` alone — it is already correct) and commit just the tracker**, then report "Your vault infrastructure is current (synced {date})." → clean up → done. **Write the tracker only if the date is not already today**, so repeated runs in one day produce one commit, not one per run. If the reconcile finds drift, this path does not apply: recover it per § Step 6.5 and advance nothing until it is clean.
+If the SSH clone fails on a non-Windows machine, retry with the HTTPS form (`git@github.com:org/repo` → `https://github.com/org/repo`). Get current HEAD: `git -C /tmp/aios-update-check rev-parse HEAD`. If HEAD matches stored hash → run the **completeness reconcile** (§ Step 6.5 — catches drift even when the tracker says "current") → if also clean, **stamp `synced={today}` (leave `hash=` alone — it is already correct), delete any `ref=` line, and commit just the tracker**, then report "Your vault infrastructure is current (synced {date})." → clean up → done. **Write the tracker only if the date is not already today or a `ref=` line is present**, so repeated runs in one day produce one commit, not one per run, while a stale test marker is still cleared. If the reconcile finds drift, this path does not apply: recover it per § Step 6.5 and advance nothing until it is clean.
 
 ### 1.5. Show changelog context
 
@@ -992,7 +995,7 @@ On the answer:
 
 ### 7. Advance tracker (only on a clean, fully-applied run) and clean up
 
-**Only write `hash=` to the new HEAD if BOTH are true:** (a) every Step-3 apply + Step-4 auto-exec succeeded, and (b) the Step-6.5 reconcile came back clean (no remaining framework drift). If either failed, leave `hash=` at its current value and report what's incomplete — a stale hash is recoverable (next run re-pulls); an over-advanced one orphans content (the failure we're guarding against). **`synced={today}` is stamped on any run whose reconcile came back clean, applied or not** (§ Tracker file) — it records that the vault was verified, which is true whether or not upstream had moved. So a failed apply advances neither; a clean no-op advances only `synced=`; a clean applied run advances both.
+**Delete any `ref=` line on this run regardless of the outcome below** — the run synced the default branch, so the vault is no longer testing another one (§ Tracker file). **Only write `hash=` to the new HEAD if BOTH are true**: (a) every Step-3 apply + Step-4 auto-exec succeeded, and (b) the Step-6.5 reconcile came back clean (no remaining framework drift). If either failed, leave `hash=` at its current value and report what's incomplete — a stale hash is recoverable (next run re-pulls); an over-advanced one orphans content (the failure we're guarding against). **`synced={today}` is stamped on any run whose reconcile came back clean, applied or not** (§ Tracker file) — it records that the vault was verified, which is true whether or not upstream had moved. So a failed apply advances neither; a clean no-op advances only `synced=`; a clean applied run advances both.
 
 **Then commit the framework-sync to the vault repo — the atomic apply→advance→commit that leaves the vault clean and pushable.** Without this, the vault sits *applied-but-uncommitted* after every update: un-pushable, and drifting from canonical for anyone who pulls the vault (e.g. a teammate on plain `git pull`). Commit **exactly the Tier-1 paths this run applied** (from Steps 3 + 6.5) plus `.aios-update`, via `aios-commit` — scoped, so the operator's in-flight vault *content* is untouched, and `aios-commit`'s plumbing bypasses the pre-commit guard by design:
 ```bash

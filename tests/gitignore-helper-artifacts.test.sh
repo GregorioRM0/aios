@@ -91,7 +91,7 @@ if [ "$OUT" = "COMMIT-FAILED" ]; then
   no "control: the --vault commit ran" "aios-commit --vault failed in the scratch repo; nothing below can be trusted"
 else
   n=0
-  for p in "${ARTIFACTS[@]}"; do printf '%s\n' "$OUT" | grep -qxF "$p" && n=$((n+1)); done
+  for p in "${ARTIFACTS[@]}"; do printf '%s\n' "$OUT" | grep -xF "$p" >/dev/null && n=$((n+1)); done
   if [ "$n" -eq "${#ARTIFACTS[@]}" ]; then ok "control: all ${#ARTIFACTS[@]} artifacts are committed when nothing ignores them"
   else no "control: all ${#ARTIFACTS[@]} artifacts are committed when nothing ignores them" "only $n were — the scratch setup changed; fix it before trusting part 3"; fi
 fi
@@ -102,11 +102,11 @@ if [ "$OUT" = "COMMIT-FAILED" ]; then
   no "the --vault commit ran" "aios-commit --vault failed in the scratch repo"
 else
   for p in "${ARTIFACTS[@]}"; do
-    if printf '%s\n' "$OUT" | grep -qxF "$p"; then no "not committed: $p" "the --vault commit carried a helper artifact"
+    if printf '%s\n' "$OUT" | grep -xF "$p" >/dev/null; then no "not committed: $p" "the --vault commit carried a helper artifact"
     else ok "not committed: $p"; fi
   done
   for p in "${CONTENT[@]}"; do
-    if printf '%s\n' "$OUT" | grep -qxF "$p"; then ok "committed: $p"
+    if printf '%s\n' "$OUT" | grep -xF "$p" >/dev/null; then ok "committed: $p"
     else no "committed: $p" "a real note or snapshot is now ignored — a rule is too broad"; fi
   done
 fi

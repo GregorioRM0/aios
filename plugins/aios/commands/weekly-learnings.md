@@ -83,6 +83,8 @@ The user can force a bigger period mid-cycle: `/weekly-learnings month` generate
 
 For monthly/quarterly/semester/year reports, aggregate all weekly data in that period — read every daily note and weekly summary in the range.
 
+For the **quarter** report: if `01 - calendar/*/{YYYY}-Q{N}-plan.md` exists, read it — its objectives and Review section (scored by the `okr-coach` agent in the same sitting) are the declared side the rollup compares the quarter's activity against. No quarter note → roll up from weekly data alone, as before.
+
 ### Design system
 
 The design system is embedded below — no external template file needed. Key specs:

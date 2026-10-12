@@ -296,7 +296,7 @@ Invoke `design-md-author` agent (in `agents/aios/communication/`) with the sourc
 > *(3) **{Brand C}** — rationale. Preview: {URL}*
 > *Pick one as your base. We'll customize 5-6 tokens so your brand is distinct."*
 
-Catalog: [VoltAgent awesome-design-md](https://github.com/VoltAgent/awesome-design-md) (73 design systems, MIT-licensed). Heuristics same as the deck-builder Phase 0 path 3 ("Propose new design").
+Catalog: [VoltAgent awesome-design-md](https://github.com/VoltAgent/awesome-design-md) (73 design systems, MIT-licensed). Heuristics same as the deck-builder Phase 0 path 3 ("Propose new design"). When none of its brands fits the company's register, [Refero Styles](https://styles.refero.design) is the second catalog (2,000+ real sites as DESIGN.md files, same format) — a pointer, not a bundled dependency; check its terms before reusing anything from it.
 
 After base selected, walk the operator through 5-6 customizations:
 1. **Primary color** — keep base or substitute (hex picker — what evokes the brand?)

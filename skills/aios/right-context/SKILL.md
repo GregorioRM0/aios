@@ -1,6 +1,6 @@
 ---
 name: right-context
-description: Decide how much operator context to load at session start, and when to climb higher mid-task. Use when the Session Start Ritual's one question does not settle it — an unfamiliar task shape, a vault whose proportions you do not know, a worker unsure whether its output will be read as the operator's own words, or a session that catches itself guessing at voice, people, or past decisions. Carries the four-rung ladder, the escalation tells, and the command that measures what each rung costs in THIS vault.
+description: Decide how much operator context to load at session start, and when to climb higher mid-task. Use when § Identity & Greeting step 4's one question does not settle it — an unfamiliar task shape, a vault whose proportions you do not know, a worker unsure whether its output will be read as the operator's own words, or a session that catches itself guessing at voice, people, or past decisions. Carries the four-rung ladder, the escalation tells, and the command that measures what each rung costs in THIS vault.
 ---
 
 # Right-Context — load what the work needs, know what you skipped

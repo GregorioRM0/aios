@@ -62,7 +62,7 @@ else
   "$PY" "$H" --expect 2 "$T/fit.html" >/dev/null 2>&1; rc=$?
   [ "$rc" -eq 0 ] && ok "two A4 pages fit (exit 0)" || no "two A4 pages fit" "exit $rc"
   o="$("$PY" "$H" --expect 2 "$T/over.html" 2>&1)"; rc=$?
-  if [ "$rc" -eq 1 ] && printf '%s' "$o" | grep -q 'page 2: .*OVER by'; then ok "positive control: stuffed page 2 is caught and named (exit 1)"
+  if [ "$rc" -eq 1 ] && printf '%s' "$o" | grep 'page 2: .*OVER by' >/dev/null; then ok "positive control: stuffed page 2 is caught and named (exit 1)"
   else no "positive control: stuffed page 2 is caught" "exit $rc: $(printf '%s' "$o" | tr '\n' ' ' | cut -c1-160)"; fi
   "$PY" "$H" "$T/none.html" >/dev/null 2>&1; rc=$?
   [ "$rc" -eq 2 ] && ok "no .page boxes → exit 2 (not measured)" || no "no .page boxes → exit 2" "exit $rc"

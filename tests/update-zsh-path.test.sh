@@ -65,9 +65,9 @@ if ! grep -q 'CLONE="/tmp/aios-update-check"' "$TMP/s2.body" || ! grep -q '{stor
 else
   sed -e "s|^CLONE=\"/tmp/aios-update-check\"$|CLONE=\"$C2\"|" -e "s|{stored_hash}|$BASE|g" "$TMP/s2.body" > "$TMP/s2.sh"
   out="$("$ZSH" "$TMP/s2.sh" 2>"$TMP/s2.err")"; rc=$?
-  if [ "$rc" -eq 0 ] && printf '%s\n' "$out" | grep -qx 'hooks/h.sh'; then ok "2. zsh run names hooks/h.sh (exit 0)"
+  if [ "$rc" -eq 0 ] && printf '%s\n' "$out" | grep -x 'hooks/h.sh' >/dev/null; then ok "2. zsh run names hooks/h.sh (exit 0)"
   else no "2. Step 2 under zsh did not name the changed file" "exit=$rc stdout='$(printf '%s' "$out" | head -2)' stderr='$(head -2 "$TMP/s2.err")'"; fi
-  printf '%s\n' "$out" | grep -q '^tests/' && no "2b. Step 2 listed a Tier-0 path under zsh" "tests/ must never reach a vault" || ok "2b. no Tier-0 path listed"
+  printf '%s\n' "$out" | grep '^tests/' >/dev/null && no "2b. Step 2 listed a Tier-0 path under zsh" "tests/ must never reach a vault" || ok "2b. no Tier-0 path listed"
 fi
 
 echo "-- 3. Step 6.5 under zsh --"
@@ -124,9 +124,9 @@ else
     if ! grep -qF "CLONE=\"$F/clone\"" "$F/run.sh"; then no "harness: could not retarget Step 3.4" "the CLONE=/V=/S= line changed shape"; continue; fi
     out="$(HOME="$F/home" "$sh" "$F/run.sh" 2>&1)"
     n="$(basename "$sh")"
-    { [ ! -e "$F/home/aios/skills/x/untouched.md" ] && printf '%s' "$out" | grep -q 'removed	skills/x/untouched.md'; } \
+    { [ ! -e "$F/home/aios/skills/x/untouched.md" ] && printf '%s' "$out" | grep 'removed	skills/x/untouched.md' >/dev/null; } \
       && ok "$n · a deleted file you never edited is removed and reported" || no "$n · untouched deletion not removed" "$out"
-    { [ -e "$F/home/aios/skills/x/edited.md" ] && printf '%s' "$out" | grep -q 'yours	skills/x/edited.md'; } \
+    { [ -e "$F/home/aios/skills/x/edited.md" ] && printf '%s' "$out" | grep 'yours	skills/x/edited.md' >/dev/null; } \
       && ok "$n · a deleted file you edited is KEPT and listed for one question" || no "$n · edited deletion was not kept" "$out"
     [ -e "$F/home/aios/skills/x/stays.md" ] && ok "$n · a file canonical still has is untouched" || no "$n · a live file was removed"
   done

@@ -38,7 +38,7 @@ echo "-- 2. the optimisation cannot change what counts as NEW --"
 # mutation that changed the normative sentence to "first synced hash" while a lowercase
 # variant survived in prose nearby.
 warn=$(awk '/Two ways to get this wrong/{f=1} f&&/^### /{exit} f' "$U")
-printf '%s' "$warn" | grep -qF 'first fully-synced ENTRY' \
+printf '%s' "$warn" | grep -F 'first fully-synced ENTRY' >/dev/null \
   && ok "stop condition is the ENTRY, not a hash (stated in the warning block)" \
   || no "stop condition not stated as the entry" "stopping on the first synced HASH hides same-day subsections"
 grep -qiE 'unreachable hash is NOT synced|never satisfies the stop' "$U" \

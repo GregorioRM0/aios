@@ -16,7 +16,7 @@
 # day. A surface resolves through this script, or launches through the wrapper. Nothing
 # else should ever hold a rung→model mapping.
 #
-#   resolve-tier fast        -> claude-haiku-4-5-20251001
+#   resolve-tier fast        -> claude-haiku-5-5
 #   resolve-tier judgment    -> (empty, exit 0) = inherit the binary's default
 #   resolve-tier bogus       -> error on stderr, exit 2, rungs listed
 #   resolve-tier --list      -> every rung and what it resolves to
@@ -35,8 +35,8 @@ rung_model() {
   case "$1" in
     frontier)   printf 'claude-fable-5-1' ;;
     judgment)   printf '' ;;                            # inherit the binary's default
-    scale)      printf 'claude-sonnet-5' ;;
-    fast)       printf 'claude-haiku-4-5-20251001' ;;
+    scale)      printf 'claude-sonnet-5-5' ;;
+    fast)       printf 'claude-haiku-5-5' ;;
     mechanical) printf 'claude-sonnet-4-6' ;;           # legacy alias — do not remap
     *)         return 2 ;;
   esac

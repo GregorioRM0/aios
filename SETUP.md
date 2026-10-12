@@ -2,6 +2,23 @@
 
 Get the full system running in under 10 minutes (after the prereqs install).
 
+## What you're setting up
+
+**AIOS gives anyone the power of an AI that works on your computer, not just in a chat window.** It runs on Claude Code, which lives in a terminal. That sounds technical, and the point of AIOS is that it doesn't have to be: you talk to it in plain words, and it does the technical steps itself.
+
+**It is also a harness.** Think of a climber's harness: it doesn't do the climbing, it lets you go higher without being afraid of the fall. A harness is everything around the model: the files it remembers you in, the rules for what it may do without asking, and the small checks that run around it. That is what turns a clever chat into something that compounds. An AI that remembers you can:
+
+- **anticipate** what you will need, instead of waiting to be asked;
+- **act within your limits**, because you wrote down what it may do alone;
+- **hold your direction** across days, not only inside one conversation;
+- **multiply what you do**, by running agents on the work you hand it;
+- **notice your patterns and growth edges**, and tell you honestly;
+- **connect dots into new ideas** across everything it has seen of your work.
+
+"Learning" here means your vault, never the model: every session writes down what it noticed, and the next one reads it. Nothing trains Claude on you.
+
+**The setup is the beginning, not the product.** What makes it compound are a few short rituals you run every day (see [After Setup → The routines are the point](#the-routines-are-the-point)).
+
 <details>
 <summary><strong>📍 Reading this as Claude?</strong> (Operator said "set up my AI-OS" — click for your execution sequence)</summary>
 
@@ -36,6 +53,8 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
    ```
    > A blank result means it is installed and **nothing should be said about it**. Only `missing: obsidian-app` earns a sentence: *"One thing I can't install for you — Obsidian itself, the app you'll read your vault in. It's a normal download from obsidian.md; grab it whenever, nothing here waits on it."* Note the framing: the vault is plain Markdown on their disk and every ritual works without the GUI, so this is genuinely not a blocker, and saying so prevents a first-timer stalling on it.
 
+   **Open with the picture before any check:** two or three sentences, in the operator's language, from § What you're setting up: what AIOS is, the harness, and that the daily rituals are where it compounds. Many newcomers arrive having been told only "install this"; a setup that never says what it is for asks them to trust a sequence they cannot follow.
+
    **Before leaving step 1, ask for everything only the operator can do — in ONE message, now.** Two things in this sequence are out of your hands, and on a real Windows install through the App they surfaced as two separate stops: GitHub login halfway through step 2, and file access at step 8, after work had already been done around the block. Each stop is a moment the operator is handed a command they did not expect, mid-flow. Find both up front, ask for them together, and keep working while they do it:
 
    ```bash
@@ -44,14 +63,15 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
    [ "$(pwd -P)" = "$(cd ~ && pwd -P)" ] || echo "needs: add-dir $(cd ~/.claude 2>/dev/null && pwd -W 2>/dev/null || echo ~/.claude)"
    ```
 
-   - **`needs: gh-login`** → *"If you have a GitHub account, type `! gh auth login --hostname github.com --git-protocol https --web` — it backs your vault up to a private repo. No account, or it doesn't work? Say so and we carry on; you can connect it any day."* The flags answer the three questions a newcomer cannot (which host, which protocol, which method). App operators have usually done this in the App's own GitHub step, so this is normally silent on that path.
+   - **`needs: gh-login`** → *"If you have a GitHub account, type `! gh auth login --hostname github.com --git-protocol https --web` — it backs your vault up to a private repo. No account, or it doesn't work? Say so and we carry on; you can connect it any day."* The flags answer the three questions a newcomer cannot (which host, which protocol, which method). **Reached from the AIOS App? Do not ask.** The App connects GitHub itself, as its own step, and asking here puts a sign-in in front of someone who came to set up an AIOS. Take step 2's local-only path, and say once that the App's GitHub step backs the vault up whenever they get to it.
      > **GitHub is never a gate.** It buys one thing — an off-machine backup of the vault — and nothing in setup, the interview or the daily rituals needs it. A login that fails, an account the operator doesn't have, or a `gh repo create` that errors: all of them take the fallback in step 2 and setup **continues**. Do not retry a failed login more than once, and do not stop the flow to troubleshoot it.
    - **`github: gh not installed`** → say nothing now; treat it exactly like a declined login. Step 2 takes the no-GitHub fallback and setup carries on local-only. Offer the GitHub CLI later, alongside the backup warning — never as a blocker.
-   - **`needs: add-dir <path>`** → *"Type `/add-dir <path>` so I can write your Claude settings."* Steps 3, 5 and 8 all write under `~/.claude` (skills, plugin, hooks), and your file tools are scoped to the directory the session started in — which on the App path is always `~/aios`. Give the **resolved absolute path** the probe printed (`C:/Users/<name>/.claude` on Windows), never `~`. Do **not** work around a refused read with a shell command: that reaches a file the operator's settings kept you out of, and you then have to confess it.
+   - **`needs: add-dir <path>`** → *"Type `/add-dir <path>` so I can write your Claude settings, then type **done** so I carry on."* **The second half is not politeness.** `/add-dir` is handled by Claude Code itself and never reaches you, so after it succeeds you get no turn: a real install sat at an empty prompt under *"Added … as a working directory"*, with the session having promised to continue *"once the /add-dir is in"*. You cannot see that it happened; only a message from them wakes you. Never word it as *"once that's in, I'll…"* without telling them to send that message. Steps 3, 5 and 8 all write under `~/.claude` (skills, plugin, hooks), and your file tools are scoped to the directory the session started in — which on the App path is always `~/aios`. Give the **resolved absolute path** the probe printed (`C:/Users/<name>/.claude` on Windows), never `~`. Do **not** work around a refused read with a shell command: that reaches a file the operator's settings kept you out of, and you then have to confess it.
    - **Neither is needed until later**, so do not wait on them. The clone (step 2) needs no login, and the private repo is created at the end of step 2 only if `gh auth status` passes by then.
 2. Clone to `~/aios` (default) and create private GitHub repo `{username}/aios` (or whatever the operator names it) — see "The Setup" §1 below
    > **If your session is already IN `~/aios`, clone into it — never beside it.** The AIOS App creates an empty `~/aios` and starts this session there, so `git clone … ~/aios` from inside it looks impossible and the tempting move is a sibling like `~/aios-src`. That sibling is outside your file scope: you cannot read what you just cloned, and the operator is left with a duplicate to delete. Check `ls -A` first — **empty** → `git clone https://github.com/The-AIOS/aios.git .` · **already an AIOS checkout** (`CLAUDE.md` + `plugins/aios/`) → use it, do not re-clone · **anything else** → stop and ask; do not clone over or beside someone's files.
    > **No GitHub → continue, with the vault local-only.** If `gh auth status` still fails when you reach the private repo (or `gh repo create` errors), do **not** wait and do **not** leave the clone as it is. Run `git -C ~/aios remote remove origin`: the clone's `origin` is the PUBLIC framework repo, and a vault commit must never have that as a push target. With no remote, `aios-commit` commits locally and skips the push by design, and `/aios:update` does not use `origin` at all — so everything keeps working. Tell the operator once, plainly: *"⚠️ Your vault is only on this computer for now — nothing is backed up yet. Everything works; whenever you're ready, sign in to GitHub and say **connect my vault to GitHub**."* That warning does not depend on anyone remembering it: `/aios:today` re-derives it every morning from the remote itself (see §8) and drops it the day a private remote exists.
+   > **Then leave the test suite out of the working tree:** `git -C ~/aios sparse-checkout set --no-cone '/*' '!/tests/'`. `tests/` is the framework's own CI suite (about 1.2 MB, 100+ files). Nothing an operator runs reads it, `/aios:update` never syncs it, and in a clone it only reads as "this is for developers". The files stay in git, so commits and pushes are unaffected; `git -C ~/aios sparse-checkout disable` brings them back (a contributor wants them). This step needs git 2.35 or newer (`git --version`; older git rejects `--no-cone`); on older git, skip it, nothing else depends on it.
 3. Register bundled skills: `bash skills/setup.sh` (Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File skills/setup.ps1`) — symlinks AIOS skills into `~/.claude/skills` so Claude Code loads them (start a new Claude session — only the session, not the AIOS app or the terminal window, afterwards) · **Do not register the Obsidian MCP here.** `/aios:cold-start-interview`'s Pre-step registers it silently, and it has to: an operator who arrived through the **AIOS App** reaches the interview without ever passing through this list, so the interview is the only place that covers both doors. Registering it here as well gave the command two owners with two different arguments (this copy hardcoded `~/aios/vault`; the interview uses the resolved install path) — and because the interview's registration is guarded by *"skip if already registered"*, whichever copy ran first won permanently, including when it was the wrong one.
    > **Do NOT run `bash mcps/setup.sh` here.** With no arguments it installs all ten bundled MCPs — multiple Chrome-for-Testing downloads, several venvs, minutes of output in which a long download is indistinguishable from a hang and one failure reads as a crash. None of it is needed to use the vault. Slack, Atlassian, Google, image generation and the rest are convenience, installed WHEN the operator says they want one — which is what the interview's Step 11 asks, after the first `/today`. `bash mcps/setup.sh <name>` installs just that one, `--list` shows what exists.
 4. **Write the update tracker** — one command, and setup must not end without it:
@@ -86,7 +106,7 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
    service at a time, only the ones they want. Nothing is lost by waiting; the offer is stronger.
 7. Install the **spawn wrapper** — `bash ~/aios/hooks/claude-identity/install-wrappers.sh` (or `.ps1` on Windows), then re-source the shell rc. **You run it** — it writes the operator's shell profile, so expect a permission prompt and say so in one sentence; never hand them the command to paste.
    > **The interview runs this a second time, on purpose — do not "deduplicate" it.** The installer reads `USER.md` to detect which session names are primary, and `USER.md` does not exist yet at this point in the sequence; the interview writes it at its Step 1 and re-runs the installer immediately after. This run gives the operator a working `spawn` during setup; that run makes it identity-aware. The script is idempotent (timestamped backup → strip prior banner → append fresh), so running it twice is free — and unlike the Obsidian registration above, neither run is redundant.
-8. Wire the **universal hooks** to `~/.claude/settings.json` **yourself, with your file-edit tool** (merge into what is there; keep every existing key): `UserPromptSubmit` → `inject-datetime` (real clock in every prompt) + `statusLine` → `claude-identity.sh cache | context-monitor.py` (rate-limit cache writer + context display) + **Hook D, provenance** (marks text you did not write: tool results from email/chat/docs/web/Forum, prompts the spawn inbox typed). See §10 below for exact JSON — **on Windows, use §10's Windows block as written**, not the macOS commands with words swapped: the Windows prerequisites install neither `pwsh` nor a working `python3`, so both names fail there.
+8. Wire the **universal hooks** with one command, not a JSON edit: run `python3 ~/aios/hooks/install-settings.py` (Windows: the interpreter §10's probe picks, e.g. `python`). It prints, one plain line per hook, what each does for the operator and changes nothing; show that to them, then run it again with `--apply`. It merges into the existing file (every key kept, an existing status line never replaced), backs the old file up, and reads its own write back. Approving one command is a decision a newcomer can make; approving a wall of JSON is not. **Only if it cannot run**, merge by hand, **yourself, with your file-edit tool** (keep every existing key). The hooks: `UserPromptSubmit` → `inject-datetime` (real clock in every prompt) + `statusLine` → `claude-identity.sh cache | context-monitor.py` (rate-limit cache writer + context display) + **Hook D, provenance** (marks text you did not write: tool results from email/chat/docs/web/Forum, prompts the spawn inbox typed) + **Hook E, the floor at session start** (a compact context floor delivered to every new session) + **Hook F, the model-switch log** (one line whenever a session's model changes under it). See §10 below for exact JSON — **on Windows, use §10's Windows block as written**, not the macOS commands with words swapped: the Windows prerequisites install neither `pwsh` nor a working `python3`, so both names fail there.
 9. **Do NOT ask the multi-account question here.** It used to live at this step (*"Do you use more than
    one Anthropic account?"*, plus a launchd install). On day one the operator has not hit a 5h/7d cap, so
    the question has no meaning yet and cannot be answered — it is the most expert-coded moment in the
@@ -106,7 +126,7 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
 
 > ⚠️ **Two copies of this sequence exist in this file** — the Claude-facing block above and the operator-facing "The Setup" section below. They just drifted: the connectors step and the interview's duration were corrected in one and not the other, so a first-timer read a promise the executor no longer made. **Change both, or change neither.** They cannot be merged — one is instructions to execute, the other is a human reading what is about to happen to them — but they answer the same questions and must not disagree.
 
-**Defaults to pick without asking** (unless operator overrides): vault path = `~/aios/`, private repo name = `{username}/aios`, substrate for company = GitHub, wrappers + hooks A, B and D always install (no opt-out — they're load-bearing). **Always ask, never assume**: anything that writes the operator's own words or commits them to a choice only they can make. **Deliberately NOT on this list any more:** Google email, task sources (Slack / GitHub / Linear / Monday), per-connector installs, and the multi-account-Anthropic question. Those are not assumptions to make — they are questions asked at the **wrong time**, and this list was what mandated asking them during setup. Every one of them now has a named owner later in the flow (interview Step 11 for connectors, the Day-7 check-in for multi-account), so asking here is not thoroughness, it is duplication that costs a newcomer their confidence. Show diffs before writing to `USER.md` / `INTENT.md` / `vault/00 - notes/context/declared/*` / `~/.claude/settings.json`.
+**Defaults to pick without asking** (unless operator overrides): vault path = `~/aios/`, private repo name = `{username}/aios`, substrate for company = GitHub, wrappers + hooks A, B, D, E and F always install (no opt-out — they're load-bearing). **Always ask, never assume**: anything that writes the operator's own words or commits them to a choice only they can make. **Deliberately NOT on this list any more:** Google email, task sources (Slack / GitHub / Linear / Monday), per-connector installs, and the multi-account-Anthropic question. Those are not assumptions to make — they are questions asked at the **wrong time**, and this list was what mandated asking them during setup. Every one of them now has a named owner later in the flow (interview Step 11 for connectors, the Day-7 check-in for multi-account), so asking here is not thoroughness, it is duplication that costs a newcomer their confidence. Show diffs before writing to `USER.md` / `INTENT.md` / `vault/00 - notes/context/declared/*` / `~/.claude/settings.json`.
 
 **Be gentle, not exhaustive.** The operator should feel walked by the hand, not interrogated. One question at a time, sensible defaults, defer anything that risks interrupting the in-flight session (account capture is the canonical example — always deferred).
 
@@ -288,8 +308,18 @@ Claude reads this file and walks you through the full onboarding — clone → i
 
 **Two things only you can do, asked once, at the start.** Claude will tell you up front if it needs either — together, in one message — and carries on with the rest while you do them:
 
-- **Sign in to GitHub (optional)** — type `! gh auth login --hostname github.com --git-protocol https --web` and approve in the browser. It backs your vault up to a private repo. **No account, or it fails? Setup carries on anyway** — your vault stays on this computer, and each morning's plan reminds you it isn't backed up until you connect. (If you came through the AIOS App and did its GitHub step, you'll skip this.)
-- **Let Claude write your Claude settings** — type `/add-dir` followed by the path Claude gives you (your `.claude` folder). Setup installs skills, the plugin and three hooks there, and a session only writes outside its own folder when you say so.
+- **Sign in to GitHub (optional)** — type `! gh auth login --hostname github.com --git-protocol https --web` and approve in the browser. It backs your vault up to a private repo. **No account, or it fails? Setup carries on anyway** — your vault stays on this computer, and each morning's plan reminds you it isn't backed up until you connect. (If you came through the AIOS App, skip this: the App connects GitHub for you, as its own step.)
+- **Let Claude write your Claude settings** — type `/add-dir` followed by the path Claude gives you (your `.claude` folder), **then type `done`**. Claude does not see the `/add-dir` itself, so it waits for your next message. Setup installs skills, the plugin and five hooks there, and a session only writes outside its own folder when you say so.
+
+> **About the hooks, so they never feel like something done to you.** A *hook* is a small script Claude Code runs at a fixed moment: when you send a message, when a session starts, when it reads an email for you. AIOS adds five, and before anything is written you see them listed, one plain line each:
+>
+> - **the clock**: every message carries the real date and time, so plans aren't built on a wrong day;
+> - **provenance**: text you did not write (an email, a web page, a message from another agent) is marked as such, so instructions inside it are treated as information, not orders;
+> - **the floor at start**: each new session begins already knowing your trust contract and what was learned lately;
+> - **the model-switch log**: a note when a session is moved to another model, so you know which model did the work;
+> - **the status line**: how full the session's memory is, at the bottom of the screen.
+>
+> They run on your computer and send nothing anywhere. Your previous settings file is kept beside the new one, so undoing it is copying one file back.
 
 **The end-to-end flow:**
 
@@ -565,6 +595,30 @@ Merge `PreToolUse` alongside your existing `UserPromptSubmit` array — don't re
 
 Labels **inform** the model; they are not a lock. A send, create or share returns your own act and gets none; anything else from these services is labelled. Text pulled in by a shell command (`curl`) or a plain file read cannot be told apart by tool name and gets no label. Requests that a script writes straight into `~/.aios/spawn-inbox/` (not through a Claude session) are not fingerprinted, and a long request delivered as a pointer line is recognised by the pointer itself.
 
+**Hook E — the context floor, delivered at session start.** `CLAUDE.md` asks every session to run the context floor first, but an instruction a session must remember is the weakest kind: measured, several named sessions never ran it, and most of the rest worked from its short map instead of the floor. `hooks/floor-at-start.py` hands each new session a **compact floor** instead — first the path to the full floor file and the instruction to read it to its end, then the boundary sections of `INTENT.md` (autonomy, decisions, communication, escalation, picked by heading), then the titles of the newest learnings — always under 9,000 characters (about 2,500 tokens), because Claude Code shows a SessionStart hook's text whole only up to about 10,000 characters and previews just its first 2 KB above that. Unattended routines get the path to `INTENT.md` plus as much of its boundary sections as fits; a fresh vault the floor cannot build yet gets the same. It fires only when the session's working directory is inside the vault (symlinks resolved), so sessions in other repos never receive your private context. A resumed session gets nothing new; after `/clear` or a compaction it is delivered again. `AIOS_FLOOR_AT_START=0` keeps a session out, `=1` brings one in.
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/floor-at-start.py", "timeout": 60 } ] }
+    ]
+  }
+}
+```
+
+**Hook F — the model-switch log.** A flagged message can move a session to an older model for the rest of its run, and a worker nobody is watching then finishes its job on a model nobody chose, with nothing in its launch arguments to say so (`MODEL-ROUTING.md`). `hooks/model-switch-log.py` appends one line per switch to `~/.aios/model-switch.jsonl` (session, name, from, to, the model requested, why), which `/close-session` and `/close-day` read back. It writes nothing else and never blocks.
+
+```json
+{
+  "hooks": {
+    "PostModelSwitch": [
+      { "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/model-switch-log.py", "timeout": 10 } ] }
+    ]
+  }
+}
+```
+
 **On Windows — the same hooks, in the form that actually runs there.** Two names in the blocks above do not exist on a stock Windows install, and a setup session will otherwise find that out by trial:
 
 - **`pwsh`** is PowerShell 7, which the Windows prerequisites above never install. Use **`powershell`** (Windows PowerShell 5.1, present on every Windows 10/11) for these hooks — `inject-datetime.ps1`, `skills/setup.ps1` and `install-wrappers.ps1` all parse and run under 5.1. *(The spawn-wrapper installer is the one exception to "always `powershell`": it writes the profile of the PowerShell that runs it, so on a machine that has PowerShell 7 it runs under `pwsh` — see §9.)*
@@ -573,6 +627,7 @@ Labels **inform** the model; they are not a lock. A send, create or share return
   if python3 -c '' 2>/dev/null; then echo python3; elif python -c '' 2>/dev/null; then echo python; elif py -3 -c '' 2>/dev/null; then echo "py -3"; else echo "none: install Python (Prerequisites)"; fi
   ```
   The block below shows `python`, the usual winner; substitute what the probe printed.
+- **A plain interpreter here, not `uv run`**, although `CLAUDE.md` runs the context floor through `uv`: that rule exists because a session can reach for the Store's `python3` and get silence, and the probe above already rules that out, while these hooks fire on every prompt and tool call, so `uv`'s start-up cost would be paid each time for scripts that are stdlib-only. (A settings.json hook runs outside the session's sandbox, so `uv`'s cache-directory workaround would not apply here either.)
 
 Write **absolute paths with forward slashes** (resolve them once with `cygpath -m ~/aios` in Git Bash), so the command does not depend on which shell Claude Code hands it to:
 
@@ -595,16 +650,22 @@ Write **absolute paths with forward slashes** (resolve them once with `cygpath -
         "matcher": "mcp__forum__.*|mcp__google-workspace__.*|mcp__claude_ai_.*|mcp__slack__.*|mcp__atlassian__.*|mcp__claude-in-chrome__.*|mcp__notebooklm.*|WebFetch|WebSearch",
         "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/provenance.py\" --tool", "timeout": 10 } ]
       }
+    ],
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/floor-at-start.py\"", "timeout": 60 } ] }
+    ],
+    "PostModelSwitch": [
+      { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/model-switch-log.py\"", "timeout": 10 } ] }
     ]
   },
   "statusLine": {
     "type": "command",
-    "command": "bash -c 'tee >($HOME/aios/hooks/claude-identity/claude-identity.sh cache > /dev/null) | python $HOME/aios/hooks/claude-identity/context-monitor.py'"
+    "command": "bash -c 'tee >(\"C:/Users/<you>/aios/hooks/claude-identity/claude-identity.sh\" cache > /dev/null) | python \"C:/Users/<you>/aios/hooks/claude-identity/context-monitor.py\"'"
   }
 }
 ```
 
-The `statusLine` keeps its `bash -c` form (Claude Code on Windows runs commands through Git Bash, so `$HOME` resolves); the only change is `python3` → `python`.
+The `statusLine` keeps its `bash -c` form (Claude Code on Windows runs commands through Git Bash), with the same absolute path as the hooks instead of `$HOME/aios`, so it still works when the framework lives somewhere else, and the interpreter the probe printed.
 
 **Verify hooks A + B fired:** open a fresh Claude Code session, type *"what's today's date?"* — Claude should reply with the actual current date (proves the UserPromptSubmit hook ran). Check the statusLine at the bottom of the terminal — it should show context usage + quota state (proves the statusLine command ran).
 
@@ -668,6 +729,17 @@ Claude reads `FORTRESS.md` end-to-end and configures both machines. Hard precond
 ---
 
 ## After Setup
+
+### The routines are the point
+
+Setup gives the AIOS somewhere to live. **The rituals are what make it yours**, because each one reads what the last one wrote:
+
+- **Morning — `/aios:today`.** It reads your calendar, your projects and what was learned yesterday, and proposes a plan for the day.
+- **After a piece of work — `/aios:close-session`.** One short capture: what shipped, what was learned. That note is what the next session starts from.
+- **Evening — `/aios:close-day`.** It closes the day, carries what didn't get done, and writes what it noticed about how you work into your observed context.
+- **Once a week — `/aios:7plan`.** The week's one bet, and what you are deliberately not doing.
+
+The first `/aios:today` will be sparse, and that is normal: it only knows what the interview told it. Every close adds to what the next morning reads. Skip the closes and nothing compounds; run them and, within days, it knows your projects, your rhythm and what you tend to avoid.
 
 ### 1. Open Obsidian
 

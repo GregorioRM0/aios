@@ -373,7 +373,7 @@ def load_monthly_tracker():
     current_month = datetime.now().strftime("%Y-%m")
     try:
         if os.path.exists(COST_TRACKER_FILE):
-            with open(COST_TRACKER_FILE, "r") as f:
+            with open(COST_TRACKER_FILE, "r", encoding="utf-8") as f:
                 tracker = json.load(f)
             if tracker.get("month") != current_month:
                 tracker = {
@@ -391,7 +391,7 @@ def save_monthly_tracker(tracker):
     """Save the monthly cost tracker."""
     try:
         os.makedirs(os.path.dirname(COST_TRACKER_FILE), exist_ok=True)
-        with open(COST_TRACKER_FILE, "w") as f:
+        with open(COST_TRACKER_FILE, "w", encoding="utf-8") as f:
             json.dump(tracker, f, indent=2)
     except (PermissionError, OSError):
         pass
@@ -582,7 +582,7 @@ def get_account_display():
             if not email:
                 return " \033[90m|\033[0m \033[33m👤 token?\033[0m"
         else:
-            with open(os.path.expanduser("~/.claude.json")) as f:
+            with open(os.path.expanduser("~/.claude.json"), encoding="utf-8") as f:
                 d = json.load(f)
             email = d.get("oauthAccount", {}).get("emailAddress", "")
         if not email:
@@ -615,7 +615,7 @@ def get_swap_banner():
         p = os.path.expanduser("~/.claude/swap-notification.json")
         if not os.path.exists(p):
             return ""
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             m = json.load(f)
         ts = m.get("ts", 0)
         if not ts:

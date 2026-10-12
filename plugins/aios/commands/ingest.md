@@ -160,15 +160,17 @@ Append to today's daily note (if it exists) or note for `/close-day`:
 - Action items: {count} added to project notes
 ```
 
-### 6. Optional — visual infographic
+### 6. Optional — infographic or explainer
 
 After logging, offer the user a one-page visual summary:
 
-> Want a visual infographic of this ingest? A themed, self-contained HTML one-pager. → invokes `aios/infographic-builder`.
+> Want a visual of this ingest? **Infographic** (to share — a themed one-pager, via `aios/infographic-builder`) or **explainer** (to understand — an interactive walk through the argument or mechanism, via the `explainer` agent)?
 
 If accepted, invoke the **[`aios/infographic-builder`](../../../skills/aios/infographic-builder/SKILL.md)** skill against the reflection file just written. Default output: `03 - export/infographics/{YYYY-MM-DD}-{slug}.html`. The skill handles theme matching (brand-first → `awesome-design-md` fallback), IA distillation, and rendering — `/ingest` just makes the offer.
 
-Skip silently if the user declines, or if the source is too thin to merit an infographic (single tweet, sub-page note, half-formed idea).
+If the operator picks the explainer, run the `explainer` agent (`agents/aios/communication/explainer.md`) with the reflection file just written as its subject (reader `operator`, budget `standard`). Default output: `03 - export/explainers/{YYYY-MM-DD}-{slug}.html`.
+
+Skip silently if the user declines, or if the source is too thin to merit either (single tweet, sub-page note, half-formed idea).
 
 ## Output
 
@@ -179,6 +181,7 @@ Skip silently if the user declines, or if the source is too thin to merit an inf
 - **Updated `_index.md`** in the destination folder
 - **Daily-note log entry** under "Ingested:" so the day's close-day picks it up
 - **Optional infographic** (if the user accepts the Step-6 offer) — themed self-contained HTML at `03 - export/infographics/{YYYY-MM-DD}-{slug}.html`, via `aios/infographic-builder`
+- **Optional explainer** (if chosen at Step 6) — self-contained HTML walk at `03 - export/explainers/{YYYY-MM-DD}-{slug}.html`, via the `explainer` agent
 
 
 ## Rules

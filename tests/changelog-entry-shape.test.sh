@@ -94,7 +94,7 @@ grep -qiE 'may not close until it names' "$CL" && ok "the closing rule is in CLA
 # mentioned hooks -- one survivor satisfied the check. Assert the requirement where it is
 # normative, not wherever the words appear.
 rule_line=$(grep -m1 'may not close until it names' "$CL")
-printf '%s' "$rule_line" | grep -qiE 'hook' && printf '%s' "$rule_line" | grep -qiE 'structural change' \
+printf '%s' "$rule_line" | grep -iE 'hook' >/dev/null && printf '%s' "$rule_line" | grep -iE 'structural change' >/dev/null \
   && ok "the mechanism is generalized beyond a CI check (in the rule sentence)" \
   || no "the rule names only a check" "an operator vault has no tests/ or .github/ -- Tier-0 never syncs, so the rule would be unsatisfiable for every operator"
 grep -qiE 'explicit reason no mechanism can|reason no mechanism' "$CL" \

@@ -37,7 +37,7 @@ Gather evidence across **every bucket enumerated below — no skipping, and the 
 
 > #### ⚖️ The measurement contract — governs EVERY bucket, not just Bucket 28
 >
-> Bucket 28 already mandates this and was, until 2026-08-11, the only bucket that did. The other buckets said "scan" and "cite specifics" — prose, not a contract — and that gap is measurable: an operator running the full sweep produced **five wrong findings in one night**, each caught only by checking the artifact instead of the signal. Reported by Luigi Matrone / ALI, 2026-08-08. Three rules, and they are cheap:
+> Bucket 28 already mandates this and was, until 2026-08-11, the only bucket that did. The other buckets said "scan" and "cite specifics" — prose, not a contract — and that gap is measurable: an operator running the full sweep produced **five wrong findings in one night**, each caught only by checking the artifact instead of the signal. Reported by an operator, 2026-08-08. Three rules, and they are cheap:
 >
 > 1. **A finding a scanner produced is a HYPOTHESIS until an artifact confirms it.** Re-verify by a second, different means before reporting. (Real miss: a wiki-link scan read filenames only, ignored frontmatter `aliases:` and case-insensitivity, and reported 175 broken refs that all resolved.)
 > 2. **Never classify a result by keyword-matching its output when an exit code exists. Read the exit code.** (Real miss: `grep -qi fail` over test output reported **five passing tests as failures** — they printed the string `0 failed`. `$?` was 0 on all ten.)
@@ -862,7 +862,7 @@ Report as: *"`{file}:{line}` runs headless `Bash` {with no `--settings` file / w
 **Run the shipped detector — do not re-implement it:**
 
 ```bash
-uv run ~/aios/hooks/context-load-audit.py
+UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-load-audit.py
 ```
 
 **Why a hook and not a spec here.** The obvious implementation is wrong in one specific, reproducible way, and it was written that way once: a worker typically does `cd "<vault>/00 - notes/context/observed" && grep '^### ' antifragile.md …`, so matching only `context/(declared|observed)/<file>.md` misses every such read. That version reported three workers at zero who had in fact read the whole floor. **A check that under-reports is worse than none, because its clean answer gets trusted** — so the instrument is code with its own tests, and this bucket calls it.
@@ -887,10 +887,10 @@ uv run ~/aios/hooks/context-load-audit.py
 **Run the shipped measurement — do not eyeball the folders:**
 
 ```bash
-uv run ~/aios/hooks/context-rungs.py
+UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-rungs.py
 ```
 
-**What it reports.** The four rungs of the ladder in this vault — both `_index.md` (rung 0) · **the floor** (rung 1: every heading in both folders *plus the last 5 `###` entries of every observed file*, which is exactly what `hooks/context-floor.py` emits) · all of `declared/` (rung 2) · everything (rung 3) — in words and estimated tokens, plus the `observed/`-to-`declared/` ratio, ending in a verdict.
+**What it reports.** The four rungs of the ladder in this vault — both `_index.md` (rung 0) · **the floor** (rung 1: every heading in both folders *plus the newest 5 `###` entries of every observed file*, which is exactly what `hooks/context-floor.py` writes) · all of `declared/` (rung 2) · everything (rung 3) — in words and estimated tokens, plus the `observed/`-to-`declared/` ratio, ending in a verdict.
 
 **Watch the floor's share, not just its size.** The floor is *bounded by design* — five entries per observed file, so it does not grow as the corpus does. That means its **share** of rung 3 falls over time, which is the ladder working. What is worth surfacing is the opposite: an observed file whose newest five entries are a large fraction of the whole floor is usually a file that needs compacting, not a floor that needs widening.
 
@@ -905,6 +905,44 @@ uv run ~/aios/hooks/context-rungs.py
 - **`observed/` has files with very low heading density** → those are the ones the floor's titles index poorly. That *is* actionable, and it is Claude-authored content, so it is Claude's to fix at the next `/aios:compact`.
 
 **Why report-only, and why here rather than in a session.** The shape changes on the timescale of months, so a per-session check would be noise; housekeeping's cadence is the right one. And the ladder's consumers — `CLAUDE.md` § Identity & Greeting, the `right-context` skill, both spawn wrappers — deliberately state **no volume at all**, only ratios. This bucket is where the numbers are allowed to live, because it is the only surface that recomputes them.
+
+#### Bucket 32: Model ladder vs Anthropic's current catalog (NEW — REPORT-ONLY, never edits)
+
+**The gap.** The ladder in `MODEL-ROUTING.md` names one model per rung, and the same ids are literals in `hooks/resolve-tier` and both spawn wrappers. When Anthropic ships a newer model in a family, nothing in the vault changes, so every worker keeps launching on the older one and nothing reports it. It has happened: the ladder once ran a full generation behind while every session reported success.
+
+**Measure, in this order:**
+
+1. Read the ladder table in `MODEL-ROUTING.md` (§ The ladder) — the model per rung.
+2. Read Anthropic's current models overview (`https://platform.claude.com/docs/en/about-claude/models/overview`; WebFetch is fine, it is a public page) and take the newest model in each family the ladder uses.
+3. For any family where the catalog is newer than the rung, **verify the newer id actually resolves** before reporting it, with the probe in `MODEL-ROUTING.md` § Verify an id (cost and token counts, never `modelUsage`, which echoes whatever you asked for).
+
+**Report:** *"Rung `{rung}` runs `{id}`; Anthropic's catalog lists `{newer id}` (resolves: yes/no)."* Then one line on what to do: run `/aios:update` first, because canonical may already have moved the rung; if it is already current, the ladder is behind upstream and that is worth reporting there (the `aios-feedback` agent files it). **Never edit the ladder from here.** Its literals live in four files that a test keeps in agreement, and a rung's model is a cost decision for every operator, so it moves in a canonical PR, not in one vault. **Unreachable catalog** (offline, sandboxed) → say so in one line and skip; never report "current" for a check that did not run.
+
+#### Bucket 33: Skill load cost — the `/skill-doctor` summary (NEW — REPORT-ONLY, never edits)
+
+**Every skill's one-line listing goes into every turn's system prompt**, used or not. Claude Code measures this itself; read its report rather than estimating:
+
+```bash
+cd ~/aios && claude -p '/skill-doctor' --tools "" --strict-mcp-config --permission-mode default --output-format json
+```
+
+It costs nothing (a local command, no model call) and prints a table per skill (source, context cost, tokens over the last 7 days, uses, last used), then counts of skills loaded but never invoked, split by owned, **claude.ai-synced** and plugin skills, then plugins not used recently. Run it from the vault so usage reflects the sessions that matter. (On some versions the interactive form has moved into `/stats`; the headless call above still prints the report.)
+
+**Report** the three "never invoked" counts and the stale-plugin list, and name the five most expensive never-used skills by context cost. **Propose** — the operator decides each: disabling a never-used **bundled** skill in `/skills` (it stays on disk and comes back with one click), turning off a never-used **synced** skill on claude.ai (deleting the local copy does nothing; the next sync restores it), disabling a stale plugin in `/plugin`. **Never delete a skill folder**, and never touch `skills/custom/` without the operator naming it: a skill used once a quarter is still a skill they wanted.
+
+#### Bucket 34: claude.ai-synced skills that collide with canonical (NEW — REPORT-ONLY, never edits)
+
+**The gap.** A skill an operator added on claude.ai syncs into every Claude Code session. When it has the same name as a skill this framework ships, both load: two descriptions compete for the same requests, and which one runs is not something either author chose.
+
+**Measure** from the same `/skill-doctor` run as Bucket 33. Take every row whose source is `claude.ai sync`, strip any `namespace:` prefix (`anthropic-skills:google-workspace` → `google-workspace`), and compare the base name against the canonical skill folders (`skills/*/<name>/SKILL.md`) and against `agents/**/<name>.md`. Compare case-insensitively, and treat `-` and `_` as the same.
+
+**Report** each collision with both sources, plus one line saying which has the newer description if that can be read. **Propose** keeping one: usually turn the synced copy off on claude.ai when the canonical one is the maintained version, or move the operator's own version into `skills/custom/<name>/` when it holds their changes (custom overrides bundled, by design). **Zero collisions** → say *"{N} synced skills, 0 collisions"* so a clean result is distinguishable from a check that did not run.
+
+#### Bucket 35: Discardable views — explainers and quarter notes (NEW — propose-only)
+
+**Explainers are views, not records.** Each carries `<meta name="aios-discardable" content="true">` and an `aios-explainer-source` meta naming what it explains. **Scan** `vault/03 - export/**/*.html` for the discardable meta. **Propose deleting** each one older than 30 days (by the date in its filename, else git's last commit), listing its path and source; the source stays canonical and the explainer can be rebuilt with `/agent explainer <source>`. **Never** touch an HTML file without the meta, and keep any the operator has linked from a note (grep for its filename first). **Zero found** → say *"0 discardable explainers"*, so a clean result reads differently from a check that did not run.
+
+**Quarter notes stay derived.** A `01 - calendar/*/{YYYY}-Q{N}-plan.md` (the `okr-coach` agent's one file per quarter) holds objectives and key results, never tasks. **Flag** any `- [ ]` in one: work belongs in project notes and the daily note, and a quarter note that grows checkboxes has become a second planning system. Propose moving each item to its project note.
 
 ### Phase 2 — Present the packet
 
@@ -935,6 +973,10 @@ Categorize all findings into one review table:
 - File placement drift + structure grammar: {N} proposals
 - Agent-output gate health: {N} samples checked, {M} hollow gates / stale permission audits
 - Truth-surface drift: {N} lagging notes, {M} roadmap flags
+- Model ladder vs catalog: {N} rungs behind (verified ids), or "catalog unreachable"
+- Skill load cost: {N} never-invoked (owned / synced / plugin), {M} stale plugins
+- Synced-skill collisions: {N} synced skills, {M} collisions
+- Discardable views: {N} explainers past 30 days, {M} checkboxes in quarter notes
 
 ### 🟢 Auto-applied (no approval needed)
 {Low-stakes mechanical fixes — link adds where unambiguous, snapshot timestamp updates, obvious [x] marks}
@@ -990,8 +1032,10 @@ Write a log to `00 - notes/logs/command-logs/housekeeping-{YYYY-MM-DD}.md` with:
 Commit and push:
 
 ```bash
-cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Housekeeping {date}"
+cd ~/aios && ~/aios/hooks/aios-commit -m "Housekeeping {date}" -- "vault/00 - notes/logs/command-logs/housekeeping-{YYYY-MM-DD}.md" {every path an applied proposal changed}
 ```
+
+Name the paths: the log, plus each file this run's applied proposals touched. Not `--vault`, which commits every changed file in the vault, including other sessions' unfinished work, under "Housekeeping". That is the scope expansion step 2 above rules out.
 
 ## Rules
 

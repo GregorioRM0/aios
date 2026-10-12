@@ -31,12 +31,12 @@ printf -- '---\nupdated: "2026-09-20"\n---\n# Patterns → ñ\n### entry — sí
 printf '# Intent\n' > "$V/INTENT.md"
 
 out="$(cd "$V" && HOME="$V" PYTHONIOENCODING=cp1252 $PYBIN "$OLDPWD/hooks/context-floor.py" --print "$V" 2>&1)"; rc=$?
-if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q 'Patterns'; then
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep 'Patterns' >/dev/null; then
   ok "context-floor prints non-ASCII headings under a cp1252 console (exit 0)"
 else
   no "context-floor did not survive a cp1252 console" "exit $rc — $(printf '%s' "$out" | grep -m1 -oE 'UnicodeEncodeError[^\n]{0,80}' || printf '%s' "$out" | tail -1)"
 fi
-printf '%s' "$out" | grep -q 'UnicodeEncodeError' && no "the floor raised UnicodeEncodeError" "" || ok "no UnicodeEncodeError anywhere in the output"
+printf '%s' "$out" | grep 'UnicodeEncodeError' >/dev/null && no "the floor raised UnicodeEncodeError" "" || ok "no UnicodeEncodeError anywhere in the output"
 
 printf '\n  %s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

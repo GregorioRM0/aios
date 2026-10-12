@@ -60,7 +60,11 @@ def _entries():
 
 
 def record(req, via):
-    have = {e.get("fp") for e in _entries()}
+    # Dedupe only against entries still inside the window is_bus_prompt() trusts. Skipping a
+    # fingerprint logged at ANY age meant a text re-sent after KEEP_SECONDS was never written again,
+    # so the reader -- which ignores anything older -- left the re-sent text unlabelled.
+    cutoff = time.time() - KEEP_SECONDS
+    have = {e.get("fp") for e in _entries() if e.get("at", 0) >= cutoff}
     os.makedirs(os.path.dirname(LOG) or ".", exist_ok=True)
     with open(LOG, "a", encoding="utf-8") as f:
         for t in texts_of(req):

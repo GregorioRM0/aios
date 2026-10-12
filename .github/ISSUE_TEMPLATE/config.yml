@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion / question
+    url: https://github.com/The-AIOS/aios/discussions
+    about: Open-ended questions, workflow ideas, "how would I do X" — start a discussion before filing an issue.
+  - name: Security vulnerability
+    url: https://github.com/The-AIOS/aios/security/advisories/new
+    about: Private security advisory. Don't open a public issue for vulnerabilities.

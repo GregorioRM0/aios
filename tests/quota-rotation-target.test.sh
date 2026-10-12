@@ -88,7 +88,7 @@ else
 # 2. A capped alternative whose window has NOT rolled is refused.
 seed_state overflow@example.com 99 3600
 out="$(probe 'print(w.pick_target("home@example.com", 98, 98))')"
-if printf '%s' "$out" | grep -q "None" && printf '%s' "$out" | grep -q "still capped"; then
+if printf '%s' "$out" | grep "None" >/dev/null && printf '%s' "$out" | grep "still capped" >/dev/null; then
   ok "declines when the only alternative is still capped"
 else
   no "declines when the only alternative is still capped" "got: $out"; fi
@@ -96,7 +96,7 @@ else
 # 3. Same account, window already rolled -> it becomes a candidate again.
 seed_state overflow@example.com 99 -60
 out="$(probe 'print(w.pick_target("home@example.com", 98, 98))')"
-if printf '%s' "$out" | grep -q "^('overflow@example.com'"; then
+if printf '%s' "$out" | grep "^('overflow@example.com'" >/dev/null; then
   ok "accepts a capped account once its window has rolled over"
 else
   no "accepts a capped account once its window has rolled over" "got: $out"; fi
@@ -113,7 +113,7 @@ rows = [
 open(sys.argv[1], "w").write("\n".join(json.dumps(r) for r in rows) + "\n")
 PYEOF
 out="$(probe 'print(w.recently_swapped())')"
-if printf '%s' "$out" | grep -q "False"; then
+if printf '%s' "$out" | grep "False" >/dev/null; then
   ok "a 'declined' row does not arm the cooldown"
 else
   no "a 'declined' row does not arm the cooldown" "got: $out (a decline changed nothing)"; fi
@@ -125,7 +125,7 @@ now = int(time.time())
 open(sys.argv[1], "w").write(json.dumps({"ts": now - 10, "action": "rotate", "rc": 0}) + "\n")
 PYEOF
 out="$(probe 'print(w.recently_swapped())')"
-if printf '%s' "$out" | grep -q "True"; then
+if printf '%s' "$out" | grep "True" >/dev/null; then
   ok "a real recent swap still arms the cooldown"
 else
   no "a real recent swap still arms the cooldown" "got: $out"; fi
@@ -137,7 +137,7 @@ now = int(time.time())
 open(sys.argv[1], "w").write(json.dumps({"ts": now - 10, "action": "rotate", "rc": 1}) + "\n")
 PYEOF
 out="$(probe 'print(w.recently_swapped())')"
-if printf '%s' "$out" | grep -q "False"; then
+if printf '%s' "$out" | grep "False" >/dev/null; then
   ok "a failed swap does not arm the cooldown"
 else
   no "a failed swap does not arm the cooldown" "got: $out"; fi
@@ -150,7 +150,7 @@ lines = ["{not json at all", json.dumps({"ts": now - 10, "action": "rotate", "rc
 open(sys.argv[1], "w").write("\n".join(lines) + "\n")
 PYEOF
 out="$(probe 'print(w.recently_swapped())')"
-if printf '%s' "$out" | grep -q "True"; then
+if printf '%s' "$out" | grep "True" >/dev/null; then
   ok "malformed swap-log lines are skipped, not fatal"
 else
   no "malformed swap-log lines are skipped, not fatal" "got: $out"; fi
@@ -158,7 +158,7 @@ else
 # 8. Never-seen account is available — otherwise the feature is dead on day one.
 rm -rf "$WORK/.claude/identities"
 out="$(probe 'print(w.headroom("overflow@example.com", 98, 98))')"
-if printf '%s' "$out" | grep -q "True"; then
+if printf '%s' "$out" | grep "True" >/dev/null; then
   ok "an account with no recorded state is assumed fresh"
 else
   no "an account with no recorded state is assumed fresh" "got: $out"; fi
@@ -170,7 +170,7 @@ cat > "$WORK/USER.md" <<'EOF'
 1. `only@example.com`
 EOF
 out="$(probe 'print(w.pick_target("only@example.com", 98, 98))')"
-if printf '%s' "$out" | grep -q "None" && printf '%s' "$out" | grep -q ">= 2 accounts"; then
+if printf '%s' "$out" | grep "None" >/dev/null && printf '%s' "$out" | grep ">= 2 accounts" >/dev/null; then
   ok "a single-account setup declines with a legible reason"
 else
   no "a single-account setup declines with a legible reason" "got: $out"; fi
@@ -188,7 +188,7 @@ cache = {"five_hour_pct": 99, "five_hour_resets_at": time.time()+3600,
 w.record_state("overflow@example.com", cache)
 print(w.headroom("overflow@example.com", 98, 98))
 print(oct(os.stat(w.state_path("overflow@example.com")).st_mode & 0o777))')"
-if printf '%s' "$out" | grep -q "False" && printf '%s' "$out" | grep -q "0o600"; then
+if printf '%s' "$out" | grep "False" >/dev/null && printf '%s' "$out" | grep "0o600" >/dev/null; then
   ok "recorded limits are read back and the file is 0600"
 else
   no "recorded limits are read back and the file is 0600" "got: $out"; fi

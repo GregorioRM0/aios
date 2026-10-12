@@ -41,10 +41,10 @@ echo "-- 2. the probe exists and is extractable --"
 probe=$(sed -n '/# entry probe/,/^      ```$/p' "$C" | sed '$d')
 if [ -n "$probe" ]; then ok "probe block found via its '# entry probe' marker"; else
   no "probe block not extractable" "marker '# entry probe' + closing fence expected in Step 3.5a"; fi
-printf '%s\n' "$probe" | grep -q 'Meta-patterns' \
+printf '%s\n' "$probe" | grep 'Meta-patterns' >/dev/null \
   && ok "probe scopes entries OUTSIDE the meta-pattern index" \
   || no "probe does not exclude the index section" "a numbered index re-creates the ~2x over-count"
-printf '%s\n' "$probe" | grep -q '\${A:-' \
+printf '%s\n' "$probe" | grep '\${A:-' >/dev/null \
   && ok "probe target is overridable (testable against fixtures)" \
   || no "probe hardcodes its target path" "fixtures cannot exercise it"
 

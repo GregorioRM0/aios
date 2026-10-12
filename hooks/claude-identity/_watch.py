@@ -154,13 +154,13 @@ def recently_swapped() -> tuple[bool, int]:
 
 def log(msg: str) -> None:
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
-    with open(LOG, "a") as f:
+    with open(LOG, "a", encoding="utf-8") as f:
         f.write(f"[{time.strftime('%Y-%m-%dT%H:%M:%S')}] {msg}\n")
 
 
 def append_swap_log(row: dict) -> None:
     os.makedirs(os.path.dirname(SWAP_LOG), exist_ok=True)
-    with open(SWAP_LOG, "a") as f:
+    with open(SWAP_LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps(row) + "\n")
 
 
@@ -202,7 +202,7 @@ def _read_active_email() -> str:
     for p in (os.path.join(CONFIG_DIR, ".claude.json"),
               os.path.join(HOME, ".claude.json")):
         try:
-            with open(p) as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f).get("oauthAccount", {}).get("emailAddress", "")
         except Exception:
             continue
@@ -281,7 +281,7 @@ def check_adoption(cache: dict) -> None:
     # the swap's ts is what remembers that the operator was already told.
     already_notified = False
     try:
-        with open(ALERT_FILE) as f:
+        with open(ALERT_FILE, encoding="utf-8") as f:
             already_notified = json.load(f).get("swap_ts") == swap_ts
     except Exception:
         pass
@@ -390,7 +390,7 @@ def headroom(email: str, t5: int, t7: int) -> tuple:
     if not os.path.exists(p):
         return True, "no known state (assume fresh)"
     try:
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             s = json.load(f)
     except Exception:
         return True, "state unreadable (assume fresh)"
@@ -460,7 +460,7 @@ def paused_until() -> float:
     whose environment the operator does not control; a file under CONFIG_DIR is
     the one channel both the launchd agent and the statusLine kick can read."""
     try:
-        with open(PAUSE_FILE) as f:
+        with open(PAUSE_FILE, encoding="utf-8") as f:
             raw = f.read().strip()
         age = time.time() - os.path.getmtime(PAUSE_FILE)
     except FileNotFoundError:
@@ -637,7 +637,7 @@ def reconnect_if_account_changed(self_path: str, switched_to: str = "") -> None:
     email = switched_to or _read_active_email()
     if not email:
         try:
-            email = (json.load(open(CACHE)) or {}).get("email") or ""
+            email = (json.load(open(CACHE, encoding="utf-8")) or {}).get("email") or ""
         except Exception:
             email = ""
     if not email:
@@ -729,7 +729,7 @@ def main(self_path: str) -> None:
             return
 
         try:
-            cache = json.load(open(CACHE))
+            cache = json.load(open(CACHE, encoding="utf-8"))
         except Exception as e:
             log(f"cache unreadable: {e}")
             return

@@ -127,7 +127,7 @@ SETUP.md
 snapshot <dest>
 source ~/.zshrc
 spawn
-spawn --model claude-fable-5 {name} "{task}"
+spawn --model <id> {name} "{task}"
 spawn --profile {name} {worker} "{task}"
 spawn <name> "<task>"
 spawn <name> …

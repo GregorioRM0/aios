@@ -62,14 +62,14 @@ if [ -n "$out" ]; then ok "--threshold is answerable"; else
   no "--threshold is answerable" "produced no output"; fi
 
 # 2. With no override, the documented default (98) is what is in force.
-if printf '%s' "$out" | grep -q '5h: 98%' && printf '%s' "$out" | grep -q '7d: 98%'; then
+if printf '%s' "$out" | grep '5h: 98%' >/dev/null && printf '%s' "$out" | grep '7d: 98%' >/dev/null; then
   ok "no override -> documented default 98"
 else
   no "no override -> documented default 98" "got: $out"; fi
 
 # 3. An override actually lands (the whole point of the bug).
 out="$(run_threshold env CLAUDE_QUOTA_5H=92 CLAUDE_QUOTA_7D=91)"
-if printf '%s' "$out" | grep -q '5h: 92%' && printf '%s' "$out" | grep -q '7d: 91%'; then
+if printf '%s' "$out" | grep '5h: 92%' >/dev/null && printf '%s' "$out" | grep '7d: 91%' >/dev/null; then
   ok "env override reaches the enforcing process"
 else
   no "env override reaches the enforcing process" "got: $out"; fi
@@ -77,8 +77,8 @@ else
 # 4-6. Junk must be REJECTED, and must not be reported as if it took effect.
 for bad in abc 0 150; do
   out="$(run_threshold env CLAUDE_QUOTA_5H="$bad")"
-  if printf '%s' "$out" | grep -q '5h: 98%' \
-     && ! printf '%s' "$out" | grep -qE '5h: 98%.*\(environment\)'; then
+  if printf '%s' "$out" | grep '5h: 98%' >/dev/null \
+     && ! printf '%s' "$out" | grep -E '5h: 98%.*\(environment\)' >/dev/null; then
     ok "CLAUDE_QUOTA_5H=$bad -> falls back to 98 and says so"
   else
     no "CLAUDE_QUOTA_5H=$bad -> falls back to 98 and says so" "got: $out"; fi
@@ -86,7 +86,7 @@ done
 
 # 7. The two windows are independent — a bad 5h must not drag 7d with it.
 out="$(run_threshold env CLAUDE_QUOTA_5H=abc CLAUDE_QUOTA_7D=90)"
-if printf '%s' "$out" | grep -q '7d: 90%'; then
+if printf '%s' "$out" | grep '7d: 90%' >/dev/null; then
   ok "a rejected 5h does not clobber a valid 7d"
 else
   no "a rejected 5h does not clobber a valid 7d" "got: $out"; fi

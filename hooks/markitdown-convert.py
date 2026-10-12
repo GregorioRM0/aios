@@ -38,7 +38,7 @@ def main():
     result = md.convert(input_file)
 
     if output_file:
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding="utf-8") as f:
             f.write(result.text_content)
         print(f"Converted: {input_file} → {output_file}")
     else:

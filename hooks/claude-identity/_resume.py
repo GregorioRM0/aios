@@ -401,7 +401,7 @@ def write_swap_marker(name: str, session_id: str, cwd: str) -> str:
         except Exception:
             pass
     try:
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(marker, f, indent=2)
     except Exception:
         pass  # marker is belt-and-suspenders; failing to write isn't fatal
@@ -486,7 +486,7 @@ def _write_prompt_to_tempfile(name: str, prompt: str) -> str:
     always goes to /tmp/spawn-task-$name.md and only a fixed bootstrap
     prompt is interpolated. Same class of bug, same fix."""
     path = f"/tmp/resume-prompt-{name}.md"
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(prompt + "\n")
     return path
 
@@ -591,13 +591,13 @@ def write_in_place_signal(name: str, session_id: str, prompt: str) -> None:
     Used only when the killed process has CLAUDE_RESPAWN_CAPABLE=1 in env
     (set by `_claude_with_respawn` in ~/.zshrc). Sessions launched without
     the wrapper get the legacy AppleScript respawn path."""
-    with open(f"/tmp/swap-respawn-{name}.session", "w") as f:
+    with open(f"/tmp/swap-respawn-{name}.session", "w", encoding="utf-8") as f:
         f.write(session_id)
-    with open(f"/tmp/resume-prompt-{name}.md", "w") as f:
+    with open(f"/tmp/resume-prompt-{name}.md", "w", encoding="utf-8") as f:
         f.write(prompt + "\n")
     # Flag last — the wrapper short-circuits if absent, so we want everything
     # else on disk before the flag exists.
-    with open(f"/tmp/swap-respawn-{name}.flag", "w") as f:
+    with open(f"/tmp/swap-respawn-{name}.flag", "w", encoding="utf-8") as f:
         pass
 
 
@@ -695,7 +695,7 @@ def main() -> None:
             continue
 
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 info = json.load(f)
         except Exception:
             skipped.append(f"{pid_str} (unreadable)")

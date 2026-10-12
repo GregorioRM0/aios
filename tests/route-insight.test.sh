@@ -23,7 +23,7 @@ fi
 # top-level `- **…**` bullets with indented facets. The tool therefore matched
 # nothing and exited 2 — which reads as "nothing to do", not "I cannot see your
 # data" — so BOTH of /close-day's compounding steps silently did nothing.
-# Reported by Luigi Matrone / ALI, 2026-08-08. Invisible from the author's vault,
+# Reported by an operator, 2026-08-08. Invisible from the author's vault,
 # whose buffer uses headings.
 #
 # Scenarios 1 and 2 MUST fail (exit 2) against the pre-fix implementation.
@@ -97,7 +97,7 @@ Echo body.
 EOF
 out=$($PYBIN "$TOOL" "$f" --match "Delta heading" --marker "<!-- ROUTED: delta -->" 2>&1); rc=$?
 if [ $rc -ne 0 ]; then no "4 ### back-compat" "exit $rc — $out"
-elif grep -q "body bullet" "$f" || grep -q "Closing prose of delta" "$f"; then
+elif grep -q "body bullet" "$f" || grep "Closing prose of delta" "$f" >/dev/null; then
   no "4 ### back-compat" "a body bullet truncated the entry — back half orphaned"
 elif ! grep -q "Echo heading entry" "$f"; then no "4 ### back-compat" "ate the next entry"
 else ok "4 ### entry keeps bullet-containing body (no orphan)"; fi

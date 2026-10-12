@@ -1,0 +1,16 @@
+# Line endings for hooks/ — this file ships to every operator vault with the rest of hooks/.
+#
+# Everything here is something a shell, an interpreter or git itself RUNS, and a CRLF checkout
+# (Git for Windows defaults to core.autocrlf=true) breaks a shebang: `bad interpreter`, or
+# `$'\r': command not found` on every line. git/pre-commit is the sharpest case: git runs hooks
+# through `sh`, so a CRLF copy silently stops the secret scan that gates every commit.
+#
+# The repo-root .gitattributes covers this in canonical, but it never reaches a vault: it would
+# also normalise every NOTE, and measured, shipping it flips every note to modified when
+# core.autocrlf=false or notes were committed CRLF. A file inside hooks/ can only ever match paths
+# inside hooks/, so it protects the scripts and cannot touch a note.
+#
+# `text=auto` leaves anything git detects as binary alone; there is none here today, and a rule
+# that does not need a list of names cannot miss the next hook added (a name list here missed two).
+*        text=auto eol=lf
+*.ps1    text eol=crlf

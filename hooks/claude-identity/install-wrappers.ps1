@@ -193,6 +193,27 @@ function Invoke-ClaudeWithRespawn {
     # pin rather than an inherit. tests/model-routing.test.sh fails if the two disagree.
     $modelToUse = if ($env:CLAUDE_MODEL) { $env:CLAUDE_MODEL } else { 'claude-opus-5-5[1m]' }
     $modelArgs = @('--model', $modelToUse)
+    # Effort and advisor (optional; set by spawn -Effort/-Advisor or an inbox request). Unset ->
+    # no flags, byte-identical to before. The advisor goes through a settings FILE: the claude
+    # .cmd shim mangles quotes inside an argument, so inline JSON is not safe here.
+    $effortArgs = @()
+    if ($env:CLAUDE_EFFORT) { $effortArgs = @('--effort', $env:CLAUDE_EFFORT) }
+    $advisorArgs = @()
+    $advFile = $null
+    if ($env:CLAUDE_ADVISOR_MODEL) {
+        # Validated HERE as well as in spawn: an inbox request or a hand-set env var reaches this
+        # function without passing through spawn, and the id is concatenated into JSON below -- a
+        # double quote or a backslash would break the settings file or inject keys into it.
+        if ($env:CLAUDE_ADVISOR_MODEL -notmatch '^[A-Za-z0-9._\[\]-]+$') {
+            Write-Warning "spawn: CLAUDE_ADVISOR_MODEL '$($env:CLAUDE_ADVISOR_MODEL)' is not a model id -- starting without an advisor."
+        } else {
+            # A unique name per session (two workers may share a name across restarts); removed
+            # in the finally below when the session ends.
+            $advFile = Join-Path $env:TEMP ('aios-advisor-' + [guid]::NewGuid().ToString('N') + '.json')
+            Set-Content -Path $advFile -Value ('{"advisorModel":"' + $env:CLAUDE_ADVISOR_MODEL + '"}') -Encoding ASCII
+            $advisorArgs = @('--settings', $advFile)
+        }
+    }
     # Resolve the claude EXECUTABLE explicitly (not via function lookup) to
     # avoid recursion if the operator NAMES their session "claude" in USER.md --
     # then `function claude { Invoke-ClaudeWithRespawn ... }` is defined and a
@@ -214,23 +235,28 @@ function Invoke-ClaudeWithRespawn {
         if ($hit) { $claudeExe = $hit.Source; break }
     }
     if (-not $claudeExe) { $claudeExe = $claudeCmds[0].Source }
-    while ($true) {
-        $claudeArgs = @() + $modelArgs + $resumeArgs + @('--remote-control', '--name', $Name)
-        if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
-            $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
+    try {
+        while ($true) {
+            $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $resumeArgs + @('--remote-control', '--name', $Name)
+            if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
+                $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
+            }
+            & $claudeExe @claudeArgs
+            if (Test-Path $marker) {
+                $sid = ''
+                if (Test-Path $sidFile) { $sid = (Get-Content $sidFile -Raw).Trim() }
+                Remove-Item $marker, $sidFile -Force -ErrorAction SilentlyContinue
+                if (-not $sid) { break }
+                $resumeArgs    = @('--resume', $sid)
+                $BootstrapFile = Join-Path $env:TEMP "resume-prompt-$Name.md"
+                Start-Sleep -Seconds 3
+            } else {
+                break
+            }
         }
-        & $claudeExe @claudeArgs
-        if (Test-Path $marker) {
-            $sid = ''
-            if (Test-Path $sidFile) { $sid = (Get-Content $sidFile -Raw).Trim() }
-            Remove-Item $marker, $sidFile -Force -ErrorAction SilentlyContinue
-            if (-not $sid) { break }
-            $resumeArgs    = @('--resume', $sid)
-            $BootstrapFile = Join-Path $env:TEMP "resume-prompt-$Name.md"
-            Start-Sleep -Seconds 3
-        } else {
-            break
-        }
+    } finally {
+        # The advisor settings file lives as long as the session. finally also runs on Ctrl+C.
+        if ($advFile) { Remove-Item -LiteralPath $advFile -Force -ErrorAction SilentlyContinue }
     }
 }
 
@@ -266,7 +292,7 @@ function spawn {
         #   The launcher always passes `Read <task-file> and follow the instructions inside.`
         #   as the bootstrap, so a task file whose contents are `Start session.` is a prompt
         #   pointing at a file with nothing to follow. The worker takes its turn, finds no
-        #   instruction, answers blandly, and never runs the Session Start Ritual: no declared
+        #   instruction, answers blandly, and never runs its context loading (CLAUDE.md, Identity & Greeting step 4): no declared
         #   or observed context, no agent match for the session name, no greeting. The terminal
         #   is open and the session looks idle, which reads as a hang rather than a default.
         #
@@ -290,9 +316,14 @@ function spawn {
         # .sh case block and with the bare-word guard below.
         [ValidateSet('frontier','judgment','scale','fast','mechanical')] [string] $Tier,
         # -Model <id> overrides -Tier; pins an explicit/specialist model (e.g.
-        # claude-fable-5) per-spawn with NO global env mutation (set for the call
+        # claude-fable-5-1) per-spawn with NO global env mutation (set for the call
         # only, then restored below).
-        [string] $Model
+        [string] $Model,
+        # -Effort low|medium|high|xhigh|max -- the worker's effort (Claude Code's --effort).
+        [ValidateSet('low','medium','high','xhigh','max')] [string] $Effort,
+        # -Advisor <rung|model> -- an advisor model for the worker; a rung resolves like -Tier,
+        # anything else is a model id. No rung has a default advisor. MODEL-ROUTING.md, section "The advisor".
+        [string] $Advisor
     )
 
     # Tier -> model id. $null = no override -> frontier default (judgment). Every id
@@ -306,13 +337,24 @@ function spawn {
     # running. 'scale' is its successor for new work.
     $spawnModel = switch ($Tier) {
         'frontier'   { 'claude-fable-5-1' }
-        'scale'      { 'claude-sonnet-5' }
-        'fast'       { 'claude-haiku-4-5-20251001' }
+        'scale'      { 'claude-sonnet-5-5' }
+        'fast'       { 'claude-haiku-5-5' }
         'mechanical' { 'claude-sonnet-4-6' }   # legacy alias -- do not remap
         default      { $null }                 # judgment / unset -> frontier default
     }
     # -Model overrides -Tier: pin an explicit model outside the tier ladder.
     if ($Model) { $spawnModel = $Model }
+    $spawnAdvisor = switch ($Advisor) {
+        ''         { $null }
+        'frontier' { 'claude-fable-5-1' }
+        'judgment' { 'claude-opus-5-5' }
+        'scale'    { 'claude-sonnet-5-5' }
+        'fast'     { 'claude-haiku-5-5' }
+        default    { $Advisor }
+    }
+    if ($spawnAdvisor -and $spawnAdvisor -notmatch '^[A-Za-z0-9._\[\]-]+$') {
+        Write-Error "spawn: -Advisor '$Advisor' is not a rung or a model id"; return
+    }
 
     # Empty name -> generate adj-animal handle + print onboarding tip
     if ([string]::IsNullOrEmpty($Name)) {
@@ -320,7 +362,7 @@ function spawn {
         Write-Host "[spawn] No name given -- using handle: $Name"
         Write-Host "[spawn] Tip: name a specific agent for matched expertise (e.g. ``spawn accountant``)."
         Write-Host "[spawn] Tip: -Tier fast (high-frequency) | scale (volume) | judgment (default: reasoning) | frontier (hardest, long-running autonomy)."
-        Write-Host "[spawn] Tip: add ``-Model <id>`` to pin a specific model (e.g. ``-Model claude-fable-5``) -- no global env hack."
+        Write-Host "[spawn] Tip: add ``-Model <id>`` to pin a specific model (e.g. ``-Model claude-fable-5-1``) -- no global env hack."
         Write-Host "[spawn] See agents/_index.md for the full list."
         Write-Host "[spawn] Opening session: $Name"
     }
@@ -370,30 +412,38 @@ function spawn {
       '                                       touches. about_business.md is a ~1:100 summary',
       '                                       of it and does NOT substitute.',
       '',
-      'FIRST ACTION, before you answer or plan anything -- THE MAP, whatever the task is: list',
-      'THE FLOOR, in one command:',
+      'FIRST ACTION, before you answer or plan anything -- THE FLOOR, whatever the task is.',
       '',
-      '    uv run ~/aios/hooks/context-floor.py',
+      'If your context already holds a block that begins "CONTEXT FLOOR", the floor was',
+      'delivered at session start (Hook E): INTENT.md, the titles of the newest entries of',
+      'every observed/ file, and the map. Its last section names the FULL floor file -- open it',
+      'for depth whenever a title or the work points there. If there is no such block, run it:',
       '',
-      'It emits both _index.md, EVERY HEADING in both folders, THE NEWEST 5 three-hash',
-      'ENTRIES OF EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries,',
-      'not by file position, since the tail is the newest in only about 5 of 8 files.',
-      'One exception: a RULE LIBRARY like antifragile.md emits its meta-pattern INDEX',
-      'instead, because an entry from four months ago binds as hard as one from this',
-      'week and its job is to fire BEFORE the mistake. Plus INTENT.md -- which is at the floor',
-      'because it governs what you may DO, a different question from whether your output',
-      'sounds like them, and the one that binds a mechanical worker hardest.',
-      'Absent the hook, glob it by hand --',
-      'grep -h ''^#'' on declared/*.md, grep -h ''^###'' on observed/*.md, then the tail of',
-      'each observed file -- but prefer the hook: a floor assembled by hand gets done',
-      'partially or skipped, and afterwards nothing can tell the difference.',
+      '    UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/context-floor.py',
+      '',
+      'It WRITES the floor to a file and prints only a MAP. The map is not the floor: read the',
+      'file it names, in parts, until its last line is "=== END OF FLOOR".',
+      '',
+      'The floor file holds both _index.md, EVERY HEADING in both folders, THE NEWEST 5 ###',
+      'ENTRIES OF EVERY observed/ FILE IN FULL -- newest by the DATE each entry carries, not',
+      'by file position, because the tail is the newest in only about 5 of 8 files -- plus',
+      'INTENT.md and the ventures listing. One exception: a RULE LIBRARY like antifragile.md',
+      'gives its meta-pattern INDEX instead of its newest entries, because an entry from four',
+      'months ago binds exactly as hard as one from this week and the file''s job is to fire',
+      'BEFORE the mistake. INTENT.md is at the floor because it governs what you may DO, a',
+      'different question from whether your output sounds like them, and the one that binds a',
+      'mechanical worker hardest (least contextualised, most able to commit, push, send or',
+      'delete). Absent the hook, glob it by hand -- grep -h ''^#'' on declared/*.md, grep -h',
+      '''^###'' on observed/*.md, then the newest entries of each observed file -- but prefer the',
+      'hook: a floor assembled by hand gets done partially or skipped, and afterwards nothing',
+      'can tell the difference.',
       '',
       'The floor carries LEARNED CONTENT, not only titles. Headings tell you what exists;',
       'they tell you nothing the system has learned. Every close-session and close-day',
       'appends to observed/ -- if the next session never reads what was appended, the loop',
-      'does not close. It reads the TAIL because the folders are written differently:',
+      'does not close. It reads the NEWEST end because the folders are written differently:',
       'declared/ is RESTATED (rewritten in place, no newest end), observed/ ACCUMULATES',
-      '(dated and append-ordered). The tail is BOUNDED -- at ten times the entries it reads',
+      '(dated). That slice is BOUNDED -- at ten times the entries it reads',
       'the same five per file while the headings still index all of them. Recency is not',
       'relevance: an older entry that matters is one title away, and antifragile titles are',
       'all in front of you, which is what scan-before-executing-commands needs.',
@@ -483,6 +533,26 @@ function spawn {
 
     $taskFile = Join-Path $env:TEMP "spawn-task-$Name.md"
     Set-Content -Path $taskFile -Value ($taskPreamble + "`n" + $Task) -Encoding UTF8
+    # An ADVISED worker on a Sonnet- or Haiku-class model gets a consult instruction: unprompted,
+    # those executors almost never call the advisor (MODEL-ROUTING.md, section "The advisor"). Opus and
+    # Fable call it well on their own, and the instruction lowered their pass rates.
+    if ($spawnAdvisor -and ($spawnModel -match 'sonnet|haiku')) {
+        $advisorBlock = @(
+        '',
+        '# You have an advisor',
+        '',
+        'This worker runs with an advisor: a stronger model you can consult through the `advisor`',
+        'tool. It sees everything you have done so far and returns short advice. It only helps if',
+        'you call it, and workers on your model rarely do unprompted, so:',
+        '',
+        '- Call it once BEFORE substantive work, with your plan.',
+        '- Call it once BEFORE you declare the task done. Save your work first (write the file,',
+        '  commit if the task says to), so nothing is lost if the call is slow.',
+        '- Call it when you are stuck, or about to choose between two approaches.',
+        '- Ask it to keep its guidance under 80 words.'
+        ) -join "`n"
+        Add-Content -Path $taskFile -Value $advisorBlock -Encoding UTF8
+    }
 
     # In-process (in-shell) when NOT inside a Claude Code session, OR when this is an
     # AIOS-Glass-made terminal ($env:AIOS_GLASS_TERM). Glass created the terminal natively
@@ -491,14 +561,13 @@ function spawn {
     # enough -- a Glass terminal inherits it when the IDE was launched from a Claude session.
     if ((-not $env:CLAUDECODE) -or $env:AIOS_GLASS_TERM) {
         # In-process path: set CLAUDE_MODEL for the call only, then restore (no leak).
-        if ($spawnModel) {
-            $prevModel = $env:CLAUDE_MODEL
-            $env:CLAUDE_MODEL = $spawnModel
-            try { Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile }
-            finally { $env:CLAUDE_MODEL = $prevModel }
-        } else {
-            Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile
-        }
+        # Set the per-spawn variables for the call only, then restore them (no leak).
+        $prev = @{ M = $env:CLAUDE_MODEL; E = $env:CLAUDE_EFFORT; A = $env:CLAUDE_ADVISOR_MODEL }
+        if ($spawnModel)   { $env:CLAUDE_MODEL = $spawnModel }
+        if ($Effort)       { $env:CLAUDE_EFFORT = $Effort }
+        if ($spawnAdvisor) { $env:CLAUDE_ADVISOR_MODEL = $spawnAdvisor }
+        try { Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile }
+        finally { $env:CLAUDE_MODEL = $prev.M; $env:CLAUDE_EFFORT = $prev.E; $env:CLAUDE_ADVISOR_MODEL = $prev.A }
         return
     }
 
@@ -514,9 +583,13 @@ function spawn {
     # Inject the model into the new shell's env before it launches (mirrors the
     # in-process path). Empty when no --tier override -> frontier default.
     $modelStmt = if ($spawnModel) { "`$env:CLAUDE_MODEL = '$spawnModel'" } else { '' }
+    $effortStmt = if ($Effort) { "`$env:CLAUDE_EFFORT = '$Effort'" } else { '' }
+    $advisorStmt = if ($spawnAdvisor) { "`$env:CLAUDE_ADVISOR_MODEL = '$spawnAdvisor'" } else { '' }
     $inner = @"
 . `$PROFILE
 $modelStmt
+$effortStmt
+$advisorStmt
 Set-Location '$($PWD.Path)'
 Invoke-ClaudeWithRespawn -Name '$Name' -BootstrapFile '$taskFile'
 "@

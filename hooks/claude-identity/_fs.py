@@ -51,7 +51,7 @@ def seat_state_base() -> str:
 def seat_generation() -> int:
     """Completed swaps so far (0 if none). See claude-identity.sh."""
     try:
-        with open(seat_state_base() + ".gen") as f:
+        with open(seat_state_base() + ".gen", encoding="utf-8") as f:
             return int(f.read().strip() or 0)
     except (OSError, ValueError):
         return 0

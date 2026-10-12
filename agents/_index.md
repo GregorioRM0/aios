@@ -19,15 +19,15 @@ Organized into **7 bundles by purpose**. Install only the bundles you need.
 | Bundle | Purpose | Count |
 |---|---|---|
 | **`aios/sales/`** | Lead generation, proposals, CRM, brand monitoring | 4 |
-| **`aios/strategy/`** | Market research, advisory, company analysis, open-source governance | 4 |
+| **`aios/strategy/`** | Market research, advisory, company analysis, open-source governance, quarterly objectives | 5 |
 | **`aios/finance-legal/`** | Accounting, legal review, invoicing, compliance | 4 |
 | **`aios/engineering/`** | Code review, documentation, bug triage, security, building, growth, refactoring | 8 |
-| **`aios/communication/`** | Content, brochures, decks, emails, meeting prep, reports, design systems, animation | 9 |
-| **`aios/personal/`** | Study, journaling, growth, decision-making, onboarding, crisis | 6 |
+| **`aios/communication/`** | Content, brochures, decks, emails, meeting prep, reports, design systems, animation, explainers, book publishing | 11 |
+| **`aios/personal/`** | Study, journaling, growth, decision-making, onboarding, crisis, upstream feedback | 7 |
 | **`aios/commerce/`** | Customer-facing shopping + merchant agents | 1 |
 | **`custom/`** | Your own agents (operator-specific extensions, never synced) | — |
 
-**Total bundled agents: 36.** Each bundle has a `README.md` describing its scope; this file is the master registry.
+**Total bundled agents: 40.** Each bundle has a `README.md` describing its scope; this file is the master registry.
 
 > **Standard:** all agents follow the [Agent Skills open standard](https://github.com/anthropics/skills) (138K⭐ — Anthropic's public canonical repo). Cross-platform compatible with Claude Code, Codex, Gemini CLI, Cursor, Antigravity.
 
@@ -95,6 +95,7 @@ When a fuzzy match is used, the session tells the user which agent was matched a
 | [[consultant]] | Strategic advisory, frameworks, business analysis | consulting, strategy, advisory, framework, recommendation | on-demand |
 | [[company-analyst]] | Acquired-style deep dives — history, strategy, moat, playbook | company analysis, acquired, deep dive, moat, 7 powers | on-demand |
 | [[protocol-steward]] | Governance + open-source + licensing + trademark for an open protocol/standard — lead technically without being perceived as owner (avoid vendor-capture) | governance, open-source, license, Apache, MIT, consortium, foundation, steering committee, trademark, vendor-capture, protocol, standard, CLA | on-demand |
+| [[okr-coach]] | Quarterly objectives inside the rituals — drafts ≤3 objectives with instrument-named KRs citing keys/project notes into one zero-checkbox quarter note, presented as a draft; scores it once on the quarter's last Friday | OKR, objectives, key results, quarter, quarterly plan, score the quarter, quarterly review, objetivos del trimestre | quarterly (first week: set · last Friday: score) |
 
 ### aios/finance-legal/ — Accounting, legal, invoicing, compliance
 
@@ -123,6 +124,7 @@ When a fuzzy match is used, the session tells the user which agent was matched a
 | Agent | Purpose | Match keywords | Schedule |
 |---|---|---|---|
 | [[content-writer]] | Draft posts for LinkedIn, Twitter/X, Substack in the user's voice | draft post, write article, LinkedIn, tweet, Substack | on-demand |
+| [[kdp-publisher]] | Files on disk → live Amazon KDP listings: pre-flight interior/wrap/EPUB, fill the per-author answer sheet, name the five irreversible decisions (DRM · Select · categories · pricing · accessibility), track review/proof clocks, post-publish checklist, errata ledger; DRY RUN mode uploads nothing — the author clicks | KDP, Amazon KDP, self-publish, publish a book, paperback, Kindle, EPUB, cover wrap, spine, bleed, ISBN, ASIN, KDP Select, DRM, proof, errata, dry run, publicar en KDP, autopublicar | on-demand |
 | [[content-scheduler]] | Plan and queue content calendar from vault insights | content calendar, schedule posts, publishing plan | weekly (Monday) |
 | [[email-drafter]] | Draft professional emails matching voice + context | email, draft email, follow up, outreach, reply to | on-demand |
 | [[brochure-builder]] | Branded print collateral from content — acquires the brand from guidelines, a URL, or proposes one; never fabricates a fact | brochure, one-pager, leaflet, flyer, collateral, sell sheet, datasheet | on-demand |
@@ -131,6 +133,7 @@ When a fuzzy match is used, the session tells the user which agent was matched a
 | [[report-drafter]] | Draft status reports and board updates from vault activity | status report, board update, weekly report, progress | on-demand |
 | [[design-md-author]] | Author design.md per Google's spec; interview + validate + optional Stitch upload | design system, design.md, brand identity, design tokens | on-demand |
 | [[animation-composer]] | Own the deck-animation component library — audit · build-to-contract · mine sources for gaps (placement stays the operator's) | animation, deck component, motion, educational animation, gallery, animate this concept, animation audit | on-demand |
+| [[explainer]] | Build the cheapest format that makes a named reader understand a mechanism (release, refactor, agent-shipped work, an ingest) — one interactive HTML walk by default, every claim anchored to source; repays comprehension debt; never publishes | explain, explainer, walk me through, what changed, what shipped, how does this work, mechanism, comprehension, release explainer, explícame | on-demand |
 
 ### aios/commerce/ — Customer-facing commerce agents
 
@@ -144,6 +147,7 @@ When a fuzzy match is used, the session tells the user which agent was matched a
 | [[journal-prompter]] | Generate reflection prompts from sessions + patterns | reflect, journal, prompts, introspection | on-demand |
 | [[growth-companion]] | Listen + witness + surface growth from observed context. Anti-sycophancy. | vent, frustrated, stuck, heavy day, growth check | on-demand |
 | [[onboarding-aios]] | Standing AIOS orientation companion — knows the org/repo/CHEATSHEET/FORTRESS/USER.md map, self-update loop, semantic invocation for "lost" moments | I'm lost, where do I start, what is this, how does this work, what should I try next, what am I missing, onboarding, getting started, day N, compound effect, AIOS guide | on-demand (anytime) |
+| [[aios-feedback]] | Operator-side twin of bug-triager — turns an observation about AIOS into ONE scrubbed, de-duplicated GitHub issue on the right repo; files only after an explicit yes | report a bug, file an issue, this is broken, papercut, upstream, feature request, reportar, abrir un issue, esto no funciona | on-demand |
 | [[decision-journaler]] | Proactive Decision Journal — inversion + pre-mortem + tradeoff scoring | decision, deciding, dilemma, weighing, pre-mortem | on-demand |
 | [[crisis-mode]] | Heavy-day emergency handler — stabilize, triage, sequence response, route to specialist, bridge to growth-companion when stable | emergency, crisis, urgent, panic, fire, breach, lawsuit, threat | on-demand |
 

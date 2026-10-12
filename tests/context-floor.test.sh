@@ -63,7 +63,7 @@ $PYBIN "$H" --print "$TMP/absent" >/dev/null 2>&1
 [ $? -eq 2 ] && ok "absent vault exits 2" || no "absent vault printed a floor" "a session cannot tell an empty floor from a full one"
 mkdir -p "$TMP/half/vault/00 - notes/context/declared"
 OUT="$($PYBIN "$H" --print "$TMP/half" 2>&1 >/dev/null)"; RC=$?
-{ [ $RC -eq 2 ] && printf '%s' "$OUT" | grep -q observed; } \
+{ [ $RC -eq 2 ] && printf '%s' "$OUT" | grep observed >/dev/null; } \
   && ok "one folder present -> refuses and names the missing one" \
   || no "a half floor was emitted (rc=$RC)" "partial floors are indistinguishable from complete ones"
 $PYBIN "$H" --recent notanumber >/dev/null 2>&1
@@ -80,7 +80,7 @@ CLAIM="$(printf '%s' "$LAST" | sed -E 's/^=== END OF FLOOR -- ([0-9]+) bytes.*/\
 REAL="$(sed '$d' "$TMP/e.out" | wc -c | tr -d ' ')"
 [ "$CLAIM" = "$REAL" ] && ok "the byte count matches what precedes it ($REAL)" \
   || no "END claims $CLAIM bytes, $REAL precede it" "the count is what lets a reader verify it got everything"
-head -c 200 "$TMP/e.out" | grep -q 'END OF FLOOR' \
+head -c 200 "$TMP/e.out" | grep 'END OF FLOOR' >/dev/null \
   && no "a cut read still shows the marker" "then its absence proves nothing" \
   || ok "a read cut short does not contain the marker (control)"
 $PYBIN "$H" --json "$TMP/e" | $PYBIN -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
@@ -95,12 +95,17 @@ FF="$TMP/aios-floor-$(id -u 2>/dev/null || echo user)/context-floor-t-1.md"
   || no "no floor file (rc=$RC)" "the map would point at nothing"
 $PYBIN "$H" --print "$TMP/m" | cmp -s - "$FF" \
   && ok "the file is byte-identical to --print" || no "file and --print differ" "two deliveries of one floor must agree"
-tail -n 1 "$FF" | grep -q '^=== END OF FLOOR -- ' && ok "the file ends on the END marker" || no "file has no END marker" ""
-printf '%s' "$MAP" | grep -qF "$FF" && ok "the map names the file" || no "the map does not name the file" ""
+tail -n 1 "$FF" | grep '^=== END OF FLOOR -- ' >/dev/null && ok "the file ends on the END marker" || no "file has no END marker" ""
+printf '%s' "$MAP" | grep -F "$FF" >/dev/null && ok "the map names the file" || no "the map does not name the file" ""
+# Sessions piped the map through head or tail, or redirected it, and worked from it as if it were
+# the floor (measured 10-03 -> 10-11). Each END of the map must say it is only the map and name the file.
+FIRST=$(printf '%s\n' "$MAP" | head -n 2); LAST=$(printf '%s\n' "$MAP" | tail -n 1)
+case "$FIRST" in *"ONLY THE MAP"*"$FF"*) ok "the map's first lines say it is only the map, and name the file" ;; *) no "head of the map can be mistaken for the floor" "$FIRST" ;; esac
+case "$LAST" in *"ONLY THE MAP"*"$FF"*) ok "the map's last line says it again, for a tail" ;; *) no "tail of the map can be mistaken for the floor" "$LAST" ;; esac
 MB=$(printf '%s' "$MAP" | wc -c | tr -d ' '); FB=$(wc -c < "$FF" | tr -d ' ')
 [ "$MB" -lt 4000 ] && [ "$FB" -gt 20000 ] && ok "the map is small ($MB B) where the floor is not ($FB B)" \
   || no "map $MB B / floor $FB B" "the map must stay readable in one tool result"
-printf '%s' "$MAP" | grep -q "w2000" && no "the map carries entry bodies" "then it is the floor again, and gets cut again" \
+printf '%s' "$MAP" | grep "w2000" >/dev/null && no "the map carries entry bodies" "then it is the floor again, and gets cut again" \
   || ok "the map carries no entry bodies"
 # Every section's start line must be that section's own header in the file.
 BAD=0
@@ -124,13 +129,13 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ;; *)
   [ "$P" = 600 ] && [ "$D" = 700 ] && ok "the floor is private: file 600, folder 700" || no "file $P / folder $D" "the floor holds INTENT and observed context; a shared /tmp would expose it"
   rm -rf "$TMP/aios-floor-$(id -u)"; ln -s "$TMP/elsewhere" "$TMP/aios-floor-$(id -u)"; mkdir -p "$TMP/elsewhere"
   CLAUDE_CODE_SESSION_ID=t-2 $PYBIN "$H" "$TMP/m" > "$TMP/sl.out" 2>"$TMP/sl.err"
-  { [ ! -e "$TMP/elsewhere/context-floor-t-2.md" ] && grep -q 'not a directory owned by you' "$TMP/sl.err" && tail -n 1 "$TMP/sl.out" | grep -q '^=== END OF FLOOR'; } \
+  { [ ! -e "$TMP/elsewhere/context-floor-t-2.md" ] && grep -q 'not a directory owned by you' "$TMP/sl.err" && tail -n 1 "$TMP/sl.out" | grep '^=== END OF FLOOR' >/dev/null; } \
     && ok "a planted symlink folder is refused, and the floor prints in full instead" \
     || no "the floor wrote through a planted symlink" "another user could redirect it"
   rm -f "$TMP/aios-floor-$(id -u)" ;;
 esac
 $PYBIN "$H" --out "$TMP/x/y/floor.md" "$TMP/m" > "$TMP/fb.out" 2>"$TMP/fb.err"; RC=$?
-{ [ $RC -eq 0 ] && tail -n 1 "$TMP/fb.out" | grep -q '^=== END OF FLOOR' && grep -q 'could not write' "$TMP/fb.err"; } \
+{ [ $RC -eq 0 ] && tail -n 1 "$TMP/fb.out" | grep '^=== END OF FLOOR' >/dev/null && grep -q 'could not write' "$TMP/fb.err"; } \
   && ok "an unwritable --out prints the whole floor instead (never nothing)" \
   || no "unwritable --out (rc=$RC)" "emitting nothing is the failure this hook exists to end"
 $PYBIN "$H" --out >/dev/null 2>&1; [ $? -eq 2 ] && ok "--out with no path exits 2" || no "--out accepted no path" ""
@@ -151,20 +156,20 @@ echo
 echo " the floor emits BODIES, not only headings"
 mkvault "$TMP/v" 12 40
 F="$($PYBIN "$H" --print "$TMP/v")"
-printf '%s' "$F" | grep -q 'Entry 12' \
+printf '%s' "$F" | grep 'Entry 12' >/dev/null \
   && ok "the newest entry is present" || no "newest entry missing" "the last close-day's write never reaches the next session"
-printf '%s' "$F" | grep -q 'w40' \
+printf '%s' "$F" | grep 'w40' >/dev/null \
   && ok "entry BODY text is present, not just its title" \
      || no "only headings were emitted" "then the floor teaches a session nothing that was learned"
 # Scope this to the RECENCY section: the map above it legitimately lists every title,
 # including Entry 1, so grepping the whole output tests nothing. (First version did
 # exactly that and failed on correct output.)
 RECENT_ONLY="$(printf '%s\n' "$F" | awk '/MOST RECENT/{f=1} /^--- declared\//{f=0} f')"
-printf '%s' "$RECENT_ONLY" | grep -qE '^### Entry 1$' \
+printf '%s' "$RECENT_ONLY" | grep -E '^### Entry 1$' >/dev/null \
   && no "the OLDEST entry body was included" "the slice is not a tail -- it is unbounded" \
   || ok "older entry bodies are left to the map (slice is a tail)"
 MAP_ONLY="$(printf '%s\n' "$F" | awk '/^--- declared\//{f=1} f')"
-printf '%s' "$MAP_ONLY" | grep -qE '### Entry 1$' \
+printf '%s' "$MAP_ONLY" | grep -E '### Entry 1$' >/dev/null \
   && ok "older entries still appear as titles in the map" \
      || no "older entries vanished entirely" "recency is not relevance -- they must stay indexed"
 
@@ -195,18 +200,18 @@ printf '# Acme\n' > "$VD/acme/about_venture.md"
 for i in $(seq 1 300); do printf 'secretword '; done >> "$VD/acme/pricing.md"
 printf '# Globex\n' > "$VD/globex/about_venture.md"
 FV="$($PYBIN "$H" --print "$TMP/v")"
-printf '%s' "$FV" | grep -q 'acme' && printf '%s' "$FV" | grep -q 'globex' \
+printf '%s' "$FV" | grep 'acme' >/dev/null && printf '%s' "$FV" | grep 'globex' >/dev/null \
   && ok "every venture is listed at the floor" \
   || no "a venture was not listed" "a worker cannot open what it does not know exists"
-printf '%s' "$FV" | grep -q 'pricing.md' \
+printf '%s' "$FV" | grep 'pricing.md' >/dev/null \
   && ok "each venture's files are named" || no "venture files not listed" "the listing is the index into the folder"
-printf '%s' "$FV" | grep -q 'secretword' \
+printf '%s' "$FV" | grep 'secretword' >/dev/null \
   && no "a venture's BODY was read at the floor" "that more than doubles the floor on a real vault" \
   || ok "venture bodies are NOT read at the floor"
 
 echo
 echo " arbitrary vault shape"
-printf '%s' "$F" | grep -q 'aprendizajes.md' \
+printf '%s' "$F" | grep 'aprendizajes.md' >/dev/null \
   && ok "globs files matching no canonical name" \
      || no "a non-canonically-named file was skipped" "operators rename these and write them in their own language"
 $PYBIN tests/lint-no-hardcoded-context-names.py "$H" >/dev/null 2>&1 \
@@ -241,24 +246,24 @@ lib(){ # $1 root · stdin = the observed file's body → prints the hook's antif
 
 # (a) the canonical seed's own heading, plural, and nothing else that could match
 OUT=$(printf '# Antifragile\n## Patterns of fragility (what breaks and why)\n### N. Short description (date)\nbody\n## Meta-patterns (what the failures have in common)\n### A. First pattern\nprose A\n' | lib "$TMP/lib-a")
-printf '%s' "$OUT" | grep -q 'RULE LIBRARY' \
+printf '%s' "$OUT" | grep 'RULE LIBRARY' >/dev/null \
   && ok "(a) the seed's plural '## Meta-patterns' marks a rule library" \
   || no "(a) '## Meta-patterns' is not detected" "a vault running the seed as shipped gets its newest bodies instead of its index"
 
 # (b) an ENTRY whose title says "index" must never classify the file
 OUT=$(printf '# Aprendizajes\n### 1. First lesson (2026-01-01)\nbody one\n### 12. Index updated without updating project note (2026-02-01)\nbody twelve\n' | lib "$TMP/lib-b")
-printf '%s' "$OUT" | grep -q 'RULE LIBRARY' \
+printf '%s' "$OUT" | grep 'RULE LIBRARY' >/dev/null \
   && no "(b) a ### entry titled 'Index …' classified the file as a rule library" "an entry title is not a section marker -- the first hit won" \
   || ok "(b) a ### entry titled 'Index …' does not make a file a rule library"
 
 # (c) the section includes its ### children and stops at the next ## -- and control
 OUT=$(printf '# Antifragile\n## Meta-patterns (read these first)\nintro\n### A. Pattern alpha\nalpha body\n### B. Pattern beta\nbeta body\n## Patterns of fragility (numbered entries)\n### 1. Not part of the index\nentry body\n' | lib "$TMP/lib-c")
-if printf '%s' "$OUT" | grep -q 'alpha body' && printf '%s' "$OUT" | grep -q 'beta body'; then
+if printf '%s' "$OUT" | grep 'alpha body' >/dev/null && printf '%s' "$OUT" | grep 'beta body' >/dev/null; then
   ok "(c) the index carries its ### patterns, not just the heading and one sentence"
 else
   no "(c) the index stopped at the first ###" "sessions get the heading and none of the patterns -- 0 of 23 on a live vault"
 fi
-printf '%s' "$OUT" | grep -q 'Not part of the index' \
+printf '%s' "$OUT" | grep 'Not part of the index' >/dev/null \
   && no "(c) control: the index ran past the next ## section" "the section boundary is not being honoured" \
   || ok "(c) control: the index stops at the next ## -- a numbered entry is not swept in"
 

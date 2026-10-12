@@ -40,8 +40,8 @@ echo "── blocked owners, both URL shapes, case-insensitive ──"
 
 echo "── the block message never echoes credentials embedded in the URL ──"
 msg=$("$H" origin "https://user:FAKETOKEN0000@github.com/AcmeCorp/repo.git" 2>&1 >/dev/null)
-printf '%s' "$msg" | grep -q 'FAKETOKEN0000' && no "block message printed the token from the URL" "stderr is logged by routines and pasted into issues" || ok "credentials in the URL are redacted in the message"
-printf '%s' "$msg" | grep -q '<redacted>@github.com' && ok "redaction marker present" || no "redaction marker missing" "the URL should still be recognisable"
+printf '%s' "$msg" | grep 'FAKETOKEN0000' >/dev/null && no "block message printed the token from the URL" "stderr is logged by routines and pasted into issues" || ok "credentials in the URL are redacted in the message"
+printf '%s' "$msg" | grep '<redacted>@github.com' >/dev/null && ok "redaction marker present" || no "redaction marker missing" "the URL should still be recognisable"
 
 echo "── allowed owners, including one that merely CONTAINS a blocked name ──"
 [ "$(run https://github.com/someone/aios.git)" = "0" ]        && ok "unrelated owner → exit 0"          || no "unrelated owner blocked"

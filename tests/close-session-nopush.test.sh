@@ -44,10 +44,10 @@ else
 fi
 
 echo "── the three known sites specifically ──"
-grep -qE 'aios-note-append' "$F" && grep -A6 'aios-note-append' "$F" | grep -q 'AIOS_CLOSE_SESSION_NO_PUSH' \
+grep -qE 'aios-note-append' "$F" && grep -A6 'aios-note-append' "$F" | grep 'AIOS_CLOSE_SESSION_NO_PUSH' >/dev/null \
   && ok "site 1: step 5 aios-note-append (Mode A note block)" \
   || no "site 1 unguarded" "the block commit pushes"
-grep -A3 'aios-commit -m "session: {date} {topic}"' "$F" | grep -q 'AIOS_CLOSE_SESSION_NO_PUSH' \
+grep -A3 'aios-commit -m "session: {date} {topic}"' "$F" | grep 'AIOS_CLOSE_SESSION_NO_PUSH' >/dev/null \
   && ok "site 2: step 10 aios-commit (Mode A observed context)" \
   || no "site 2 unguarded" "this is the one the original contribution missed"
 grep -q 'own scoped work via .*AIOS_CLOSE_SESSION_NO_PUSH' "$F" \

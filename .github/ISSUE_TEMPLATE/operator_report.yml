@@ -1,0 +1,130 @@
+name: Operator report
+description: You hit something while USING the AIOS — a bug, a papercut, a doc that said one thing while the system did another, a missing case. No code needed.
+title: "fix(<scope>): "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. This is the form for operators: you don't need to know which file is wrong, only what you observed.
+
+        - **Class, not incident.** The most useful report names who else would hit this ("every operator who runs two sessions at once"), not only that it happened to you.
+        - **Nothing from your vault.** No names, client or company names, paths into your notes, emails, IDs or screenshots of a real vault. Home paths become `~/...`. If you use the `aios-feedback` agent, it runs `hooks/issue-scrub.py` on the draft and shows you the result before anything is filed.
+        - **Personal preference?** A change only you want belongs in `USER.md` → `## Command personalizations` or in `custom/` (see [CONTRIBUTING.md](https://github.com/The-AIOS/aios/blob/main/CONTRIBUTING.md)), not here.
+        - **Wrong repo?** Panel problems go to [aios-glass](https://github.com/The-AIOS/aios-glass/issues), install and desktop-app problems to [aios-app](https://github.com/The-AIOS/aios-app/issues). Unsure? File here; maintainers route it.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of report is this?
+      options:
+        - Something broke (bug)
+        - Papercut (works, but costs friction every time)
+        - A doc says X and the system does Y
+        - A missing case or capability
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did you see it?
+      description: The surface you were using, not the layer you think is at fault.
+      options:
+        - A /aios command, agent, skill or hook (terminal or any surface)
+        - The AIOS desktop app
+        - AIOS Glass (IDE panel)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran and what the framework did. Paste the framework's own output; leave out your own prompts and notes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: Per the docs, or per how it behaved before.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Repro
+      description: The smallest sequence that shows it. A control (the same steps with one thing changed, working) is worth a paragraph of description.
+      render: shell
+
+  - type: dropdown
+    id: reproduced
+    attributes:
+      label: Reproduced?
+      options:
+        - Reproduced (steps above show it again)
+        - Observed once, not reproduced
+    validations:
+      required: true
+
+  - type: textarea
+    id: class
+    attributes:
+      label: Class
+      description: Who else hits this? One class per report; two unrelated problems are two reports.
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: Optional. How you'd fix it, held loosely; whether it belongs in the framework is the maintainers' call.
+
+  - type: input
+    id: aios-version
+    attributes:
+      label: AIOS version
+      description: The `version` in `plugins/aios/.claude-plugin/plugin.json`, plus the `synced=` line of `.aios-update` if you have one.
+    validations:
+      required: true
+
+  - type: input
+    id: claude-code-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`.
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows (native)
+        - Windows (WSL)
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: App or Glass version (if relevant)
+
+  - type: textarea
+    id: not-in-report
+    attributes:
+      label: Not in this report
+      description: Optional. What you deliberately left out or did not check, so nobody assumes it was covered.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before filing
+      options:
+        - label: I searched open AND closed issues, and the CHANGELOG, for this
+          required: true
+        - label: This report holds nothing from my vault (names, paths into my notes, emails, IDs, secrets)
+          required: true

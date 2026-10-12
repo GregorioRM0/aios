@@ -107,7 +107,7 @@ def main():
 
     email = ""
     try:
-        with open(claude_json) as f:
+        with open(claude_json, encoding="utf-8") as f:
             email = json.load(f).get("oauthAccount", {}).get("emailAddress", "")
     except Exception:
         pass
@@ -197,7 +197,7 @@ def kick_watcher(home: str, worst_pct: float = 0) -> None:
     try:
         # Touch tick marker BEFORE spawn so concurrent statusLine renders
         # see the fresh timestamp and skip.
-        with open(tick_path, "w") as f:
+        with open(tick_path, "w", encoding="utf-8") as f:
             f.write(str(int(now)))
     except OSError:
         pass

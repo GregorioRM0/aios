@@ -71,11 +71,15 @@ Every primitive lets you pick the worker's model — a third decision, orthogona
 
 | Primitive | How to set the model |
 |---|---|
-| **Subagent** (Agent tool) | `model` param (`opus` / `sonnet` / `haiku` / `fable`); `subagent_type` for a specialist. |
+| **Subagent** (Agent tool) | `model` param (`opus` / `sonnet` / `haiku` / `fable`) and `effort` param, **per subagent**; `subagent_type` for a specialist. |
 | **Dynamic workflow** (`agent()`) | `agent(prompt, {model, effort})` **per stage** — cheap model + low `effort` for mechanical stages (grep, transform, sweep); frontier + high/`max` effort for the verify / judge / synthesis stages. Mixing tiers within one workflow is the norm, not the exception. |
-| **Spawn** (via the spawn-inbox) | `"model":"<id>"` **or** `"tier":"<rung>"` in the request JSON → the fulfilling surface passes `--model` / `--tier` to the worker. (Operator-typed: `spawn --model <id>` / `spawn --tier <rung>`.) |
+| **Spawn** (via the spawn-inbox) | `"model":"<id>"` **or** `"tier":"<rung>"` in the request JSON → the fulfilling surface passes `--model` / `--tier` to the worker. (Operator-typed: `spawn --model <id>` / `spawn --tier <rung>`, plus `--effort <level>` and `--advisor <rung\|model>`.) |
 
 **The rung names, the rung→model table, and how to verify an id resolves live in [`MODEL-ROUTING.md`](../../../MODEL-ROUTING.md) — not here.** This skill owns *which primitive* and *where the model goes* for each one; it deliberately does not name the rungs, because a second copy of that vocabulary is a second implementation of a fact that churns. (It used to name them, and went a version stale: it still offered a two-rung choice after the ladder had grown to four. A doc that does not restate a list cannot fall behind it.)
+
+**Effort is the dial to turn first, per unit of work.** Current models reason before every reply, so a cheap stage wants low effort and a verify or synthesis stage wants high, often on the same model. Set it per subagent or per workflow stage, not once for the session.
+
+**One more move: escalate *inside* one worker.** Everything above is the orchestrator shape: a strong model holds the loop and delegates down. The advisor is the inverse: a cheaper worker holds the loop and consults a stronger model at decision points (`spawn --advisor`, or `/advisor` in a session). Reach for it on cheaper rungs doing long work with a few hard calls in it; on the default rung, raise effort instead. When it pays, the consult instruction it needs, and why no rung defaults to one: [`MODEL-ROUTING.md`](../../../MODEL-ROUTING.md) § The advisor.
 
 One lens across all three: *the model is a spend↔quality dial on each unit of delegated work.* Cheap where the work is mechanical, frontier where it's judgment — this is `Calibrate Don't Choose` (operating principles) applied to delegation. Don't pay frontier rates for a file sweep; don't cheap out on a synthesis or a verify pass.
 
@@ -137,6 +141,17 @@ Orientation notes:
 - **The result comes back.** Like a subagent and unlike a `spawn`, a workflow reports completion and returns output to the caller — no sentinels.
 - **Mind the plumbing.** Passing arguments *into* a workflow can be finicky (arguments may not thread cleanly through an external script path); when in doubt, prefer in-workflow constants or explicit parameters over relying on ambient arg-passing, and verify the workflow actually received what you sent.
 
+## Builder ⇄ evaluator — agree what "done" means before the work starts
+
+For any delegated work you will trust without reading every line (a spawned worker, an overnight workflow, a multi-stage build), separate the maker from the checker, and give the checker something better than the original ask to grade against.
+
+1. **Write a `done-means` file before the builder starts.** Granular, testable acceptance criteria, one per line: *"the page loads at 375px with no horizontal scroll"*, not *"looks good on mobile"*. Vague criteria get vague critiques. For a big job, let the builder and the evaluator negotiate the file until both agree, then freeze it.
+2. **The evaluator runs in its own context.** It gets the `done-means` file and the artifact, never the builder's transcript or reasoning: a critic that watched the work being argued for grades it generously. (A subagent or a workflow stage gives you this for free; a follow-up turn in the builder's own session does not.)
+3. **The evaluator uses the artifact.** It opens the page, runs the command, plays the game, reads the sent email as the recipient would. Reading the diff checks what was written, not what it does.
+4. **It grades against the file, criterion by criterion**, and returns pass/fail per line with the evidence. A failed line goes back to the builder as the next task.
+
+It is cheap to tune an evaluator to be harsh; it is very hard to make a builder critical of its own work. When the score is about taste or style, the evaluator should also come from a different model family: [`MODEL-ROUTING.md`](../../../MODEL-ROUTING.md) § Judge independence.
+
 ## Anti-patterns
 
 - **Fan-out with dependencies.** Parallel agents on tasks where B needs A's output → you'll serialize them by hand anyway. That's a workflow (or a single ordered agent), not a fan-out.
@@ -144,6 +159,7 @@ Orientation notes:
 - **Agent calling `spawn` directly.** An agent that runs `spawn <name>` hits Claude's auto-mode classifier gate (silent red-dot "tool use rejected") — and even un-sandboxed, the osascript palette-drive leaks/drops keystrokes. Agents **request via the spawn-inbox** (`~/.aios/spawn-inbox/<name>.json`) or hand the spawn to the operator; blind-calling `spawn` and waiting for a terminal is the silent-failure trap that hyperfrustrated operators.
 - **Reading the inbox directory as "a surface will fulfil this."** It persists forever once created, so an operator who quit their surface has the directory and no watcher — the request is never picked up *and never dead-lettered*, so nothing surfaces the miss. Availability is a **live pid** in `~/.aios/surfaces/*.json`, never a directory that exists.
 - **Assuming one surface.** Glass and the App are two independent implementations of one protocol, so "it works here" is evidence about one of them. Write and reason surface-neutrally; a fix present in one and absent in the other is the expected shape of the bug.
+- **A verifier that inherits the builder's context or traces.** It is not a verifier; it is the builder agreeing with itself. Give the check its own context and a `done-means` file (§ Builder ⇄ evaluator).
 - **Workflow for a one-off single task.** Ceremony without payoff. Rung 1 with a subagent is enough.
 - **Climbing for its own sake.** Reaching rung 3 because it feels thorough. Match the rung to the work's real structure; higher rungs cost setup and comprehension.
 - **Ignoring the operator's presence.** Backgrounding work the operator wanted to watch, or spawning a visible session for work they wanted harvested silently overnight. The presence signal decides the axis.
