@@ -25,18 +25,19 @@ The **GOAL belongs to the caller**: `explainer` (rung 3: the reader understands 
 ## The loop
 
 ```bash
-R="python3 ~/aios/hooks/motion-render.py"; C="python3 ~/aios/hooks/motion-check.py"
-$C contract piece.html                                     # lint against the contract first
-$R frames piece.html --out frames --frames 0,90,180,270    # stills at the shot boundaries
-$R frames piece.html --out frames --all                    # then every frame (a loop renders 0..N-1)
-$R sheet frames --out sheet.png                            # 12 frames on one page: READ it
-$C seam frames ; $C pops frames                            # the cut back to frame 0; one-frame glitches
-$C determinism piece.html --frames 0,84                    # same frame twice, same pixels?
-$C assert piece.html checks.json                           # the brief's numbers, against __probe(t)
-$R onion frames --range 80:92 --out onion.png              # spacing should tighten near the keys
-$R speed piece.html --out speed.png                        # corners = dead starts, straight = linear
-$R export frames --out piece.mp4 [--audio score.wav] [--gif piece.gif --gif-fps 24]
-$C audio piece.mp4 --events hits.json                      # loudness, true peak, hits 1 frame late
+R(){ python3 "$HOME/aios/hooks/motion-render.py" "$@"; }   # functions, not strings: zsh does not
+C(){ python3 "$HOME/aios/hooks/motion-check.py" "$@"; }    # word-split "$R", and ~ does not expand in quotes
+C contract piece.html                                     # lint against the contract first
+R frames piece.html --out frames --frames 0,90,180,270    # stills at the shot boundaries
+R frames piece.html --out frames --all                    # then every frame (a loop renders 0..N-1)
+R sheet frames --out sheet.png                            # 12 frames on one page: READ it
+C seam frames ; C pops frames                            # the cut back to frame 0; one-frame glitches
+C determinism piece.html --frames 0,84                    # same frame twice, same pixels?
+C assert piece.html checks.json                           # the brief's numbers, against __probe(t)
+R onion frames --range 80:92 --out onion.png              # spacing should tighten near the keys
+R speed piece.html --out speed.png                        # corners = dead starts, straight = linear
+R export frames --out piece.mp4 [--audio score.wav] [--gif piece.gif --gif-fps 24]
+C audio piece.mp4 --events hits.json                      # loudness, true peak, hits 1 frame late
 ```
 
 **Look, then write notes that name frames** ("at f84 the ring overshoots past 1.08"), one or two per round; fix; re-render only what changed. Turn feelings into numbers before acting ("make it pop" → scale 1.0 → 1.08 → 1.0 over 6 frames, peak on the beat). Give notes as the problem plus the result you want, not the fix. **Two to four rounds is normal; report the count.**

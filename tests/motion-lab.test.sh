@@ -36,6 +36,15 @@ mutant "no runtime network"     's#window.__ready = true;#fetch("data.json"); wi
 mutant "libraries pinned to a version" 's#<title>#<script src="https://cdn.jsdelivr.net/npm/gsap/dist/gsap.min.js"></script><title>#'
 mutant "only known hosts"       's#<title>#<script src="https://example.com/lib@1.2.3.js"></script><title>#'
 mutant "exposes renderAt(t)"    's#renderAt#drawAt#g'
+# Import maps hide library URLs from an attribute scan (found building a Three.js piece).
+cat > "$T/im.html" <<'HTML'
+<!doctype html><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three/build/three.module.js"}}</script>
+<script type="module">import * as THREE from "three"; window.renderAt = (t) => {};</script>
+HTML
+out=$($PYBIN "$C" contract "$T/im.html" 2>&1)
+case "$out" in *"FAIL libraries pinned to a version"*) ok "an unpinned library inside an import map is caught" ;; *) no "import-map URL not checked" "$out" ;; esac
+sed 's#three/build#three@0.160.0/build#' "$T/im.html" > "$T/im2.html"
+$PYBIN "$C" contract "$T/im2.html" >/dev/null 2>&1 && ok "the same import map, pinned, passes" || no "a pinned import map failed"
 
 echo "── seam + pops (Pillow) ──"
 if $PYBIN -c 'import PIL' 2>/dev/null; then

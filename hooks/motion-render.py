@@ -28,7 +28,9 @@ USAGE
 Frames are written as DIR/frame_00000.png. A loop renders frames 0..N-1 (N = duration*fps): frame
 N would equal frame 0, and rendering it puts a stutter at the seam.
 
-Needs Python Playwright with Chromium, Pillow, and ffmpeg (for export). Each subcommand says which
+Needs Python Playwright with Chromium, Pillow, and ffmpeg (for export). WebGL (Three.js) works in
+the stock headless Chromium through its software renderer, deterministically; no flags needed. Use
+`preserveDrawingBuffer: true` on the WebGL renderer so a screenshot captures the drawn frame. Each subcommand says which
 one is missing instead of failing obscurely. Exit 0 ok · 1 bad input · 2 a dependency is missing.
 """
 import argparse
@@ -283,14 +285,18 @@ def cmd_speed(args):
     finally:
         st.close()
     # per-frame change (speed) of each probed value, normalised per series
-    W, H, pad = 1200, 160 * max(1, len(series)), 30
-    img = Image.new("RGB", (W, H), (20, 20, 20))
-    dr = ImageDraw.Draw(img)
-    csv = ["frame," + ",".join("d_" + k for k in series)]
+    W, pad = 1200, 30
     speeds = {}
     for k, vals in series.items():
         sp = [0.0] + [abs((vals[i] or 0) - (vals[i - 1] or 0)) for i in range(1, n)]
+        if max(sp) == 0:
+            continue  # a constant (a reference value, a fixed slot) has no motion to graph
         speeds[k] = sp
+    if not speeds:
+        die("every probed value is constant: nothing moves, so there is no speed to graph")
+    img = Image.new("RGB", (W, 160 * len(speeds)), (20, 20, 20))
+    dr = ImageDraw.Draw(img)
+    csv = ["frame," + ",".join("d_" + k for k in speeds)]
     for row, (k, sp) in enumerate(speeds.items()):
         top = row * 160
         mx = max(sp) or 1.0
@@ -302,7 +308,7 @@ def cmd_speed(args):
     img.save(args.out)
     with open(os.path.splitext(args.out)[0] + ".csv", "w", encoding="utf-8") as f:
         f.write("\n".join(csv) + "\n")
-    print(json.dumps({"out": args.out, "series": list(series), "frames": n}))
+    print(json.dumps({"out": args.out, "series": list(speeds), "constant_skipped": [k for k in series if k not in speeds], "frames": n}))
 
 
 def cmd_export(args):

@@ -99,6 +99,14 @@ def cmd_contract(a):
     # external resources: only pinned libraries from known CDNs, and fonts
     urls = re.findall(r"""(?:src|href)\s*=\s*["'](https?://[^"']+)["']|from\s+["'](https?://[^"']+)["']|import\s*\(\s*["'](https?://[^"']+)["']""", src)
     urls = [u for t in urls for u in t if u]
+    # Import maps hide their URLs from the attribute scan (`import * as THREE from "three"`).
+    for block in re.findall(r'<script[^>]*type=["\']importmap["\'][^>]*>(.*?)</script>', src, re.S | re.I):
+        try:
+            imports = json.loads(block).get("imports", {})
+        except ValueError:
+            line("FAIL", "import map parses", "the importmap block is not valid JSON")
+            continue
+        urls += [u for u in imports.values() if isinstance(u, str) and u.startswith("http")]
     bad_host = [u for u in urls if not any(h in u for h in ALLOWED_HOSTS)]
     unpinned = [u for u in urls if "fonts.g" not in u and not PINNED.search(u)]
     line("FAIL" if bad_host else "PASS", "only known hosts", ("not allowed: " + bad_host[0]) if bad_host else "%d external url(s)" % len(urls))
