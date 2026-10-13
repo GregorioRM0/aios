@@ -153,9 +153,14 @@ CMD="$(grep -o 'only `.glass/`[^·]*' SETUP.md | grep -o '`git init[^`]*`' | hea
 if [ -z "$CMD" ]; then no "cannot find SETUP's in-place checkout command for an App-made ~/aios" "the .glass/ case must name its command"
 else
   case "$CMD" in *--depth*) no "the in-place checkout is shallow" "a shallow history can be refused when pushed to the private repo" ;; *) ok "the in-place checkout is a full fetch" ;; esac
-  # A local clone of this checkout stands in for GitHub: same .gitignore, a real main branch, no network.
-  SRC="$TMP/upstream.git"; git clone -q --bare "$(cd "$(dirname "$0")/.." && pwd)" "$SRC"
-  git -C "$SRC" symbolic-ref HEAD >/dev/null 2>&1; git -C "$SRC" branch -q -f main HEAD 2>/dev/null
+  # A tiny upstream stands in for GitHub: the framework's real .gitignore on a `main` branch, no
+  # network. Built from scratch, never cloned from this checkout: CI checks out a shallow PR merge
+  # ref with no `main`, which a clone would inherit.
+  U="$TMP/upstream-src"; SRC="$TMP/upstream.git"
+  mkdir -p "$U/plugins/aios"; cp .gitignore "$U/.gitignore"; echo "# AIOS" > "$U/CLAUDE.md"; echo x > "$U/plugins/aios/README.md"
+  git -C "$U" init -q -b main 2>/dev/null || { git -C "$U" init -q; git -C "$U" checkout -q -b main; }
+  git -C "$U" add -A && git -C "$U" -c user.email=t@t -c user.name=t commit -q -m upstream
+  git clone -q --bare "$U" "$SRC"
   A="$TMP/app-aios"; mkdir -p "$A/.glass"; echo '{}' > "$A/.glass/state.json"
   ( cd "$A" && eval "$(printf '%s' "$CMD" | sed "s#https://github.com/The-AIOS/aios.git#$SRC#")" ) >/dev/null 2>&1
   { [ -f "$A/CLAUDE.md" ] && [ -d "$A/plugins/aios" ]; } && ok "the framework is checked out inside the App's folder" || no "in-place checkout failed" "$CMD"
