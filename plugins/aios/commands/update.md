@@ -19,7 +19,7 @@ allowed-tools: >-
 
 Pulls the latest framework from The-AIOS/aios (or whatever upstream is tracked in `.aios-update`) and **auto-applies every change.** Framework infra is **mandatory** — every Tier 1 file is overwritten byte-identical to upstream. If the operator customized one, their version is backed up to `vault/04 - backups/aios-update-{date}/` first, then overwritten + the operator is told what was backed up. Scripts that were updated are **automatically re-executed** (e.g. wrapper installer) so the update lands complete, not just the files. After the replace + execute pass, a **completeness reconcile** (Step 6.5) diffs the vault against canonical HEAD directly — so a desynced tracker self-heals rather than silently orphaning content — and the tracker advances only on a clean, fully-applied run. Duplicate cleanup is **opt-in** (`--cleanup`, report-first); it's after-migration scaffolding, off the default path.
 
-Read the framework upstream URL from `.aios-update` (`repo=` field). If `.aios-update` doesn't exist OR is missing the `repo=` field, default to `git@github.com:The-AIOS/aios.git` and ask the operator once to confirm. Also read `USER.md` → `### /aios:update` for command personalizations (if any).
+Read the framework upstream URL from `.aios-update` (`repo=` field). If `.aios-update` doesn't exist OR is missing the `repo=` field, default to `https://github.com/The-AIOS/aios.git` and ask the operator once to confirm. Also read `USER.md` → `### /aios:update` for command personalizations (if any).
 
 > ⚠️ **Operator-personal files are NEVER overwritten.** Hard denylist (Tier 2 — see below): `USER.md`, `INTENT.md`, and any other `{IDENTITY}.md` at repo root (e.g. session-specific identity files), everything under `vault/00 - notes/{context,projects,ideas,reflections,logs}/`, everything under `vault/01 - calendar/`, `vault/02 - assets/`, `vault/03 - export/`, `vault/04 - backups/`, all `{layer}/custom/` folders, all `{layer}/<company>/` folders, `.aios-update`, `.claude/` (operator's per-machine Claude Code config), `vault/.obsidian/workspace.json` (operator's per-machine Obsidian UI state). Framework infra wins on its files; operator content wins on theirs.
 
@@ -267,7 +267,7 @@ ref={optional: a branch other than the default this vault is testing}
 
 **Stamping `synced=` on a clean no-op is the whole point, not bookkeeping.** A successful check is real information: it says *this vault matched canonical today*. Advancing the date only when canonical happens to ship makes `synced=` a **last-applied** date while every reader — the operator, a surface, any status UI — reads it as **last-checked**. On every day upstream ships nothing, the date goes one day staler with no action available to clear it, and nothing about that is visible as a defect. *(Measured 2026-09-15: a clean run reported "current", exited before the tracker write, and left the date reading the previous day.)*
 
-If the file doesn't exist, create it with `repo=git@github.com:The-AIOS/aios.git` and ask the operator once to confirm. Set `hash=initial` (forces full comparison on first run).
+If the file doesn't exist, create it with `repo=https://github.com/The-AIOS/aios.git` and ask the operator once to confirm. Set `hash=initial` (forces full comparison on first run).
 
 ## Steps
 
