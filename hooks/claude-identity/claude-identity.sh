@@ -175,7 +175,7 @@ else
   CLAUDE_JSON="$HOME/.claude.json"
 fi
 IDENTITIES_DIR="$CONFIG_DIR/identities"
-# The Keychain item. AIOS_KEYCHAIN_SERVICE overrides it (the test suite points it at a
+# The Keychain item. The variable read on the next line overrides it (the test suite points it at a
 # throwaway service: running test-identity-cycle.sh once overwrote a live credential
 # with the string `not json at all`, 2026-08-14). Empty here means "derive it the way
 # Claude Code does" -- done in the credential-backend block, once a Python is found.
