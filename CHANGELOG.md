@@ -81,7 +81,7 @@
 
 ## 2026-10-13 — Adding an account from an isolated config dir saves that account
 
-`hash: `
+`hash: ` · [#213](https://github.com/The-AIOS/aios/pull/213)
 
 > **What you can now do.** Add another Anthropic account on macOS the documented way, logging it in with `CLAUDE_CONFIG_DIR` set and capturing from there, and have that account's own credential saved under its email.
 
