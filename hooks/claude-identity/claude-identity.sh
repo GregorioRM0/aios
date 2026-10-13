@@ -66,6 +66,12 @@
 #
 #   CLAUDE_CONFIG_DIR=~/.claude-acct-2 claude    # /login as account 2, then /exit
 #   CLAUDE_CONFIG_DIR=~/.claude-acct-2 claude-switch --capture
+#   cp -Rp ~/.claude-acct-2/identities/<email> ~/.claude/identities/
+#
+# With CLAUDE_CONFIG_DIR set, Claude Code on macOS keeps that login in its OWN
+# Keychain item (see keychain_service_default below), and --capture reads that
+# item. The identity lands in the isolated dir's identities/, while the rotation
+# reads ~/.claude/identities/ -- hence the copy.
 #
 # Step 4 — wire the cache writer to the statusLine command. The statusline
 # is the ONLY Claude Code surface that receives rate_limits on stdin (Stop
@@ -169,13 +175,11 @@ else
   CLAUDE_JSON="$HOME/.claude.json"
 fi
 IDENTITIES_DIR="$CONFIG_DIR/identities"
-# Overridable ONLY so the test suite can point at a throwaway service. The default is
-# byte-identical to the constant this replaced, so every operator's keychain entry is
-# unchanged. This exists because test-identity-cycle.sh claimed "never touches the
-# operator's real credentials" while CLAUDE_CONFIG_DIR does not scope the Keychain at
-# all — true on the file backend it was written against, false on macOS, where running
-# it overwrote a live credential with the string `not json at all` (2026-08-14).
-KEYCHAIN_SERVICE="${AIOS_KEYCHAIN_SERVICE:-Claude Code-credentials}"
+# The Keychain item. AIOS_KEYCHAIN_SERVICE overrides it (the test suite points it at a
+# throwaway service: running test-identity-cycle.sh once overwrote a live credential
+# with the string `not json at all`, 2026-08-14). Empty here means "derive it the way
+# Claude Code does" -- done in the credential-backend block, once a Python is found.
+KEYCHAIN_SERVICE="${AIOS_KEYCHAIN_SERVICE:-}"
 CACHE_FILE="$CONFIG_DIR/rate-limit-cache.json"
 WATCH_LOG="$CONFIG_DIR/quota-watch.log"
 SWAP_LOG="$CONFIG_DIR/swap-log.jsonl"
@@ -234,6 +238,30 @@ case "$(uname -s)" in
   *)      CRED_BACKEND="file" ;;
 esac
 CRED_FILE="$CONFIG_DIR/.credentials.json"
+
+# Claude Code names its Keychain item after the config dir. Measured against 2.1.296:
+# with CLAUDE_CONFIG_DIR unset (or empty) the item is `Claude Code-credentials`; with
+# it set, `Claude Code-credentials-` + the first 8 hex of sha256(the dir, NFC). When
+# CLAUDE_SECURESTORAGE_CONFIG_DIR is set it replaces CLAUDE_CONFIG_DIR in that rule.
+# Reading the unsuffixed item regardless is how `--capture` from an isolated config
+# dir saved the ACTIVE account's credential under the new account's email, with no
+# error: every switch to that account then logged in as the other one.
+keychain_service_default() {
+  local base="Claude Code-credentials" dir
+  if [ -n "${CLAUDE_SECURESTORAGE_CONFIG_DIR+x}" ]; then
+    dir="$CLAUDE_SECURESTORAGE_CONFIG_DIR"
+  else
+    dir="${CLAUDE_CONFIG_DIR:-}"
+  fi
+  if [ -z "$dir" ]; then printf '%s' "$base"; return 0; fi
+  local h
+  h=$($PY -c 'import hashlib,sys,unicodedata; print(hashlib.sha256(unicodedata.normalize("NFC", sys.argv[1]).encode("utf-8")).hexdigest()[:8])' "$dir") \
+    && [ ${#h} -eq 8 ] || die "could not derive the Keychain item for $dir"
+  printf '%s-%s' "$base" "$h"
+}
+if [ -z "${KEYCHAIN_SERVICE:-}" ]; then
+  KEYCHAIN_SERVICE=$(keychain_service_default) || exit 1
+fi
 
 # ---- path form (Windows / Git Bash) -----------------------------------------
 # Under Git Bash $HOME is a POSIX path (/c/Users/you), and the helpers below embed
@@ -330,7 +358,7 @@ print(d.get('oauthAccount', {}).get('emailAddress', ''))
 }
 
 capture_current() {
-  local email="$1"
+  local email="$1" guard="${2:-}"
   [ -n "$email" ] || die "capture_current: no email"
   local dir="$IDENTITIES_DIR/$email"
   mkdir -p "$dir"
@@ -339,6 +367,59 @@ capture_current() {
   local blob
   blob=$(cred_read) || \
     die "could not read $(cred_source). Is this account fully logged in to Claude Code?"
+  # An explicit --capture never saves, under this email, a credential that is already
+  # saved under ANOTHER one: it means the store read is not this account's (a wrong
+  # Keychain item, an override left set), and saving it would make every later switch
+  # to $email log in as the other account. Compared by refresh token, else by the
+  # whole blob, against this config dir's identities AND the default ones -- capturing
+  # from an isolated dir, the account it could be confused with is saved in the
+  # default dir. If the credential ALSO matches $email's own saved identity, this is a
+  # re-capture of the same account and the other copy is the stale one: it warns and
+  # goes on. Rotation captures (switch saving the outgoing seat) skip the check, so a
+  # copy left by an earlier bad capture cannot stop the autopilot. An identity file
+  # that exists but cannot be read stops the capture: skipping it could miss the twin.
+  if [ "$guard" = guard ]; then
+    local verdict
+    verdict=$(printf '%s' "$blob" | $PY -c '
+import json, os, sys
+me, dirs = sys.argv[1].lower(), sys.argv[2:]
+raw = sys.stdin.read()
+def key(text):
+    try:
+        t = (json.loads(text).get("claudeAiOauth") or {}).get("refreshToken")
+    except Exception:
+        t = None
+    return ("rt", t) if t else ("blob", text.strip())
+k = key(raw)
+own, twins = False, []
+for ids in dict.fromkeys(dirs):
+    if not os.path.isdir(ids):
+        continue
+    for name in sorted(os.listdir(ids)):
+        f = os.path.join(ids, name, "keychain.json")
+        try:
+            with open(f, encoding="utf-8") as h:
+                other = h.read()
+        except FileNotFoundError:
+            continue
+        except OSError as e:
+            sys.stderr.write("cannot read %s: %s\n" % (f, e))
+            sys.exit(3)
+        if key(other) != k:
+            continue
+        if name.lower() == me:
+            own = True
+        else:
+            twins.append(name)
+print(("same " if own else "other ") + ",".join(sorted(set(twins))) if twins else "")
+' "$email" "$IDENTITIES_DIR" "$HOME/.claude/identities") \
+      || die "could not compare the credential with the saved identities. Nothing was saved."
+    case "$verdict" in
+      "") ;;
+      same\ *) echo "${YELLOW}warning:${RESET} ${verdict#same } also hold(s) $email's credential -- capture that account again." >&2 ;;
+      *) die "the credential in $(cred_source) is already saved as ${verdict#other }, so it is not $email's. Nothing was saved. If $email logged in with CLAUDE_CONFIG_DIR set, capture with that same CLAUDE_CONFIG_DIR." ;;
+    esac
+  fi
   printf '%s' "$blob" > "$dir/keychain.json"
   chmod 600 "$dir/keychain.json"
 
@@ -353,6 +434,10 @@ PY
   chmod 600 "$dir/oauthAccount.json" "$dir/userID.txt"
 
   echo "${GREEN}✓${RESET} captured identity ${BOLD}$email${RESET} → $dir"
+  if [ "$IDENTITIES_DIR" != "$HOME/.claude/identities" ]; then
+    echo "${DIM}The rotation reads ~/.claude/identities unless it runs with this CLAUDE_CONFIG_DIR. To add $email to it:${RESET}"
+    echo "  cp -Rp \"$dir\" \"$HOME/.claude/identities/\""
+  fi
 }
 
 restore_identity() {
@@ -464,10 +549,10 @@ PYEOF
 # clean up (a stale lock would silently switch rotation off). Non-blocking: a
 # contender exits 75 (EX_TEMPFAIL) at once and changes nothing.
 #
-# On macOS the credential is ONE Keychain item per user whatever
-# CLAUDE_CONFIG_DIR says, so the lock lives in the default config dir there; on
-# the file backend the credential is per config dir, and so is the lock. The
-# Keychain lock is named after the item it guards.
+# On macOS the credential is a Keychain item named after the config dir (see
+# keychain_service_default), so the lock lives in the default config dir and is
+# named after the item it guards; on the file backend the credential is per
+# config dir, and so is the lock.
 SEAT_BUSY=75
 # Lock, generation and pending marker share one base path. _fs.seat_state_base()
 # computes the same path for the Python side.
@@ -603,7 +688,7 @@ USAGE
     [ ! -e "$SEAT_STATE.pending" ] || die "a previous switch was interrupted, so the live credential may not match $CLAUDE_JSON. Finish it with 'claude-switch <email>' (or /login), then capture."
     local cur; cur=$(current_email)
     [ -n "$cur" ] || die "could not detect current account from $CLAUDE_JSON"
-    capture_current "$cur"
+    capture_current "$cur" guard
     return 0
   fi
 
