@@ -107,5 +107,61 @@ PY
   [ -z "$missing" ] && ok "$plat: all commands match SETUP §10 verbatim" || no "$plat: commands SETUP does not print" "$missing"
 done
 
+echo "── a missing hook file is a no-op, never a block (exit 2 = BLOCK in Claude Code) ──"
+# Every hook command the installer writes and every one SETUP §10 prints, run with a HOME that has
+# no aios/ at all (the framework moved or a hook was renamed): none may exit 2.
+E="$T/empty-home"; mkdir -p "$E"
+CMDS="$T/cmds.txt"
+$PYBIN - "$H" "$ROOT/SETUP.md" > "$CMDS" <<'PY'
+import importlib.util, json, re, sys
+spec = importlib.util.spec_from_file_location("ins", sys.argv[1]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+for plat in ("posix", "windows"):
+    for row in m.plan(plat, "/nonexistent/aios", True)[0]:
+        print(row[3])
+for lit in re.findall(r'"command":\s*("(?:[^"\\]|\\.)*")', open(sys.argv[2], encoding="utf-8").read()):
+    c = json.loads(lit)
+    if "hooks/" in c and "claude-identity.sh" not in c:
+        print(c)
+PY
+n=0; bad=""; unguarded=""
+while IFS= read -r c; do
+  [ -n "$c" ] || continue; n=$((n+1))
+  case "$c" in "[ ! -f "*) ;; *) unguarded="$unguarded | $c";; esac
+  HOME="$E" bash -c "$c" </dev/null >/dev/null 2>&1; rc=$?
+  [ "$rc" = 2 ] && bad="$bad | $c"
+done < "$CMDS"
+[ "$n" -ge 20 ] && ok "checked $n registered hook commands (installer, both platforms, + SETUP §10)" || no "only $n commands found" "the extraction is too narrow to be a real check"
+[ -z "$unguarded" ] && ok "every one is guarded with [ ! -f FILE ] ||" || no "unguarded hook commands" "$unguarded"
+[ -z "$bad" ] && ok "none exits 2 when its file is missing" || no "hook commands that BLOCK on a missing file" "$bad"
+# Controls: the unguarded form really does exit 2 (so the check above can fail), and a PRESENT hook
+# that means to block still blocks through the guard.
+HOME="$E" bash -c 'python3 ~/aios/hooks/provenance.py --prompt' </dev/null >/dev/null 2>&1; rc=$?
+[ "$rc" = 2 ] && ok "control: the bare form exits 2 on a missing file" || no "control: bare form exited $rc" "the no-block check could not have failed"
+mkdir -p "$E/aios/hooks"; printf 'import sys\nsys.exit(2)\n' > "$E/aios/hooks/provenance.py"
+G=$($PYBIN -c "import importlib.util as u;s=u.spec_from_file_location('i','$H');m=u.module_from_spec(s);s.loader.exec_module(m);print(m.guard('python3 ~/aios/hooks/provenance.py --prompt'))")
+HOME="$E" bash -c "$G" </dev/null >/dev/null 2>&1; rc=$?
+[ "$rc" = 2 ] && ok "control: a present hook keeps its own exit code through the guard" || no "the guard swallowed a real block (exit $rc)"
+
+echo "── existing installs: bare AIOS hooks are wrapped in place, the rest untouched ──"
+S="$T/legacy.json"
+cat > "$S" <<'JSON'
+{"model":"opus","hooks":{
+ "UserPromptSubmit":[{"hooks":[{"type":"command","command":"bash ~/aios/hooks/inject-datetime.sh"},{"type":"command","command":"python3 ~/aios/hooks/provenance.py --prompt","timeout":10}]}],
+ "PreToolUse":[{"matcher":"Edit|Write|MultiEdit|NotebookEdit","hooks":[{"type":"command","command":"python3 \"$HOME/aios/hooks/guard-venture-mount.py\"","timeout":10}]},{"matcher":"Bash","hooks":[{"type":"command","command":"python3 /opt/mine/check.py"}]}]}}
+JSON
+out=$(run --platform posix)
+case "$out" in *"~ guard A"*"~ guard C"*"~ guard D"*) ok "dry run lists the guards it would add (A, C, D)" ;; *) no "dry run did not list the guards" "$out" ;; esac
+run --platform posix --apply >/dev/null
+$PYBIN - "$S" <<'PY' && ok "bare hooks wrapped with their own path spelling; an operator's own hook untouched" || no "migration wrong" "$(cat "$S")"
+import json, sys
+s = json.load(open(sys.argv[1])); cmds = [h["command"] for gs in s["hooks"].values() for g in gs for h in g["hooks"]]
+assert '[ ! -f "$HOME/aios/hooks/guard-venture-mount.py" ] || python3 "$HOME/aios/hooks/guard-venture-mount.py"' in cmds, cmds
+assert "[ ! -f ~/aios/hooks/provenance.py ] || python3 ~/aios/hooks/provenance.py --prompt" in cmds, cmds
+assert "python3 /opt/mine/check.py" in cmds, cmds
+assert s["model"] == "opus"
+PY
+out=$(run --platform posix)
+case "$out" in *"Nothing to change."*) ok "a second run changes nothing" ;; *) no "second run still wants changes" "$out" ;; esac
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

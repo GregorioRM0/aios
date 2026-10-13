@@ -146,5 +146,32 @@ else
   done
 fi
 
+echo "-- 4. an App-made ~/aios holding only .glass/ is checked out in place, not refused --"
+# The App creates ~/aios with its own .glass/ state, and `git clone .` refuses a non-empty folder.
+# Run SETUP's own in-place command (pointed at this checkout instead of GitHub) in such a folder.
+CMD="$(grep -o 'only `.glass/`[^·]*' SETUP.md | grep -o '`git init[^`]*`' | head -1 | tr -d '`')"
+if [ -z "$CMD" ]; then no "cannot find SETUP's in-place checkout command for an App-made ~/aios" "the .glass/ case must name its command"
+else
+  case "$CMD" in *--depth*) no "the in-place checkout is shallow" "a shallow history can be refused when pushed to the private repo" ;; *) ok "the in-place checkout is a full fetch" ;; esac
+  # A tiny upstream stands in for GitHub: the framework's real .gitignore on a `main` branch, no
+  # network. Built from scratch, never cloned from this checkout: CI checks out a shallow PR merge
+  # ref with no `main`, which a clone would inherit.
+  U="$TMP/upstream-src"; SRC="$TMP/upstream.git"
+  mkdir -p "$U/plugins/aios"; cp .gitignore "$U/.gitignore"; echo "# AIOS" > "$U/CLAUDE.md"; echo x > "$U/plugins/aios/README.md"
+  git -C "$U" init -q -b main 2>/dev/null || { git -C "$U" init -q; git -C "$U" checkout -q -b main; }
+  git -C "$U" add -A && git -C "$U" -c user.email=t@t -c user.name=t commit -q -m upstream
+  git clone -q --bare "$U" "$SRC"
+  A="$TMP/app-aios"; mkdir -p "$A/.glass"; echo '{}' > "$A/.glass/state.json"
+  ( cd "$A" && eval "$(printf '%s' "$CMD" | sed "s#https://github.com/The-AIOS/aios.git#$SRC#")" ) >/dev/null 2>&1
+  { [ -f "$A/CLAUDE.md" ] && [ -d "$A/plugins/aios" ]; } && ok "the framework is checked out inside the App's folder" || no "in-place checkout failed" "$CMD"
+  [ -f "$A/.glass/state.json" ] && ok "the App's .glass/ state survives" || no ".glass/ was lost"
+  [ -z "$(git -C "$A" status --porcelain 2>/dev/null)" ] && ok ".glass/ is ignored: the checkout is clean" || no "the checkout is dirty" "$(git -C "$A" status --porcelain | head -3)"
+fi
+
+echo "-- 5. a renamed repo's old name is not taken silently; the tracker reads over HTTPS --"
+grep -q 'gh repo view "\$u/aios" --json name -q .name' SETUP.md && ok "step 2 asks GitHub which name 'aios' resolves to" || no "no redirect check before gh repo create" "a new aios would break a renamed repo's old links"
+grep -q "^   printf 'repo=https://github.com/The-AIOS/aios.git" SETUP.md && ok "setup writes the tracker over HTTPS" || no "the tracker is not HTTPS" "a machine with no SSH key pays a failed SSH attempt on every check"
+grep -q 'git@github.com:The-AIOS/aios' plugins/aios/commands/update.md && no "update.md still defaults to SSH" "" || ok "update.md defaults to HTTPS"
+
 echo; echo "-- $PASS passed, $FAIL failed --"
 [ "$FAIL" -eq 0 ]
