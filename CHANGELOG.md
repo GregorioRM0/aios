@@ -81,7 +81,7 @@
 
 ## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
 
-`hash: d4099d0 · 1d2168a · 1d02c27`
+`hash: d4099d0 · 1d2168a · 1d02c27 · dfbdcd2`
 
 > **What you can now do.** Move or rename your AIOS folder, or update past a renamed hook, without Claude Code refusing every message. Report something about AIOS and have the session tell you first whether it is a personal setting, an issue, a pull request or a company-repo change.
 
@@ -89,7 +89,7 @@
 
 **`aios-feedback` triages before it files.** It reads `CONTRIBUTING.md` and says first whether what you bring is a personal setting (`USER.md` or `custom/`), an issue, a fix you built that belongs in a pull request, or team-scoped infra for a company repo, and only files an issue when an issue is the right form.
 
-**Setup from the AIOS App:** if you skipped GitHub in the App, setup no longer asks again or points at an App button that is gone. It keeps the vault on this computer and says once how to add the backup later.
+**Setup from the AIOS App:** setup now checks the framework out inside the folder the App created, instead of stopping because the App's own `.glass/` folder is already there. If you skipped GitHub in the App, setup no longer asks again; it keeps the vault on this computer and says once how to add the backup later. Before creating your private `aios` repo it checks the name is not the old name of a repo you renamed, which would break that repo's links. New installs check for updates over HTTPS, so no SSH key is needed.
 
 **Action required** — check first; do only what applies:
 1. **Guard the hooks you already have.** `/aios:update` runs `python3 ~/aios/hooks/install-settings.py` (Windows: `python` or `py -3`) and reads you what it prints. `~ guard` lines wrap an existing hook so a missing file is skipped. If it lists any, it runs again with `--apply`; it writes only `~/.claude/settings.json` and a backup beside it. If it says nothing to change, skip this.
