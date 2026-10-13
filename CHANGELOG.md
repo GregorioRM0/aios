@@ -79,6 +79,22 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
+
+`hash: d4099d0 · 1d2168a · 1d02c27`
+
+> **What you can now do.** Move or rename your AIOS folder, or update past a renamed hook, without Claude Code refusing every message. Report something about AIOS and have the session tell you first whether it is a personal setting, an issue, a pull request or a company-repo change.
+
+**A missing hook file is skipped, never a block.** Claude Code treats a hook that exits with code 2 as a refusal, and Python exits 2 when the file it was told to run is missing. So if your AIOS folder moved, or a release renamed a hook, every prompt and every tool call was refused, including in the session that could fix it. Every hook is now written `[ ! -f <hook file> ] || <command>`: a missing file does nothing, and a hook that is there still works and can still block when it means to. Existing installs are fixed in place by `install-settings.py`, which keeps your own paths.
+
+**`aios-feedback` triages before it files.** It reads `CONTRIBUTING.md` and says first whether what you bring is a personal setting (`USER.md` or `custom/`), an issue, a fix you built that belongs in a pull request, or team-scoped infra for a company repo, and only files an issue when an issue is the right form.
+
+**Setup from the AIOS App:** if you skipped GitHub in the App, setup no longer asks again or points at an App button that is gone. It keeps the vault on this computer and says once how to add the backup later.
+
+**Action required** — check first; do only what applies:
+1. **Guard the hooks you already have.** `/aios:update` runs `python3 ~/aios/hooks/install-settings.py` (Windows: `python` or `py -3`) and reads you what it prints. `~ guard` lines wrap an existing hook so a missing file is skipped. If it lists any, it runs again with `--apply`; it writes only `~/.claude/settings.json` and a backup beside it. If it says nothing to change, skip this.
+2. **Start a new Claude session** after updating, so the guarded hooks load.
+
 ## 2026-10-11 — Every session starts knowing what you decided, four new agents, videos you can direct, and no JSON at setup
 
 `hash: 23e868a · e1bb869 · f0b76b3 · 9195f02 · e0ccc43 · 24b0abf · 34df84b · 4f7b35b · 2c0e0ca · f9b258f · 17cb753 · e0410d5 · 74b0471 · a6b4c14 · 22dca6f · d45339a · c016a19 · 0e17dcf · af91491 · 2a25e4a · fd3b676 · 2fdf7e7 · 48d3fbd · 33c35e4 · 524cd36 · ce4fa90 · b2a7900 · 9c73d0b · 739aba9 · d14bf88 · 669c880 · ca49905 · 0e57f4d · c52e72e · 5e716fb · a5cecaf · dd780df · 2fae78f · 2164418 · 3a09130 · c93a900 · 6963dbe · f309cb7 · 5583417 · a72f2d9 · e887bfb · 9bf5f34 · ff3cfe2 · 49be6c2 · 9fb9091 · a657cd0 · 5afbae2 · 7e4c1ef` · [#204](https://github.com/The-AIOS/aios/pull/204) · [#205](https://github.com/The-AIOS/aios/pull/205) · [#206](https://github.com/The-AIOS/aios/pull/206) · [#207](https://github.com/The-AIOS/aios/pull/207) · [#208](https://github.com/The-AIOS/aios/pull/208)
