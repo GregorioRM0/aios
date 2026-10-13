@@ -319,7 +319,7 @@ Claude reads this file and walks you through the full onboarding — clone → i
 > - **the model-switch log**: a note when a session is moved to another model, so you know which model did the work;
 > - **the status line**: how full the session's memory is, at the bottom of the screen.
 >
-> They run on your computer and send nothing anywhere. Your previous settings file is kept beside the new one, so undoing it is copying one file back.
+> They run on your computer and send nothing anywhere. Your previous settings file is kept beside the new one, so undoing it is copying one file back. Each one is written as `[ ! -f <hook file> ] || <command>`: if the framework folder ever moves or a hook is renamed, that hook is simply skipped, instead of Claude Code reading the missing file as a refusal and blocking every message.
 
 **The end-to-end flow:**
 
@@ -532,7 +532,7 @@ Add to `~/.claude/settings.json`:
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "bash ~/aios/hooks/inject-datetime.sh" }
+          { "type": "command", "command": "[ ! -f ~/aios/hooks/inject-datetime.sh ] || bash ~/aios/hooks/inject-datetime.sh" }
         ]
       }
     ]
@@ -562,7 +562,7 @@ Windows operators: see **On Windows** at the end of this section.
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
-          { "type": "command", "command": "python3 ~/aios/hooks/guard-venture-mount.py", "timeout": 10 }
+          { "type": "command", "command": "[ ! -f ~/aios/hooks/guard-venture-mount.py ] || python3 ~/aios/hooks/guard-venture-mount.py", "timeout": 10 }
         ]
       }
     ]
@@ -578,15 +578,15 @@ Merge `PreToolUse` alongside your existing `UserPromptSubmit` array — don't re
 {
   "hooks": {
     "UserPromptSubmit": [
-      { "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/provenance.py --prompt", "timeout": 10 } ] }
+      { "hooks": [ { "type": "command", "command": "[ ! -f ~/aios/hooks/provenance.py ] || python3 ~/aios/hooks/provenance.py --prompt", "timeout": 10 } ] }
     ],
     "PreToolUse": [
-      { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/bus_log.py --hook", "timeout": 10 } ] }
+      { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "[ ! -f ~/aios/hooks/bus_log.py ] || python3 ~/aios/hooks/bus_log.py --hook", "timeout": 10 } ] }
     ],
     "PostToolUse": [
       {
         "matcher": "mcp__forum__.*|mcp__google-workspace__.*|mcp__claude_ai_.*|mcp__slack__.*|mcp__atlassian__.*|mcp__claude-in-chrome__.*|mcp__notebooklm.*|WebFetch|WebSearch",
-        "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/provenance.py --tool", "timeout": 10 } ]
+        "hooks": [ { "type": "command", "command": "[ ! -f ~/aios/hooks/provenance.py ] || python3 ~/aios/hooks/provenance.py --tool", "timeout": 10 } ]
       }
     ]
   }
@@ -601,7 +601,7 @@ Labels **inform** the model; they are not a lock. A send, create or share return
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/floor-at-start.py", "timeout": 60 } ] }
+      { "hooks": [ { "type": "command", "command": "[ ! -f ~/aios/hooks/floor-at-start.py ] || python3 ~/aios/hooks/floor-at-start.py", "timeout": 60 } ] }
     ]
   }
 }
@@ -613,7 +613,7 @@ Labels **inform** the model; they are not a lock. A send, create or share return
 {
   "hooks": {
     "PostModelSwitch": [
-      { "hooks": [ { "type": "command", "command": "python3 ~/aios/hooks/model-switch-log.py", "timeout": 10 } ] }
+      { "hooks": [ { "type": "command", "command": "[ ! -f ~/aios/hooks/model-switch-log.py ] || python3 ~/aios/hooks/model-switch-log.py", "timeout": 10 } ] }
     ]
   }
 }
@@ -635,27 +635,27 @@ Write **absolute paths with forward slashes** (resolve them once with `cygpath -
 {
   "hooks": {
     "UserPromptSubmit": [
-      { "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/<you>/aios/hooks/inject-datetime.ps1\"" } ] },
-      { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/provenance.py\" --prompt", "timeout": 10 } ] }
+      { "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/inject-datetime.ps1\" ] || powershell -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/<you>/aios/hooks/inject-datetime.ps1\"" } ] },
+      { "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/provenance.py\" ] || python \"C:/Users/<you>/aios/hooks/provenance.py\" --prompt", "timeout": 10 } ] }
     ],
     "PreToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit|NotebookEdit",
-        "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/guard-venture-mount.py\"", "timeout": 10 } ]
+        "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/guard-venture-mount.py\" ] || python \"C:/Users/<you>/aios/hooks/guard-venture-mount.py\"", "timeout": 10 } ]
       },
-      { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/bus_log.py\" --hook", "timeout": 10 } ] }
+      { "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/bus_log.py\" ] || python \"C:/Users/<you>/aios/hooks/bus_log.py\" --hook", "timeout": 10 } ] }
     ],
     "PostToolUse": [
       {
         "matcher": "mcp__forum__.*|mcp__google-workspace__.*|mcp__claude_ai_.*|mcp__slack__.*|mcp__atlassian__.*|mcp__claude-in-chrome__.*|mcp__notebooklm.*|WebFetch|WebSearch",
-        "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/provenance.py\" --tool", "timeout": 10 } ]
+        "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/provenance.py\" ] || python \"C:/Users/<you>/aios/hooks/provenance.py\" --tool", "timeout": 10 } ]
       }
     ],
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/floor-at-start.py\"", "timeout": 60 } ] }
+      { "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/floor-at-start.py\" ] || python \"C:/Users/<you>/aios/hooks/floor-at-start.py\"", "timeout": 60 } ] }
     ],
     "PostModelSwitch": [
-      { "hooks": [ { "type": "command", "command": "python \"C:/Users/<you>/aios/hooks/model-switch-log.py\"", "timeout": 10 } ] }
+      { "hooks": [ { "type": "command", "command": "[ ! -f \"C:/Users/<you>/aios/hooks/model-switch-log.py\" ] || python \"C:/Users/<you>/aios/hooks/model-switch-log.py\"", "timeout": 10 } ] }
     ]
   },
   "statusLine": {

@@ -32,6 +32,7 @@ import datetime
 import glob
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -56,6 +57,24 @@ def windows_python():
         except (OSError, subprocess.TimeoutExpired):
             continue
     return "python"
+
+
+# A hook command that names a missing file must be a no-op, never a block. Claude Code reads exit 2
+# from a hook as BLOCK, and `python3 missing.py` exits 2 ("can't open file") -- so when ~/aios moves,
+# is renamed, or a release renames a hook, every prompt and every tool call is refused, including in
+# the session that could repair it. `[ ! -f FILE ] || CMD` exits 0 when FILE is missing and CMD's own
+# code when it is present, so a hook that means to block still can. Hook commands run through a POSIX
+# shell on every platform (Git Bash on Windows), so one form serves both.
+SCRIPT = re.compile(r'("[^"]*?hooks/[^"]+?\.(?:py|sh|ps1)"|[^\s"\']*hooks/[^\s"\']+?\.(?:py|sh|ps1))')
+GUARDED = re.compile(r"^\s*\[\s+!\s+-f\s")
+
+
+def guard(cmd):
+    """`[ ! -f <script> ] || <cmd>`, using the script path exactly as the command spells it."""
+    if GUARDED.match(cmd):
+        return cmd
+    m = SCRIPT.search(cmd)
+    return "[ ! -f %s ] || %s" % (m.group(1), cmd) if m else cmd
 
 
 def plan(platform, root, venture_guard):
@@ -91,6 +110,7 @@ def plan(platform, root, venture_guard):
                          "python3 ~/aios/hooks/guard-venture-mount.py", 10))
         status = ("bash -c 'tee >($HOME/aios/hooks/claude-identity/claude-identity.sh cache > /dev/null) | "
                   "python3 $HOME/aios/hooks/claude-identity/context-monitor.py'")
+    rows = [(k, ev, mt, guard(cmd), to) for k, ev, mt, cmd, to in rows]
     return rows, status
 
 
@@ -185,6 +205,17 @@ def main():
     adds, keeps = [], []
     for key, event, matcher, cmd, timeout in rows:
         (keeps if present(settings, event, cmd) else adds).append((key, event, matcher, cmd, timeout))
+    # Existing AIOS hooks registered before the guard (a bare `python3 .../hooks/X.py`): wrapped in
+    # place, keeping the operator's own interpreter and path, so an update fixes installs it did not write.
+    # Every hook AIOS can register, the venture guard included, even when this vault does not plan it.
+    wanted = {signature(cmd): key for key, _, _, cmd, _ in plan(platform, ROOT, True)[0]}
+    upgrades = []
+    for event, groups in (settings.get("hooks") or {}).items():
+        for group in groups or []:
+            for hk in group.get("hooks", []) or []:
+                cmd = str(hk.get("command", ""))
+                if signature(cmd) in wanted and not GUARDED.match(cmd) and guard(cmd) != cmd:
+                    upgrades.append((wanted[signature(cmd)], hk))
     status_add = "statusLine" not in settings
     status_note = None
     # Quotes stripped: the Windows form quotes the script path (claude-identity.sh" cache).
@@ -206,11 +237,13 @@ def main():
         print("  = keep  B  already set up")
     if status_note:
         print("  ! note  B  " + status_note)
+    for key in sorted({k for k, _ in upgrades}):
+        print("  ~ guard %s  a missing hook file is skipped instead of blocking every prompt" % key)
     if not venture_guard:
         print("  - later C  the venture guard is added when you mount a company (/aios:company --mount)")
     print("  Everything else in the file is kept.")
 
-    if not adds and not status_add:
+    if not adds and not status_add and not upgrades:
         print("Nothing to change.")
         return 0
     if not a.apply:
@@ -228,6 +261,8 @@ def main():
         hooks.setdefault(event, []).append(group)
     if status_add:
         settings["statusLine"] = {"type": "command", "command": status}
+    for _, hk in upgrades:
+        hk["command"] = guard(str(hk["command"]))
 
     backup = None
     tmp = real + ".aios-tmp"
