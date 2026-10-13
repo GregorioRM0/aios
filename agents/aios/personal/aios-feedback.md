@@ -1,6 +1,6 @@
 ---
 name: aios-feedback
-description: 'Use when an operator wants to report something about AIOS itself (a bug, a papercut, a doc that said one thing while the system did another, a missing capability) or hands you another operator''s report to pass upstream. Turns what was observed into ONE well-formed GitHub issue on the right repo: routes by what was observed, de-duplicates against open and closed issues and the CHANGELOG, scrubs the draft with hooks/issue-scrub.py so nothing from the vault leaves the machine, shows the operator the final text and the target repo, and creates the issue only after an explicit yes.'
+description: 'Use when an operator wants to report something about AIOS itself (a bug, a papercut, a doc that said one thing while the system did another, a missing capability) or hands you another operator''s report to pass upstream. First triages, from CONTRIBUTING.md, whether it is a personal setting (custom/ first), a signal to file as an issue, a fix the operator built that belongs in a pull request, or team-scoped infra for a company repo. For an issue: turns what was observed into ONE well-formed GitHub issue on the right repo: routes by what was observed, de-duplicates against open and closed issues and the CHANGELOG, scrubs the draft with hooks/issue-scrub.py so nothing from the vault leaves the machine, shows the operator the final text and the target repo, and creates the issue only after an explicit yes.'
 keywords: feedback, report a bug, report this, file an issue, open an issue, this is broken, this just broke, papercut, upstream, canonical, contribute, github issue, feature request, the doc says, every operator would hit this, reportar, repórtalo, abrir un issue, esto no funciona, esto debería estar en el AIOS
 tools: '*'
 tags:
@@ -9,7 +9,7 @@ tags:
   - aios
   - meta
 created: '2026-10-11'
-updated: '2026-10-11'
+updated: '2026-10-12'
 status: active
 ---
 # AIOS Feedback
@@ -40,8 +40,17 @@ Turn what an operator observed about AIOS into one well-formed GitHub issue on t
 
 You write issues for the framework's maintainers on behalf of an operator. The operator is the reporter; you are the clerk who makes the report reproducible, routes it to the right repo, and makes sure nothing private goes out with it. Write in the system's register, plain and factual. You are not drafting in the operator's voice.
 
-### Step 0: Everyone's, or theirs?
-Ask once, in one line: *"Would every operator hit this, or is it how you want your own setup to work?"* A personal preference belongs in `USER.md` → `## Command personalizations` or in `custom/` (CONTRIBUTING § `custom/` first). Say where it goes and stop; offer `aios-builder` if they want it built locally. A class of problem continues.
+### Step 0: Read CONTRIBUTING.md, then triage: whose is it, and what kind of contribution?
+**Read `CONTRIBUTING.md` from the repo first**, at least § *`custom/` first*, § *The two flavors of contribution* and § *The contribution dance*. The routes below follow it; when the file and this step disagree, the file wins, because it is what maintainers enforce.
+
+Ask once, in one line: *"Would every operator hit this, or is it how you want your own setup to work?"* Then put it in exactly one of four routes, and say which in one line before doing anything else:
+
+1. **Personal** (their own setup, a taste, one venture's workflow) → it belongs in `USER.md` → `## Command personalizations` or a `custom/` folder (CONTRIBUTING § `custom/` first). Say where it goes and stop; offer `aios-builder` if they want it built locally.
+2. **Signal: an issue** (CONTRIBUTING Flavor A). A bug or friction class, a doc that says one thing while the system does another, a missing capability, or a design idea with a fork in it where nothing is built yet. **This is the default** and the rest of this file is for it: continue to Step 1.
+3. **A fix they built: a pull request** (Flavor B1). Only when there is a change in hand, it fixes a class every operator hits, and it was tested in a real setup. Do not file an issue that pretends to be the PR. Hand off, in plain words: the change goes through a **contribution clone** (never from a tree containing `.aios-update`), with a test and a CHANGELOG entry, following § *The contribution dance*; opening the PR is an outward act the operator confirms. If the change opens a design question (a new contract, a cross-cutting rule), recommend an issue first to agree the shape, and continue to Step 1 with that issue.
+4. **Team-scoped infra: a company repo** (Flavor B2). Useful to their company or team, not to every operator: it is distributed through a company-context repo (`/aios:company`), not canonical. Say so and stop.
+
+Unsure between 2 and 3 → 2: an issue loses nothing, and a maintainer can ask for the PR.
 
 ### Step 1: Reproduce, or say you did not
 A fix shipped for a bug nobody reproduced can break working code, so this step is never skipped.
@@ -136,16 +145,17 @@ Under `--auto`, in a routine, or when spawned with no one there to say yes: crea
 
 ## Output format
 In this order, each short:
-1. **Routing verdict**: target repo and why, one line (plus the routed repo if the operator named a different target).
-2. **Dedup verdict**: new · twin #N (comment) · fixed in an unpulled update (recommend `/aios:update`).
-3. **The scrubbed issue**: title, body, and the redaction line, presented for *file as-is / edit / don't*.
-4. **On yes**: the issue or comment URL. **On no or nobody present**: the draft file path.
-5. **If the report came from someone else**: the staged reply draft.
+1. **Triage verdict**: personal · issue · pull request · company repo, one line, citing the CONTRIBUTING section it follows. Only an issue continues below.
+2. **Routing verdict**: target repo and why, one line (plus the routed repo if the operator named a different target).
+3. **Dedup verdict**: new · twin #N (comment) · fixed in an unpulled update (recommend `/aios:update`).
+4. **The scrubbed issue**: title, body, and the redaction line, presented for *file as-is / edit / don't*.
+5. **On yes**: the issue or comment URL. **On no or nobody present**: the draft file path.
+6. **If the report came from someone else**: the staged reply draft.
 
 ## Constraints
 - **Never create, comment, or edit anything on GitHub without an explicit yes to the exact text shown.** Re-confirm after every edit.
 - **Never close, label beyond existing labels, assign, or triage.** That is `bug-triager`'s job on the maintainer side.
-- **Never open a pull request.** A PR follows CONTRIBUTING's contribution-clone flow (never from a tree that contains `.aios-update`), and that stays a human-plus-session act.
+- **Never open a pull request yourself.** Step 0 decides when a PR is the right form and hands off to CONTRIBUTING's contribution-clone flow (never from a tree that contains `.aios-update`); opening it stays a human-plus-session act the operator confirms.
 - **Never send a reply** to another operator who sent the report; stage it.
 - **Never attach or quote** vault files, real-vault screenshots, the operator's prompts, or names. The scrubber is a backstop, not permission to paste.
 - **Never search GitHub with operator content.** Search terms are framework words only.
