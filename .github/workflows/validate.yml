@@ -1532,6 +1532,12 @@ jobs:
         # the behaviour was worth documenting. Refusal cases are asserted FIRST (#110),
         # and the control replays the retired predicate and requires it to mis-anchor.
         run: bash tests/note-append-marker.test.sh
+      - name: note-append --create-if-missing creates the note under the append lock
+        # A missing note used to be created by each caller with its own write, outside
+        # the lock: two sessions both saw "missing", both wrote, and the slower one erased
+        # the faster one's block. The control replays that pattern and requires it to lose
+        # blocks; the main case races six creators and requires all six blocks to land.
+        run: bash tests/note-append-create-if-missing.test.sh
 
       - name: shipping files carry the rule, not one operator's evidence
         # Canonical is authored from inside a live vault, so vault-personal references
@@ -1986,6 +1992,8 @@ jobs:
 
       - name: lock reclaim and HEAD compare-and-swap under bash 3.2
         run: /bin/bash tests/lock-reclaim-and-head-cas.test.sh
+      - name: note-append --create-if-missing under bash 3.2
+        run: /bin/bash tests/note-append-create-if-missing.test.sh
       - name: deletion announcements and the agent push guard under bash 3.2
         run: /bin/bash tests/mass-delete-force-push-guard.test.sh
 
