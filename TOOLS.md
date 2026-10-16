@@ -29,6 +29,7 @@ Say `/aios:{name}` or just describe what you need. Claude matches intent to comm
 | `/aios:ingest` | Process any source (URL, PDF, transcript, paste) into the vault | When you find something worth keeping | Summary page at `reflections/ingests/` + cross-references + action items in project notes |
 | `/aios:learned` | Distill insights into a publish-ready report | After a substantive period worth reflecting on | HTML + PDF at `vault/03 - export/reports/learned/` |
 | `/aios:mcps-setup` | Guided MCP setup — tokens, registration, verification | First-time setup or when adding a new MCP | Each MCP registered in `~/.claude/settings.json` + smoke-tested |
+| `/aios:prospect` | Mine the vault for opportunities nobody has named (business, products, offerings) — four blind lenses, a completeness critic, a ranked argued menu | Monthly or quarterly, after a burst (launch, conference, run of client calls) | Ranked menu at `vault/00 - notes/reflections/prospects/` — never commits; offers `lead-generator` for the top pick |
 | `/aios:role-report` | Period report based on your role pillars | Monthly or quarterly | HTML + PDF at `vault/03 - export/reports/role/` |
 | `/aios:today` | Generate today's daily plan from full vault context | Every morning | Daily note at `vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md` |
 | `/aios:trace` | Track how thinking about an idea evolved over time | When revisiting a topic | Timeline of belief shifts with source snippets |
@@ -44,6 +45,7 @@ Say `/aios:{name}` or just describe what you need. Claude matches intent to comm
 - **Weekly:** `/aios:7plan` (Mon) · `/aios:weekly-learnings` (Fri)
 - **Bi-weekly:** `/aios:drift` · `/aios:graduate` · `/aios:emerge`
 - **Monthly:** `/aios:compact` · `/aios:housekeeping`
+- **Monthly to quarterly, after a burst:** `/aios:prospect`
 - **Quarterly:** `/aios:role-report`
 
 ---
@@ -65,6 +67,7 @@ Say `spawn {name}` to launch a named tab dedicated to that role, or `/agent {nam
 | `consultant` | Strategic advisory, frameworks, recommendations | strategy |
 | `content-scheduler` | Plan and queue content calendar from vault insights | communication |
 | `content-writer` | Draft posts for LinkedIn, X, Substack in your voice | communication |
+| `crm-updater` | Sync deal updates into the pipeline USER.md names | sales |
 | `kdp-publisher` | Take a finished book to live Amazon KDP listings: pre-flight the files, fill the answer sheet, name the irreversible decisions; a dry run uploads nothing | communication |
 | `explainer` | Build the cheapest thing that makes you understand a mechanism — usually one interactive HTML walk, anchored to source | communication |
 | `crisis-mode` | Emergency / incident-response framing — calm, structured, actionable | personal |
@@ -76,16 +79,15 @@ Say `spawn {name}` to launch a named tab dedicated to that role, or `/agent {nam
 | `invoice-tracker` | Track pending invoices, flag overdue | finance-legal |
 | `journal-prompter` | Generate reflection prompts from sessions + patterns | personal |
 | `lawyer` | Legal review, contract analysis, compliance | finance-legal |
+| `lead-generator` | Find buyers for a named offering: ICP, cited scores, ranked lead sheet, unsent drafts | sales |
 | `market-researcher` | McKinsey-style market intelligence (Porter's Five Forces, etc.) | strategy |
 | `meeting-prepper` | Prepare context-rich briefings for meetings | communication |
 | `onboarding-aios` | Knows the whole AIOS map; walks you through it when lost | personal |
 | `aios-feedback` | Turn something you noticed about AIOS into one scrubbed, de-duplicated issue on the right repo; files only after you say yes | personal |
 | `protocol-steward` | Governance, open-source strategy, licensing + trademark posture for open protocols/standards — lead without vendor-capture | strategy |
+| `proposal-writer` | Draft proposals from project notes + your documented offerings and pricing | sales |
 | `okr-coach` | Draft the quarter's ≤3 objectives from your vault as a draft you edit; score them once at quarter end | strategy |
 | `report-drafter` | Draft status reports and board updates | communication |
-| `sales-crm-updater` | Sync deal updates to Monday/CRM | sales |
-| `sales-lead-hunter` | Explore leads, qualify, score, draft outreach | sales |
-| `sales-proposal-writer` | Draft proposals from project notes + catalog | sales |
 | `security-engineer` | Threat modeling, secure-code review, incident response | engineering |
 | `study-buddy` | Pre-read chapters, prepare briefs, facilitate study | personal |
 | `technical-cofounder` | Build products end-to-end — discovery → shipping | engineering |

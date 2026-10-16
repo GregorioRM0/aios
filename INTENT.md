@@ -168,7 +168,7 @@
 
 ## Explicitly NOT doing
 
-> Parked items. AI will not resurface these in `/today`, `/drift`, or `/emerge`. The carry system ignores them entirely. Remove items to reactivate.
+> Parked items. AI will not resurface these in `/today`, `/drift`, `/emerge`, or `/prospect`. The carry system ignores them entirely. Remove items to reactivate.
 
 - *{item} — {reason} — {date parked}*
 

@@ -210,6 +210,10 @@ No overrides — use default behavior.
 
 No overrides — use default behavior.
 
+### /prospect
+
+No overrides — use default behavior.
+
 ### /learned
 
 No overrides — use default behavior.
