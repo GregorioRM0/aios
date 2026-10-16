@@ -11,21 +11,41 @@
 #
 # Usage:
 #   aios-note-append --note <path> --block-file <path> [--before "<marker>"] [-m "<msg>"] [--no-push]
+#                    [--create-if-missing [--header "<first line>"]]
 #   (block content comes from a FILE to avoid arg-size / newline issues)
+#
+# --create-if-missing: a note that does not exist yet (the first close of the day, before
+#   anyone wrote the daily note) is created UNDER THE SAME LOCK as the append, then appended
+#   to normally. Without it a missing note is an error, as before. The alternative -- each
+#   caller creating the note with its own write first -- is a check-then-create race: two
+#   sessions both see "missing", both write, and the slower one erases the faster one's block.
+#   Under the lock only the first holder creates; every later holder finds the file and
+#   appends. The parent directory is created too (a new month's calendar folder). The note
+#   starts empty, or with --header's single line; creation is O_EXCL (noclobber), so a file
+#   that appeared from a writer outside this helper is never overwritten.
 set -uo pipefail
 die(){ echo "aios-note-append: $*" >&2; exit 1; }
 
-NOTE=""; BEFORE=""; MSG=""; BLOCKFILE=""; NOPUSH=()
+NOTE=""; BEFORE=""; MSG=""; BLOCKFILE=""; NOPUSH=(); CREATE=0; HEADER=""
 while [ $# -gt 0 ]; do case "$1" in
   --note)       NOTE="$2"; shift 2 ;;
   --before)     BEFORE="$2"; shift 2 ;;
   --block-file) BLOCKFILE="$2"; shift 2 ;;
   -m)           MSG="$2"; shift 2 ;;
   --no-push)    NOPUSH=(--no-push); shift ;;
+  --create-if-missing) CREATE=1; shift ;;
+  --header)     HEADER="$2"; shift 2 ;;
   *) die "unknown arg: $1" ;;
 esac; done
 [ -n "$NOTE" ] || die "need --note <path>"
-[ -f "$NOTE" ] || die "note does not exist: $NOTE"
+[ -n "$HEADER" ] && [ "$CREATE" = 0 ] && die "--header only applies with --create-if-missing"
+if [ "$CREATE" = 1 ]; then
+  # Refuse a directory or other non-file at the path: "create if missing" must not mean
+  # "append into whatever is there".
+  [ -e "$NOTE" ] && [ ! -f "$NOTE" ] && die "note path exists but is not a regular file: $NOTE"
+else
+  [ -f "$NOTE" ] || die "note does not exist: $NOTE (pass --create-if-missing to create it)"
+fi
 [ -n "$BLOCKFILE" ] && [ -f "$BLOCKFILE" ] || die "need --block-file <existing file>"
 # -s, not just -f. An EMPTY block file is never a useful append: it produces a commit that
 # captured nothing and reports success, so a caller whose block-generation step silently
@@ -37,6 +57,13 @@ esac; done
 SELF="$(cd "$(dirname "$0")" && pwd)"
 AC="$SELF/aios-commit"
 [ -x "$AC" ] || die "aios-commit not found next to this script"
+
+# --create-if-missing: the lock lives in the note's directory, so that directory must exist
+# before acquire(). Created only now, after every argument check, so a refused run leaves
+# nothing behind. mkdir -p is idempotent and safe to race.
+if [ "$CREATE" = 1 ]; then
+  mkdir -p "$(dirname "$NOTE")" 2>/dev/null || die "could not create the note's directory: $(dirname "$NOTE")"
+fi
 
 # ── per-file mutex (mkdir; dead-holder reclaim) ──
 LOCK="${NOTE}.aios-lock"
@@ -85,6 +112,18 @@ release(){ [ "$LOCKED" = 1 ] && { rm -rf "$LOCK" 2>/dev/null; LOCKED=0; }; }
 trap release EXIT
 acquire; LOCKED=1
 
+# ── create-if-missing: decided UNDER the lock, so only the first holder creates ──
+# `set -C` (noclobber) opens with O_EXCL: if a writer outside this helper created the note
+# between our check and here, the redirect fails and we simply append to what it wrote.
+CREATED=0
+if [ "$CREATE" = 1 ] && [ ! -e "$NOTE" ]; then
+  if ( set -C; if [ -n "$HEADER" ]; then printf '%s\n' "$HEADER"; else :; fi > "$NOTE" ) 2>/dev/null; then
+    CREATED=1
+  elif [ ! -f "$NOTE" ]; then
+    die "could not create $NOTE (disk full, or the directory is not writable)"
+  fi
+fi
+
 # ── merge-append: re-read the LATEST note under the lock, then insert ──
 #
 # The marker must match a line that STARTS with it -- `index($0,marker)==1`, not
@@ -102,7 +141,11 @@ acquire; LOCKED=1
 # question; a marker that grep found and awk placed differently -- or found at all
 # while awk's rule would not -- silently chose the wrong branch. The no-match case
 # is now the awk's own END, so "where does it go" is answered exactly once.
-if [ -n "$BEFORE" ]; then
+if [ "$CREATED" = 1 ] && [ -z "$HEADER" ]; then
+  # A note this run just created empty: the block IS the note -- no marker to find, and no
+  # leading blank line (both other branches would prepend one).
+  cat "$BLOCKFILE" >> "$NOTE" || die "could not append to $NOTE (disk full, or not writable) — the note may be partially written"
+elif [ -n "$BEFORE" ]; then
   awk -v marker="$BEFORE" -v bf="$BLOCKFILE" '
     BEGIN{ blk=""; while((getline l < bf) > 0) blk = blk l "\n" }
     !done && index($0, marker) == 1 { printf "%s%s\n", blk, $0; done=1; next }

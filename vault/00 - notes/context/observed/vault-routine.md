@@ -92,6 +92,7 @@ Digests the previous month's observed context snapshots and role logs into reada
 | `aios:challenge` | Before a major decision. When a belief feels settled. |
 | `aios:trace` | When an idea keeps returning and you want to understand why |
 | `aios:connect` | When stuck on one venture — cross-domain bridges often unlock it |
+| `aios:prospect` | Monthly to quarterly, right after a burst — mines the vault for opportunities you have not named yet |
 | `aios:learned` | When you want to turn recent insights into publishable content |
 | `aios:housekeeping` | Mid-month (or when carries ×15+, projects 12+, stale snapshots) — proposals to merge/archive/drop/dedup/refresh |
 | `aios:role-report` | When you have 2+ weeks of role logs — quarterly performance narrative |

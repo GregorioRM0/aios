@@ -283,7 +283,7 @@ Check for close-session reports from agent/spawned sessions. These follow the sa
 - **Add an "Agent work" line** in the Close of Day output:
   ```
   ### Agent work
-  - 🤖 [[sales-lead-hunter]]: qualified 3 leads, drafted 2 outreach emails (Gmail drafts)
+  - 🤖 [[lead-generator]]: qualified 3 leads, drafted 2 outreach emails (Gmail drafts)
   - 🤖 [[code-reviewer]]: reviewed PR #42, flagged 1 security issue
   ```
 - In carries: annotate tasks that can be re-assigned to agents tomorrow with `_(→ [[agent-name]])_`
@@ -744,6 +744,7 @@ Before commit, walk the CLAUDE.md Session End rules to confirm the observed-cont
 - [ ] Updated `session-insights.md` per CLAUDE.md → "Self-Update → Observed Context Rules" — Emerging / Reinforced / Routed lifecycle; ≤10 Emerging, ≤5 Reinforced
 - [ ] **Emitted the `### Tier B digest` block (HARD GATE — the close does not complete without it).** One line per Tier B file (`growth` / `profile` / `ecosystem`), each stating last-touched-days + outcome. If the close-of-day lacks this block, self-reject and run the Tier B observation pass before commit. This is load-bearing parity with the Tier A routing step — not a "when warranted" nicety.
 - [ ] **Checked the observed-context staleness alarm** — ran `UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/observed-staleness.py`; flagged any file past its threshold (21d aggregate Tier B, 30d others; `restated: true` and `status: historical-snapshot` have no clock and are skipped by the hook), *independent of any digest streak*. For a stale aggregate file, ran the full-map re-derivation (step 4b) or logged an explicit "map current, verified {date}" line.
+- [ ] **Routine health:** ran `UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/aios-health.py report` and copied any line it printed into the close-of-day (a failed or overdue scheduled job); silent means nothing to report.
 - [ ] Updated other observed files when warranted (per CLAUDE.md → "Observed Context Rules" — patterns / preferences / business / ecosystem / growth / profile)
 - [ ] **Role log, when `declared/role-expectations.md` exists:** written today (§ Role log), or the close-of-day says in one line why not (no role-relevant work). The staleness hook above also prints the days since the last role log, so a skipped run shows up the next morning in `/today`.
 - [ ] Wrote to `antifragile.md` if the user corrected me OR I caught my own system-level mistake (per CLAUDE.md mandatory triggers)

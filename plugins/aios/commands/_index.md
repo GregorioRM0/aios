@@ -10,7 +10,7 @@ type: index
 ---
 # Vault Commands — Index
 
-> Source of truth for all 24 vault command files (this folder: `plugins/aios/commands/`). Synced to plugin marketplace + cache.
+> Source of truth for all 25 vault command files (this folder: `plugins/aios/commands/`). Synced to plugin marketplace + cache.
 > Marketplace: `~/.claude/plugins/marketplaces/the-aios/plugins/aios/commands/`
 > Cache: `~/.claude/plugins/cache/the-aios/aios/<installed-version>/commands/`
 
@@ -54,6 +54,7 @@ type: index
 | [[challenge]]    | Steel-man your current thinking                                                  |
 | [[trace]]        | Track how an idea evolved over time                                              |
 | [[connect]]      | Find cross-domain bridges in the vault                                           |
+| [[prospect]]     | Mine the vault for unnamed opportunities — blind multi-lens sweep, ranked argued menu |
 | [[learned]]      | Distill insights into publish-ready content                                      |
 | [[housekeeping]] | Vault housekeeping — 12 buckets: link/index repair, merges + archival, carry cleanup, table trim, INTENT drift, antifragile compact, plugin-cache verify, permissions audit |
 | [[role-report]]  | Quarterly role report per pillars in role-expectations.md                        |

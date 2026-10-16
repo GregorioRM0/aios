@@ -1090,6 +1090,13 @@ jobs:
         # rename bumps mtime, which is the signal a live session rides to adopt.
         run: bash tests/credential-backend.test.sh
 
+      - name: a capture from an isolated config dir saves that account's credential
+        # On macOS, Claude Code keeps a login made with CLAUDE_CONFIG_DIR set in its
+        # own Keychain item (suffixed with a hash of the dir). Reading the unsuffixed
+        # item saved the ACTIVE account's credential under the new email, silently.
+        # Uses a fake `security`, so it never touches a real Keychain.
+        run: bash tests/claude-identity-isolated-capture.test.sh
+
       - name: a rotation the live session never adopted is detected
         # The autopilot leans on Claude Code re-reading the credential store on
         # its next API request. That was measured, not promised — if an update
@@ -1532,6 +1539,19 @@ jobs:
         # the behaviour was worth documenting. Refusal cases are asserted FIRST (#110),
         # and the control replays the retired predicate and requires it to mis-anchor.
         run: bash tests/note-append-marker.test.sh
+      - name: note-append --create-if-missing creates the note under the append lock
+        # A missing note used to be created by each caller with its own write, outside
+        # the lock: two sessions both saw "missing", both wrote, and the slower one erased
+        # the faster one's block. The control replays that pattern and requires it to lose
+        # blocks; the main case races six creators and requires all six blocks to land.
+        run: bash tests/note-append-create-if-missing.test.sh
+
+      - name: routine health — a job that fails or stops running is reported
+        # hooks/aios-health.py (AI-173): one file per scheduled job with a deadline. A job that
+        # stops running writes nothing, so it can only be caught by its deadline passing; the
+        # suite proves overdue, never-run, failed and unreadable files are all reported, and a
+        # healthy one is silent.
+        run: bash tests/aios-health.test.sh
 
       - name: shipping files carry the rule, not one operator's evidence
         # Canonical is authored from inside a live vault, so vault-personal references
@@ -1986,6 +2006,10 @@ jobs:
 
       - name: lock reclaim and HEAD compare-and-swap under bash 3.2
         run: /bin/bash tests/lock-reclaim-and-head-cas.test.sh
+      - name: note-append --create-if-missing under bash 3.2
+        run: /bin/bash tests/note-append-create-if-missing.test.sh
+      - name: routine health under bash 3.2
+        run: /bin/bash tests/aios-health.test.sh
       - name: deletion announcements and the agent push guard under bash 3.2
         run: /bin/bash tests/mass-delete-force-push-guard.test.sh
 

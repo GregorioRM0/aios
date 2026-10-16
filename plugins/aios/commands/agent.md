@@ -71,7 +71,7 @@ Resume your original session identity and behavior.
 2. **Read the `## Schedule` section** from the agent file. If empty or says "on-demand", tell the user: "This agent has no schedule configured. Add a cron expression to its `## Schedule` section, or provide one now."
 3. **Parse the schedule** into a cron expression. The agent file may use natural language ("Daily 07:00", "Weekly Monday", "Every Friday 09:00") — convert to 5-field cron. If ambiguous, ask the user to confirm.
 4. **Create a RemoteTrigger** with:
-   - `name`: `agent-{name}` (e.g. `agent-sales-lead-hunter`)
+   - `name`: `agent-{name}` (e.g. `agent-lead-generator`)
    - `description`: The agent's Purpose from its file
    - `cron`: The parsed cron expression
    - `prompt`: A self-contained prompt that tells the triggered session what to do:

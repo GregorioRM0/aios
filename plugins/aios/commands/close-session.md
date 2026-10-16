@@ -185,10 +185,13 @@ Announce the detected mode: "Detected: **vault session** — writing to daily no
    ~/aios/hooks/aios-note-append \
      --note "$HOME/aios/vault/01 - calendar/{YYYY-MM}/{YYYY-MM-DD}.md" \
      --before "## Close of Day" \
+     --create-if-missing \
      -m "session: {HH:MM} {Topic}" \
      --block-file /tmp/aios-session-block.$$.md \
      $([ "${AIOS_CLOSE_SESSION_NO_PUSH:-}" = "1" ] && echo --no-push)
    ```
+   `--create-if-missing` is for the first close of a day nobody has opened yet: the helper creates today's note **under the same lock** instead of failing, so two sessions closing at once can never both create it and erase each other's block. Never create the note yourself first; that is exactly the race the flag closes.
+
    The helper takes a **per-file lock + merge-appends**: under the lock it re-reads the *latest* note and inserts the block before `## Close of Day` (or at the end if that marker is absent — omit `--before` then), then commits the note via `aios-commit`. So N sessions closing at once each land their block **in turn** — ordered, zero clobber, all visible immediately. (Then `rm` the temp block file.)
 
    > ### `AIOS_CLOSE_SESSION_NO_PUSH=1` — set it once, it covers EVERY push this command makes

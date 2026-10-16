@@ -79,6 +79,36 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
+
+`hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217)
+
+> **What you can now do.** Ask `/aios:prospect` what your vault says you could offer that you have not named yet, then ask `lead-generator` who to offer it to: inward, then outward, then `proposal-writer` and `crm-updater` take it from there. See in `/today` when a scheduled job failed or went quiet. Spawn workers and switch accounts on a Mac other people also log into. Add a second Claude account from its own config folder and have it saved as itself.
+
+**From what you could offer to who buys it.** Two new pieces work as a pair:
+- **`/aios:prospect`** mines your own vault for opportunities nobody has named: assets you are not selling, things that combine into an offering, what people keep asking for, ideas that are ripe now. Four independent lenses run without seeing each other, a critic asks what they missed, and you get a short ranked menu with the evidence for each. It suggests and argues; you decide.
+- **`lead-generator`** replaces `sales-lead-hunter`. It starts from an ideal-customer card it proposes for your yes, uses only the sources you have connected, checks your pipeline so it never pitches an open conversation, scores each lead with cited evidence (unknown stays unknown), and stages drafts for the best few. It never sends.
+
+**The sales agents are one pipeline now.** They were written once around one setup and named differently from every other bundle. Now `lead-generator` hands to `proposal-writer`, which hands to `crm-updater`, and `brand-monitor` feeds public signals back. All four read the same ideal-customer card, cite their sources and never send. `sales-crm-updater` and `sales-proposal-writer` are now `crm-updater` and `proposal-writer`.
+
+**Scheduled jobs report when they fail or go quiet.** A job that runs with nobody watching can fail and leave the evidence in a log no one reads, or stop running and leave nothing at all. Each job now keeps a small status file with a deadline in `~/.aios/health/`. `/today` and `/close-day` say so when a job failed, missed its deadline, or never ran once, and say nothing when all is well. The quota watcher is the first job to report.
+
+**`spawn` keeps its files where only you can write them.** The launcher a new terminal runs, the worker's task, and the prompt a session follows after an account switch used fixed names in `/tmp`, where another account on the same Mac could plant them first. They now live in `~/.aios/run`, a folder only you can write to. If you turned on restart-on-switch (`CLAUDE_AUTOSWAP_RESPAWN=1`), a worker terminal opened before this update is left running through a switch instead of restarted: it moves to the new account on its next request by itself. Close and reopen those terminals to get restarts back.
+
+**Adding an account from its own config folder saves that account.** With `CLAUDE_CONFIG_DIR` set, Claude Code keeps the login in a Keychain item named after that folder; capturing read the other one and saved your current account under the new email, so every later switch logged in as the wrong account. It now reads the right item, refuses a credential already saved under another email, and prints where to copy the new identity.
+
+**Smaller fixes.** The first session block of the day can no longer erase another session's block when both create today's note at once: `aios-note-append` creates it under its lock, and `/close-session` uses that.
+
+**Action required** — check each first; do only what applies:
+1. **The modified wrapper installer:** `/aios:update` re-runs `hooks/claude-identity/install-wrappers.sh` (Windows: `install-wrappers.ps1`). It writes the same shell file as before; what changes is that `spawn` now writes to `~/.aios/run` instead of `/tmp`. Recommend yes.
+2. **Only if you once added an account with `CLAUDE_CONFIG_DIR` set:** run `shasum ~/.claude/identities/*/keychain.json`. Two accounts with the same hash means one holds the other's credential; log that account in again in its folder and capture again. Otherwise skip this.
+3. **Renamed sales agents:** if you edited `sales-lead-hunter`, `sales-crm-updater` or `sales-proposal-writer`, the update keeps your copy and asks once. Move what you added into the new agent or a `custom/` agent.
+4. **Add `/prospect` to your own `USER.md` and `INTENT.md` — a surgical edit, never a replace.** Both files are yours and the update never writes them, so your session makes these two small additions itself, each only if it is missing:
+   - **`USER.md`:** if `## Command personalizations` has no `### /prospect` section, add one, in the same order as the other command sections: `### /prospect`, a blank line, then `No overrides — use default behavior.` This is where you will later tell `/prospect` which lenses or folders to add or skip.
+   - **`INTENT.md`:** if the parked-items note names `/today`, `/drift` and `/emerge` but not `/prospect`, add `/prospect` to that list. If the note is worded differently or absent, leave the file alone (`/prospect` reads your "Explicitly NOT doing" list either way).
+   - Show the operator the added lines. Touch nothing else in either file.
+5. **Open a new terminal, and start a new Claude session**, last.
+
 ## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
 
 `hash: d4099d0 · 1d2168a · 1d02c27 · dfbdcd2`

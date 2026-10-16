@@ -19,7 +19,7 @@
 #
 # The consequence was not an error. It was silence: eight bundled agents declare
 # one of those skills in their `## Skills` block and received nothing —
-# content-writer, sales-proposal-writer, protocol-steward (doc-coauthoring),
+# content-writer, proposal-writer, protocol-steward (doc-coauthoring),
 # email-drafter, report-drafter (internal-comms), deck-builder (theme-factory),
 # aios-builder (mcp-builder, skill-creator). An agent that silently lacks the
 # skill it declares still answers; it just answers worse, and nothing anywhere
