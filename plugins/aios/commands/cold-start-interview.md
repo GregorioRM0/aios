@@ -676,7 +676,7 @@ each one *does for them*:
 
 1. **Google Workspace** — Calendar, Tasks, Drive, Gmail, Docs, Sheets, Slides (almost every operator)
 2. **Slack** — workspace OAuth (if operator uses Slack)
-3. **GitHub** — PAT for repos/issues/PRs (if operator codes)
+3. **GitHub** — not a connector: sessions use the `gh` CLI, already signed in by setup's GitHub step. If they code and skipped that step, offer `gh auth login` (no token to paste)
 4. **Atlassian** — Jira + Confluence (if operator uses Atlassian)
 5. **NotebookLM** — audio summaries (optional)
 6. **Stitch** — UI generation from prompts (see Step 7 below — separate ask)
@@ -686,8 +686,8 @@ each one *does for them*:
 10. **Spotify DJ** — lifestyle (optional)
 
 **Order it by what they told you.** They gave you their email at Step 1 — start with Google Workspace,
-since Calendar and Tasks are what the daily ritual reads. Then Slack if they mentioned a team, GitHub
-if they mentioned code. Skip silently past anything they don't recognise; a service they've never heard
+since Calendar and Tasks are what the daily ritual reads. Then Slack if they mentioned a team, and a `gh` sign-in
+if they mentioned code and it isn't done. Skip silently past anything they don't recognise; a service they've never heard
 of is not a gap in their setup.
 
 **Stitch is conditional, not universal.** Ask about it only if their answers have involved building

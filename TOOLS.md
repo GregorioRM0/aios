@@ -194,10 +194,10 @@ The 10 bundled MCP servers — each connects Claude to a real tool you use. Auto
 |---|---|---|---|
 | **Google Workspace** | Calendar (read events), Tasks (read/write), Drive (read/write Docs/Sheets/Slides), Gmail (drafts + search), Contacts | Read by `/aios:today` + `/aios:close-day` for calendar + tasks; used by `deck-builder` agent for Slides composition | OAuth (your Google account) |
 | **Slack** | DMs + channels: read, send, react, threads. Daily-recap pre-fetch for `/aios:today` + `/aios:close-day`'s Slack triage section | When `/today` surfaces unreads, when you draft messages via `email-drafter`-style agents, when ingest pulls Slack threads | OAuth (workspace per operator) |
-| **GitHub** | Repos, issues, PRs, search, file contents, branch ops. Used by `code-reviewer`, `bug-triager`, `pr-review-toolkit` agents | Any code work touching repos you have access to | PAT (read+repo+workflow scopes typical) |
 | **Atlassian** | Jira (issues, sprints, boards, transitions) + Confluence (pages, search, comments) | Engineering teams using Atlassian; integrates with project status surfacing in `/today` | API token |
+| **Obsidian** | Read and write vault notes directly (search, frontmatter, patch), so notes stay notes instead of opaque files | Every vault session: it is the framework's own bridge to your notes, registered silently at setup | None (npm package, no account) |
 | **NotebookLM** | Create notebooks, add sources, generate audio summaries + study guides + briefing docs. Full programmatic API beyond what NotebookLM UI exposes | Long-form research synthesis, podcast-style audio from your written corpus | Google OAuth |
-| **Stitch** | AI-native UI screen generation from text prompts + DESIGN.md tokens. Apply design systems, create projects, list screens, edit. Pairs with `design-md-author` agent | UI/UX work where you want Claude to author DESIGN.md once then generate matching screens on demand | Google account (Stitch beta access) |
+| **Stitch** | AI-native UI screen generation from text prompts + DESIGN.md tokens. Apply design systems, create projects, list screens, edit. Pairs with `design-md-author` agent | UI/UX work where you want Claude to author DESIGN.md once then generate matching screens on demand | `STITCH_API_KEY` (from Stitch settings) |
 | **Playwright** | Browser automation: navigate, click, fill, screenshot, scrape. Use sparingly — heavy ops | Auto-publish flows (LinkedIn, X), end-to-end testing, scraping a site that has no API | None (browser binary) |
 | **Nano Banana** | Gemini-based image generation. Cover images, illustrations, brand-fit visuals | Used by `deck-builder` for slide imagery; useful for any agent that needs custom visuals | Google API key |
 | **PDF Generator** | Markdown → HTML (with inline CSS) → Chrome headless → PDF. Branded reports per design tokens | Powers `/aios:weekly-learnings`, `/aios:learned`, `/aios:role-report` branded exports | None (Chrome binary) |
@@ -211,9 +211,9 @@ The 10 bundled MCP servers — each connects Claude to a real tool you use. Auto
 
 These run independently from the terminal — no command or skill required.
 
-### `claude-identity` — multi-account quota autopilot (macOS)
+### `claude-identity` — multi-account quota autopilot (macOS, Linux, Windows)
 
-Rotates between two or more Anthropic accounts when the 5h or 7d rate limit nears the cap, then respawns active sessions on the new account so transcripts continue uninterrupted. A launchd agent watches every 60 seconds.
+Rotates between two or more Anthropic accounts when the 5h or 7d rate limit nears the cap, A scheduled watcher (launchd on macOS, a systemd user timer on Linux, Task Scheduler on Windows) checks every 30 minutes. Running sessions move to the new account on their next request, so transcripts continue uninterrupted; restarting them on a switch is opt-in (`CLAUDE_AUTOSWAP_RESPAWN=1`).
 
 ```bash
 ~/aios/hooks/claude-identity/claude-identity.sh whoami    # current + next in rotation
@@ -221,7 +221,7 @@ Rotates between two or more Anthropic accounts when the 5h or 7d rate limit near
 ~/aios/hooks/claude-identity/claude-identity.sh list      # all accounts + saved-state
 ```
 
-Setup is opt-in and walked through by `/aios:cold-start-interview` + the SETUP.md §11 split-install flow. Hard prerequisites: macOS + ≥ 2 Anthropic accounts. Full reference: `hooks/claude-identity/README.md`.
+Setup is opt-in and walked through by `/aios:cold-start-interview` + the SETUP.md §11 split-install flow. Hard prerequisites: macOS, Linux or Windows + ≥ 2 Anthropic accounts. Full reference: `hooks/claude-identity/README.md`.
 
 ### `markitdown` — convert any file to markdown
 
@@ -270,7 +270,7 @@ Where everything lives:
 |--------|--------------|---------------|
 | `agents/` | Task agents in 7 bundles (`aios/sales/` · `aios/strategy/` · `aios/finance-legal/` · `aios/engineering/` · `aios/communication/` · `aios/personal/` · `aios/commerce/`) + `agents/custom/` (operator) + `agents/{company}/` (company-distributed) | Spawned via `spawn {name}` or invoked via `/aios:agent {name}` |
 | `hooks/` | Pipeline scripts (`pipeline-executor.py`, `markitdown-convert.py`, `openrouter.py`) + `claude-identity/` quota autopilot + event hooks (`inject-datetime`) | Called by commands, by `launchd` (autopilot), or via `python3` directly |
-| `mcps/` | Bundled MCP servers — Google Workspace, Slack, GitHub, Atlassian, NotebookLM, Playwright, Stitch, Nano Banana, PDF Generator, Spotify DJ | Auto-connected via `~/.claude/settings.json` after `/aios:mcps-setup` |
+| `mcps/` | Bundled MCP servers — Google Workspace, Slack, Atlassian, NotebookLM, Obsidian, Playwright, Stitch, Nano Banana, PDF Generator, Spotify DJ | Auto-connected via `~/.claude/settings.json` after `/aios:mcps-setup` |
 | `plugins/` | Claude Code plugins — `plugins/aios/` (this framework) + `plugins/custom/<your-plugin>/` (operator) + `plugins/<company>/<plugin>/` (company-distributed) | Auto-loaded when enabled in `~/.claude/settings.json` |
 | `skills/` | Skills in 5 source folders — `aios/` · `anthropic/` · `superpowers/` · `cloudflare/` · `custom/` | Auto-loaded by Claude Code at session start |
 | `templates/` | Reference templates for vault scaffolding + `templates/custom/` for operator extensions | Copied by commands and operators as starting points |
