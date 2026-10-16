@@ -192,6 +192,22 @@ The block, appended to the daily note being closed (may be today or yesterday if
 
 ```
 
+## Done-outside-a-session check (before any carry is counted)
+
+A task the operator finished outside every session never reaches a session, so without this step it carries, its count climbs, and at ×6 the triage below asks them for a reason for something already done. The count then makes a false statement about the person. So before writing `### Carries forward`, and before the carry-reason triage below, check every carried **outward action** against the world.
+
+**Outward action** = the task asks the operator to act toward someone or something outside the vault: reply / respond / answer, send / email / forward / share, publish / post, schedule / invite / book with guests. In Spanish too: responder / contestar, mandar / enviar, publicar / postear, agendar. Internal work (write, review, fix, decide) is not checkable this way; leave it to the triage.
+
+**Check only when a source is connected, and say which one ran.**
+
+- **Mail** (the bundled Google Workspace MCP, or whichever mail connector `USER.md` lists): search sent mail to the person or about the subject since the task's birth date, from its `from:` stamp or the first daily note that carries it. In Gmail: `in:sent to:{address} after:{YYYY/MM/DD}`, or `in:sent "{subject words}" after:{…}` when there is no address.
+- **Calendar**, for a schedule / invite / book task: an event created since the birth date whose guests include the person.
+- **No source connected, or the lookup fails** → change nothing, carry exactly as before. Never read a lookup that did not run as "not done", and never as "done".
+
+**A match closes the task as done outside a session.** Mark it `- [x] {task} _(done outside a session: {sent|scheduled} {YYYY-MM-DD HH:MM}, {source})_` in today's note, list it under `### Shipped`, and do not carry it. **No match** → it carries as before. **An ambiguous match** (same person, unrelated subject) → carry it, and add `possibly done: {what was found}` to the line so the operator can close it with a glance.
+
+Run this before the carry-reason triage, so a finished task never reaches the ⚠️ prompt.
+
 ## Carry-reason triage prompt
 
 Before writing `### Carries forward`, scan each item crossing into tomorrow. **(Consult the `sustainable-cadence` skill before pathologizing a carry:** a window-cadence or quality-gate carry is *paced* work, not drift — the count is context, not guilt. Discriminate a legitimate rhythm from genuine avoidance first.) For any carry where `N+1 ≥ 6` and there is no `reason:` tag yet (or the existing tag has become stale — e.g. `blocked-on-X` but no activity on X for 30+ days), **ask the user inline**:

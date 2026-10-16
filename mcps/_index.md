@@ -49,8 +49,8 @@ MCPs come from two places: **vendored** from an upstream open-source repo (we tr
 | Google Workspace | **PyPI at runtime** (`uvx workspace-mcp`) — not vendored, no code redistributed | [taylorwilsdon/google_workspace_mcp](https://github.com/taylorwilsdon/google_workspace_mcp) | MIT (upstream's own; we ship none of it) |
 | Slack | vendored | [jtalk22/slack-mcp-server](https://github.com/jtalk22/slack-mcp-server) | MIT |
 | Atlassian | vendored | [sooperset/mcp-atlassian](https://github.com/sooperset/mcp-atlassian) | MIT |
-| GitHub | vendored (Anthropic) | [modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers) → `src/github` | MIT |
 | NotebookLM | vendored | [teng-lin/notebooklm-py](https://github.com/teng-lin/notebooklm-py) | MIT |
+| Obsidian | npm at runtime (`npx`) — not vendored | `@mauricio.wolff/mcp-obsidian` | — |
 | Stitch | npm proxy | `@_davideast/stitch-mcp` (auto-updates via `npx`) | — |
 | Nano Banana | AIOS-built | — | GPL-2.0-or-later |
 | PDF Generator | AIOS-built | — | GPL-2.0-or-later |

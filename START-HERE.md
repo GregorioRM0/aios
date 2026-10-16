@@ -91,7 +91,7 @@ Claude walks you through (in this order):
 | INTENT.md | Trust contract — autonomy levels, just cause, focus priorities | 5 min |
 | Agent bundles | Which of the 7 bundles apply to your work (sales/strategy/finance-legal/engineering/communication/personal/commerce) | 1 min |
 | Mount a company (optional) | If you have a venture-context repo, mount it via `/company --create` or `/company --mount` | 5 min |
-| MCP setup | Google Workspace, Slack, GitHub, Atlassian, NotebookLM, Stitch (if UI builder), Playwright, Nano Banana, PDF Generator | 5-10 min |
+| MCP setup | Google Workspace, Slack, Atlassian, NotebookLM, Stitch (if UI builder), Playwright, Nano Banana, PDF Generator | 5-10 min |
 | Optional Anthropic plugins | financial-services, claude-for-legal, knowledge-work-plugins (based on your role) | 1 min |
 | First `/today` | The daily ritual that anchors the system | 1 min |
 
@@ -115,7 +115,7 @@ Mount with `--mount {url}` (using a URL teammate shared with you), or create fre
 
 **Install** (in **Antigravity**, or any Open VSX editor — VSCodium / Cursor / Windsurf):
 1. Open the Extensions view (`⌘⇧X` / `Ctrl+Shift+X`).
-2. Search **"AIOS Glass"** → **Install**. It auto-installs its **Foam** dependency and **auto-updates** from then on.
+2. Search **"AIOS Glass"** → **Install**. It **auto-updates** from then on. On first run it offers **Foam** (wikilinks, backlinks and graph inside the editor); that is optional, and Glass works without it.
 3. **Reload the window** when prompted (`⌘⇧P` → *Developer: Reload Window*).
 
 **Open it** (this trips up first-timers — installing isn't opening):
@@ -124,7 +124,7 @@ Mount with `--mount {url}` (using a URL teammate shared with you), or create fre
 
 > **On stock Microsoft VS Code?** Glass isn't on MS's marketplace — download `aios-glass-<version>.vsix` from the [latest release](https://github.com/The-AIOS/aios-glass/releases), then *Extensions → ⋯ → Install from VSIX…* → reload. Full details (CLI install, configuration, troubleshooting): **[aios-glass → INSTALL.md](https://github.com/The-AIOS/aios-glass/blob/main/INSTALL.md)**.
 
-Install it **after** Steps 1–2 — Glass surfaces what's already set up. **Glass is a core part of the AIOS, not an optional add-on** — install it as part of your setup, every operator. If you're onboarding someone else (especially anyone who isn't terminal-comfortable), walk them through opening it (step 4) and the secondary-sidebar layout (step 5) before leaving them on their own — *installing isn't opening.*
+Install it **after** Steps 1–2 — Glass surfaces what's already set up. **On the IDE path, Glass is a core part of the AIOS, not an optional add-on** — install it as part of your setup. (On the AIOS App path, skip this step: the App already is this surface. Pick one, as SETUP.md says.) If you're onboarding someone else (especially anyone who isn't terminal-comfortable), walk them through opening it (step 4) and the secondary-sidebar layout (step 5) before leaving them on their own — *installing isn't opening.*
 
 ---
 
