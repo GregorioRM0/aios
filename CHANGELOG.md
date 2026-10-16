@@ -103,7 +103,11 @@
 1. **The modified wrapper installer:** `/aios:update` re-runs `hooks/claude-identity/install-wrappers.sh` (Windows: `install-wrappers.ps1`). It writes the same shell file as before; what changes is that `spawn` now writes to `~/.aios/run` instead of `/tmp`. Recommend yes.
 2. **Only if you once added an account with `CLAUDE_CONFIG_DIR` set:** run `shasum ~/.claude/identities/*/keychain.json`. Two accounts with the same hash means one holds the other's credential; log that account in again in its folder and capture again. Otherwise skip this.
 3. **Renamed sales agents:** if you edited `sales-lead-hunter`, `sales-crm-updater` or `sales-proposal-writer`, the update keeps your copy and asks once. Move what you added into the new agent or a `custom/` agent.
-4. **Open a new terminal, and start a new Claude session**, last.
+4. **Add `/prospect` to your own `USER.md` and `INTENT.md` — a surgical edit, never a replace.** Both files are yours and the update never writes them, so your session makes these two small additions itself, each only if it is missing:
+   - **`USER.md`:** if `## Command personalizations` has no `### /prospect` section, add one, in the same order as the other command sections: `### /prospect`, a blank line, then `No overrides — use default behavior.` This is where you will later tell `/prospect` which lenses or folders to add or skip.
+   - **`INTENT.md`:** if the parked-items note names `/today`, `/drift` and `/emerge` but not `/prospect`, add `/prospect` to that list. If the note is worded differently or absent, leave the file alone (`/prospect` reads your "Explicitly NOT doing" list either way).
+   - Show the operator the added lines. Touch nothing else in either file.
+5. **Open a new terminal, and start a new Claude session**, last.
 
 ## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
 
