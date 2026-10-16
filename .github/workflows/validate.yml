@@ -1546,6 +1546,13 @@ jobs:
         # blocks; the main case races six creators and requires all six blocks to land.
         run: bash tests/note-append-create-if-missing.test.sh
 
+      - name: routine health — a job that fails or stops running is reported
+        # hooks/aios-health.py (AI-173): one file per scheduled job with a deadline. A job that
+        # stops running writes nothing, so it can only be caught by its deadline passing; the
+        # suite proves overdue, never-run, failed and unreadable files are all reported, and a
+        # healthy one is silent.
+        run: bash tests/aios-health.test.sh
+
       - name: shipping files carry the rule, not one operator's evidence
         # Canonical is authored from inside a live vault, so vault-personal references
         # arrive as GOOD WRITING -- concrete evidence is what makes a rule persuasive.
@@ -2001,6 +2008,8 @@ jobs:
         run: /bin/bash tests/lock-reclaim-and-head-cas.test.sh
       - name: note-append --create-if-missing under bash 3.2
         run: /bin/bash tests/note-append-create-if-missing.test.sh
+      - name: routine health under bash 3.2
+        run: /bin/bash tests/aios-health.test.sh
       - name: deletion announcements and the agent push guard under bash 3.2
         run: /bin/bash tests/mass-delete-force-push-guard.test.sh
 
