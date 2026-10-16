@@ -86,6 +86,8 @@ if ($Uninstall) {
   cmd /c "schtasks /Delete /TN ""$TaskName"" /F >nul 2>nul"   # redirection inside cmd; see Test-TaskPresent
   if (Test-TaskPresent) { Write-Host "FAILED: '$TaskName' is still registered"; exit 1 }
   Write-Host "removed scheduled task '$TaskName'"
+  # Retire its health check too: a removed routine must not leave a file that reads overdue forever.
+  Remove-Item (Join-Path $HOME '.aios\health\quota-watch.json') -ErrorAction SilentlyContinue
   exit 0
 }
 
@@ -224,6 +226,21 @@ if (-not (Test-TaskPresent)) {
   }
   exit 1
 }
+
+# Register the routine's health check as pending (hooks/aios-health.py, AI-173): a watcher that
+# never completes a run then shows as overdue in /today instead of staying invisible. Written
+# here in PowerShell, so registration does not depend on a Python being on PATH.
+try {
+  $healthDir = Join-Path $HOME '.aios\health'
+  New-Item -ItemType Directory -Force -Path $healthDir | Out-Null
+  $utc = [DateTime]::UtcNow
+  $rec = [ordered]@{ name = 'quota-watch'; state = 'pending'; detail = 'installed; waiting for its first run';
+                     written_at = $utc.ToString('yyyy-MM-ddTHH:mm:ssZ');
+                     valid_until = $utc.AddMinutes($IntervalMinutes + 15).ToString('yyyy-MM-ddTHH:mm:ssZ') }
+  $tmp = Join-Path $healthDir '.quota-watch.tmp'
+  [System.IO.File]::WriteAllText($tmp, (($rec | ConvertTo-Json -Compress) + "`n"), (New-Object System.Text.UTF8Encoding($false)))
+  Move-Item -Force $tmp (Join-Path $healthDir 'quota-watch.json')
+} catch { Write-Host "  (health check not registered: $($_.Exception.Message))" }
 
 $catchUp = if ($WithLogonTrigger) { "+ once at logon, 1 min delay" } else { "+ catch-up run after downtime (StartWhenAvailable)" }
 Write-Host ""

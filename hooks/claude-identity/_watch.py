@@ -152,7 +152,14 @@ def recently_swapped() -> tuple[bool, int]:
     return elapsed < COOLDOWN_SECS, elapsed
 
 
+# The last line logged and whether the run crashed: the health file records them (AI-173).
+LAST_LOG = ""
+CRASHED = False
+
+
 def log(msg: str) -> None:
+    global LAST_LOG
+    LAST_LOG = msg
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     with open(LOG, "a", encoding="utf-8") as f:
         f.write(f"[{time.strftime('%Y-%m-%dT%H:%M:%S')}] {msg}\n")
@@ -931,7 +938,29 @@ def main(self_path: str) -> None:
 
     except Exception as e:
         # Never crash the launchd agent. Log and move on.
+        global CRASHED
+        CRASHED = True
         log(f"watch crashed: {type(e).__name__}: {e}")
+
+
+# A completed run records its verdict in ~/.aios/health/quota-watch.json (hooks/aios-health.py,
+# AI-173). Due again within 90 min: the scheduler runs this every 30 min, and the statusLine runs
+# it whenever a session is active, so only a watcher that has really stopped goes past it.
+HEALTH_VALID_FOR = "90m"
+
+
+def record_health() -> None:
+    try:
+        import importlib.util
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        spec = importlib.util.spec_from_file_location("aios_health", os.path.join(here, "aios-health.py"))
+        if spec is None or spec.loader is None:
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        mod.write("quota-watch", "fail" if CRASHED else "ok", HEALTH_VALID_FOR, LAST_LOG or "completed")
+    except Exception:
+        pass  # health is a report about the watcher; it must never become a way to break it
 
 
 if __name__ == "__main__":
@@ -956,3 +985,4 @@ if __name__ == "__main__":
         sys.stderr.write("_watch.py: usage: _watch.py <self_path> | --threshold | --rc-after-switch <to> <self_path>\n")
         sys.exit(2)
     main(sys.argv[1])
+    record_health()

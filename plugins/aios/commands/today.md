@@ -168,6 +168,14 @@ Fire ALL of these as direct parallel tool calls in **one single message**:
 **Observed context — all in the same parallel batch, but use `limit:50` per file:**
 - `growth.md`, `profile.md`, `patterns.md`, `session-insights.md`, `ecosystem.md`, `business.md`, `vault-routine.md`
 - /today only needs the latest observations, not full history. If a file's key content is truncated, do a second targeted read for the missing section.
+- **Routine health — scheduled jobs that failed or went quiet** (`hooks/aios-health.py`, AI-173):
+
+  ```bash
+  UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/aios-health.py report
+  ```
+
+  It reads `~/.aios/health/`, one small file per scheduled job (the quota watcher today), and prints **one line per job that needs attention**: a failed or warning result, a job past its deadline (*"no result since {time}"*), a job installed but never completed, or an unreadable file. **Silent means every job is fine, and then you say nothing.** Put each line it prints into the plan as-is, under the system-health lines; do not reword *"no result since"* into *"did not run"*, because the file shows that a result is missing, not why.
+
 - **Observed-context staleness check (streak-independent backstop) — run the hook, do not compute it by hand:**
 
   ```bash

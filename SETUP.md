@@ -690,6 +690,8 @@ If either hook silently failed: re-read the settings.json and confirm the `hooks
   # File-system install (safe to run during setup):
   cp ~/aios/hooks/claude-identity/com.aios.claude-quota-watch.plist ~/Library/LaunchAgents/
   launchctl load ~/Library/LaunchAgents/com.aios.claude-quota-watch.plist
+  # Register its health check as pending, so a watcher that never runs shows up in /today:
+  python3 ~/aios/hooks/aios-health.py write quota-watch pending --valid-for 45m --detail "installed; waiting for its first run"
 
   # Verify the agent loaded:
   launchctl list | grep com.aios.claude-quota-watch
