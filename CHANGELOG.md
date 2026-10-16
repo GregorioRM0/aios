@@ -79,40 +79,31 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
-## 2026-10-16 — `spawn` keeps its launcher, task and swap files where only you can write them
+## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
-`hash: ` · [#217](https://github.com/The-AIOS/aios/pull/217)
+`hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217)
 
-> **What you can now do.** Spawn workers and swap accounts on a computer other people also log into, without another local user being able to plant the script or the instructions your new session runs.
+> **What you can now do.** Ask `/aios:prospect` what your vault says you could offer that you have not named yet, then ask `lead-generator` who to offer it to: inward, then outward, then `proposal-writer` and `crm-updater` take it from there. See in `/today` when a scheduled job failed or went quiet. Spawn workers and switch accounts on a Mac other people also log into. Add a second Claude account from its own config folder and have it saved as itself.
 
-**Spawn and swap files moved from `/tmp` to `~/.aios/run`.** `spawn` used to write each worker's launcher, task file, AppleScript and pasted launch command to fixed names in `/tmp`, such as `/tmp/spawn-launch-<name>.sh`. The account-swap respawn used fixed names there too, including the resume prompt the resumed session is told to follow. Anyone else with an account on the same Mac could create one of those names first and have it executed, or read as instructions, as you. They now live in `~/.aios/run`, a directory only you can read or write (mode 700). If that directory is a symlink or owned by someone else, `spawn` refuses and says so instead of falling back to `/tmp`. On a machine only you log into, nothing changes in practice. `spawn-kill` also removes leftovers at the old `/tmp` names, but only files you own.
+**From what you could offer to who buys it.** Two new pieces work as a pair:
+- **`/aios:prospect`** mines your own vault for opportunities nobody has named: assets you are not selling, things that combine into an offering, what people keep asking for, ideas that are ripe now. Four independent lenses run without seeing each other, a critic asks what they missed, and you get a short ranked menu with the evidence for each. It suggests and argues; you decide.
+- **`lead-generator`** replaces `sales-lead-hunter`. It starts from an ideal-customer card it proposes for your yes, uses only the sources you have connected, checks your pipeline so it never pitches an open conversation, scores each lead with cited evidence (unknown stays unknown), and stages drafts for the best few. It never sends.
 
-**Action required** — check first; do only what applies:
-1. **Re-run the modified installer.** `/aios:update` runs `hooks/claude-identity/install-wrappers.sh` (Windows: `install-wrappers.ps1`, unchanged in this entry, since `%TEMP%` is already per-user). It is the same installer as before and writes to the same shell rc file (`~/.zshrc` or `~/.bashrc`). What changed is where the installed `spawn` writes when it runs: `~/.aios/run` instead of `/tmp`. If the installer is already current, it reports that and does nothing.
-2. **Open a new terminal** (or `source ~/.zshrc`) last. A shell that was already open keeps the old `spawn` and the old swap loop until it reloads, and until then an account swap in that shell will not find its resume files.
+**The sales agents are one pipeline now.** They were written once around one setup and named differently from every other bundle. Now `lead-generator` hands to `proposal-writer`, which hands to `crm-updater`, and `brand-monitor` feeds public signals back. All four read the same ideal-customer card, cite their sources and never send. `sales-crm-updater` and `sales-proposal-writer` are now `crm-updater` and `proposal-writer`.
 
-## 2026-10-13 — Adding an account from an isolated config dir saves that account
+**Scheduled jobs report when they fail or go quiet.** A job that runs with nobody watching can fail and leave the evidence in a log no one reads, or stop running and leave nothing at all. Each job now keeps a small status file with a deadline in `~/.aios/health/`. `/today` and `/close-day` say so when a job failed, missed its deadline, or never ran once, and say nothing when all is well. The quota watcher is the first job to report.
 
-`hash: ` · [#213](https://github.com/The-AIOS/aios/pull/213)
+**`spawn` keeps its files where only you can write them.** The launcher a new terminal runs, the worker's task, and the prompt a session follows after an account switch used fixed names in `/tmp`, where another account on the same Mac could plant them first. They now live in `~/.aios/run`, a folder only you can write to. Terminals opened before this update keep working through an account switch: they get a fresh tab instead of being stopped.
 
-> **What you can now do.** Add another Anthropic account on macOS the documented way, logging it in with `CLAUDE_CONFIG_DIR` set and capturing from there, and have that account's own credential saved under its email.
+**Adding an account from its own config folder saves that account.** With `CLAUDE_CONFIG_DIR` set, Claude Code keeps the login in a Keychain item named after that folder; capturing read the other one and saved your current account under the new email, so every later switch logged in as the wrong account. It now reads the right item, refuses a credential already saved under another email, and prints where to copy the new identity.
 
-**`--capture` reads the Keychain item Claude Code actually wrote.** With `CLAUDE_CONFIG_DIR` set, Claude Code on macOS keeps the login in its own Keychain item: `Claude Code-credentials-` plus 8 characters derived from the folder path. The capture read the item without the suffix, which belongs to the account you are already using, and saved that credential under the new account's email. Nothing reported it, and every later switch to the new account logged in as the old one. The item name now follows Claude Code's rule. Without `CLAUDE_CONFIG_DIR`, the capture reads exactly the item it read before.
+**Smaller fixes.** The first session block of the day can no longer erase another session's block when both create today's note at once: `aios-note-append` creates it under its lock, and `/close-session` uses that.
 
-**A credential already saved for another account is refused.** If the credential read is one already saved under a different email, the capture stops and saves nothing. After a capture from an isolated folder, it also prints the command that copies the identity to `~/.claude/identities/`, where the rotation looks for it.
-
-**Action required** — check first; do only what applies:
-1. **If you added an account from an isolated config dir,** run `shasum ~/.claude/identities/*/keychain.json`. Two accounts with the same hash means one holds the other's credential: log that account in again in its isolated folder and run the capture again. If every hash is different, or you never used `CLAUDE_CONFIG_DIR`, skip this.
-
-## 2026-10-14 — The first block of the day can create the daily note without racing another session
-
-`hash: `
-
-> **What you can now do.** Append to a note that does not exist yet — typically today's daily note at the first close of the day — and let the helper create it, so two sessions starting the note at once no longer erase each other's block.
-
-**`aios-note-append --create-if-missing`.** Until now the helper refused a missing note, so a caller had to create it first with its own write, outside the lock: two sessions could both see "missing", both write, and the slower one erased the block the faster one had appended. With the flag the note (and its folder) is created under the same per-note lock the append already takes, so exactly one session creates it and every other one appends. `--header "<line>"` seeds the new note with a first line. Without the flag nothing changes: a missing note is still an error.
-
-**Action required** — none. The flag is opt-in; existing commands behave exactly as before.
+**Action required** — check each first; do only what applies:
+1. **The modified wrapper installer:** `/aios:update` re-runs `hooks/claude-identity/install-wrappers.sh` (Windows: `install-wrappers.ps1`). It writes the same shell file as before; what changes is that `spawn` now writes to `~/.aios/run` instead of `/tmp`. Recommend yes.
+2. **Only if you once added an account with `CLAUDE_CONFIG_DIR` set:** run `shasum ~/.claude/identities/*/keychain.json`. Two accounts with the same hash means one holds the other's credential; log that account in again in its folder and capture again. Otherwise skip this.
+3. **Renamed sales agents:** if you edited `sales-lead-hunter`, `sales-crm-updater` or `sales-proposal-writer`, the update keeps your copy and asks once. Move what you added into the new agent or a `custom/` agent.
+4. **Open a new terminal, and start a new Claude session**, last.
 
 ## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
 
