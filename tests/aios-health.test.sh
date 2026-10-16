@@ -16,6 +16,8 @@ ok(){ PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 no(){ FAIL=$((FAIL+1)); printf '  FAIL %s\n     %s\n' "$1" "${2:-}"; }
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 export AIOS_HEALTH_DIR="$T/health"
+# The watcher is imported below: never let a test reach the desktop notifier (watch-notify-isolation).
+export AIOS_QUOTA_NOTIFY=0
 hw(){ $PYBIN "$H" "$@"; }
 rep(){ $PYBIN "$H" report; }
 # Rewrite a stored file's stamps, to stand in for time passing.
