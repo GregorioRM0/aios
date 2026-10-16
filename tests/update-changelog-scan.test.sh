@@ -129,11 +129,19 @@ fi
 # entry's body onto another entry's header, displacing that entry's hash line.
 # Nothing failed, nothing looked wrong, and the entry became untestable. There
 # was no check for this — the guard is the fix.
-NOHASH=$($PYBIN - <<'PY'
-import re
-t = open('CHANGELOG.md', encoding='utf-8').read()
+# $ROOT, never a bare filename: this suite runs from a temp workdir, so a relative path opened
+# nothing, python died, NOHASH came back empty and the assertion passed without reading anything.
+NOHASH=$($PYBIN - "$ROOT/CHANGELOG.md" <<'PY'
+import re, sys
+t = open(sys.argv[1], encoding='utf-8').read()
+# Look for a LINE that starts with the hash field among the first lines under the title, not a
+# character window: a busy day's hash line runs past 400 characters, and a window cut off its
+# closing backtick and reported the entry as having none.
+def has_hash(after):
+    lines = [l for l in after.split('\n')[1:8] if l.strip()][:3]
+    return any(l.startswith('`hash: ') for l in lines)
 bad = [m.group(1) for m in re.finditer(r'^## (\d{4}-\d{2}-\d{2}) — .+$', t, re.M)
-       if not re.search(r'`hash: [^`]+`', t[m.end():m.end()+400])]
+       if not has_hash(t[m.end():])]
 print(" ".join(bad))
 PY
 )
@@ -154,8 +162,14 @@ CTRL_DIR=$(mktemp -d); printf '## 2026-01-01 — no hash here\n\nbody\n' > "$CTR
 CTRL=$($PYBIN - "$CTRL_DIR/CHANGELOG.md" <<'PY'
 import re, sys
 t = open(sys.argv[1], encoding='utf-8').read()
+# Look for a LINE that starts with the hash field among the first lines under the title, not a
+# character window: a busy day's hash line runs past 400 characters, and a window cut off its
+# closing backtick and reported the entry as having none.
+def has_hash(after):
+    lines = [l for l in after.split('\n')[1:8] if l.strip()][:3]
+    return any(l.startswith('`hash: ') for l in lines)
 bad = [m.group(1) for m in re.finditer(r'^## (\d{4}-\d{2}-\d{2}) — .+$', t, re.M)
-       if not re.search(r'`hash: [^`]+`', t[m.end():m.end()+400])]
+       if not has_hash(t[m.end():])]
 print(" ".join(bad))
 PY
 )
