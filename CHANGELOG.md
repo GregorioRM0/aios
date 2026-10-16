@@ -81,7 +81,7 @@
 
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
-`hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217)
+`hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
 
 > **What you can now do.** Ask `/aios:prospect` what your vault says you could offer that you have not named yet, then ask `lead-generator` who to offer it to: inward, then outward, then `proposal-writer` and `crm-updater` take it from there. See in `/today` when a scheduled job failed or went quiet. Spawn workers and switch accounts on a Mac other people also log into. Add a second Claude account from its own config folder and have it saved as itself.
 
@@ -108,6 +108,18 @@
    - **`INTENT.md`:** if the parked-items note names `/today`, `/drift` and `/emerge` but not `/prospect`, add `/prospect` to that list. If the note is worded differently or absent, leave the file alone (`/prospect` reads your "Explicitly NOT doing" list either way).
    - Show the operator the added lines. Touch nothing else in either file.
 5. **Open a new terminal, and start a new Claude session**, last.
+
+### Later the same day
+
+> **What you can now do.** Reply to someone from your mail client and have `/close-day` notice, instead of carrying the task until it reads as something you are avoiding. Trust the docs a newcomer reads first to describe the framework as it runs.
+
+**Work you finish outside a session closes instead of carrying.** A reply you sent from Gmail never reached a session, so the task carried, its count climbed, and at ×6 the triage asked you for a reason for something already done. `/close-day` now checks each carried outward action (reply, send, publish, post, schedule with guests) against your sent mail and calendar before counting it, when those are connected. A match closes the task with the send time as evidence; with no source connected nothing changes. `CLAUDE.md` had promised two checks that never existed, and now promises only this one.
+
+**The first docs a newcomer reads are current.** `TOOLS.md`, `START-HERE.md`, `SETUP.md` and the hook and MCP indexes no longer list the retired GitHub connector, name Obsidian, give Stitch's real key, describe the account autopilot on all three systems, and call Foam optional. The setup interview no longer asks for a GitHub token there is nowhere to put.
+
+**Releases that add a command now tell installed vaults to add its `USER.md` section**, enforced by a test, so a new command can never arrive without one.
+
+**Action required:** none beyond starting a new Claude session, so the updated `/close-day` and `CLAUDE.md` load.
 
 ## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
 
