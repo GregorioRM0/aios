@@ -1090,6 +1090,13 @@ jobs:
         # rename bumps mtime, which is the signal a live session rides to adopt.
         run: bash tests/credential-backend.test.sh
 
+      - name: a capture from an isolated config dir saves that account's credential
+        # On macOS, Claude Code keeps a login made with CLAUDE_CONFIG_DIR set in its
+        # own Keychain item (suffixed with a hash of the dir). Reading the unsuffixed
+        # item saved the ACTIVE account's credential under the new email, silently.
+        # Uses a fake `security`, so it never touches a real Keychain.
+        run: bash tests/claude-identity-isolated-capture.test.sh
+
       - name: a rotation the live session never adopted is detected
         # The autopilot leans on Claude Code re-reading the credential store on
         # its next API request. That was measured, not promised — if an update

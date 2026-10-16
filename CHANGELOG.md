@@ -79,6 +79,19 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-13 — Adding an account from an isolated config dir saves that account
+
+`hash: ` · [#213](https://github.com/The-AIOS/aios/pull/213)
+
+> **What you can now do.** Add another Anthropic account on macOS the documented way, logging it in with `CLAUDE_CONFIG_DIR` set and capturing from there, and have that account's own credential saved under its email.
+
+**`--capture` reads the Keychain item Claude Code actually wrote.** With `CLAUDE_CONFIG_DIR` set, Claude Code on macOS keeps the login in its own Keychain item: `Claude Code-credentials-` plus 8 characters derived from the folder path. The capture read the item without the suffix, which belongs to the account you are already using, and saved that credential under the new account's email. Nothing reported it, and every later switch to the new account logged in as the old one. The item name now follows Claude Code's rule. Without `CLAUDE_CONFIG_DIR`, the capture reads exactly the item it read before.
+
+**A credential already saved for another account is refused.** If the credential read is one already saved under a different email, the capture stops and saves nothing. After a capture from an isolated folder, it also prints the command that copies the identity to `~/.claude/identities/`, where the rotation looks for it.
+
+**Action required** — check first; do only what applies:
+1. **If you added an account from an isolated config dir,** run `shasum ~/.claude/identities/*/keychain.json`. Two accounts with the same hash means one holds the other's credential: log that account in again in its isolated folder and run the capture again. If every hash is different, or you never used `CLAUDE_CONFIG_DIR`, skip this.
+
 ## 2026-10-14 — The first block of the day can create the daily note without racing another session
 
 `hash: `
