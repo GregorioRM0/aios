@@ -193,7 +193,22 @@ except RuntimeError:
     print("refused")
 ' "$RES" 2>&1 )
 [ "$pyout" = "refused" ] && [ -z "$(ls -A "$tmp2/elsewhere")" ] && ok "control: _resume.py refuses a symlinked run dir" || no "_resume.py wrote through a symlinked run dir" "$pyout"
+# Protocol 2: stop a session in place ONLY for a loop that polls the run dir. A terminal opened
+# before the update runs the old loop (polls /tmp, sets only CAPABLE=1); a loop whose run dir
+# failed exports no protocol. Both must take the fresh-tab path, or they are stopped with no way back.
+pyout=$( "$PYR" -c '
+import importlib.util, sys
+s = importlib.util.spec_from_file_location("r", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+def env(d): return lambda pid, key: d.get(key, "")
+print(m.in_place_capable(1, env({"CLAUDE_RESPAWN_CAPABLE": "1", "CLAUDE_RESPAWN_PROTOCOL": "2"})),
+      m.in_place_capable(1, env({"CLAUDE_RESPAWN_CAPABLE": "1"})),
+      m.in_place_capable(1, env({"CLAUDE_RESPAWN_PROTOCOL": "2"})))
+' "$RES" 2>&1 )
+[ "$pyout" = "True False False" ] && ok "in place only for a protocol-2 loop; an old terminal and a run-dir-less loop get a fresh tab" || no "in-place decision wrong" "$pyout"
 fi
+grep -q 'if \[ -n "$run_dir" \]; then export CLAUDE_RESPAWN_PROTOCOL=2; else unset CLAUDE_RESPAWN_PROTOCOL; fi' "$SRC" \
+  && ok "the loop announces protocol 2 only when its run dir works" || no "the loop does not gate protocol 2 on its run dir"
+grep -q 'respawn_capable = in_place_capable(pid)' "$RES" && ok "_resume.py decides in place through the protocol check" || no "_resume.py still decides on CAPABLE alone"
 ! grep -n '"/tmp/\(spawn\|swap\|resume\)-' "$RES" >/dev/null && ok "_resume.py names no fixed /tmp path" || no "_resume.py still names a fixed /tmp path"
 rm -rf "$tmp" "$tmp2"
 

@@ -267,6 +267,11 @@ _claude_with_respawn() {
   # Swap markers live in the private run dir (see _aios_run_dir). If it cannot be made, account-swap
   # respawn is disabled for this session (an empty path never exists) rather than polled in /tmp.
   local run_dir; run_dir=$(_aios_run_dir) || run_dir=""
+  # Protocol 2 = "this loop polls the private run dir". _resume.py stops a session in place only
+  # for a loop that says so: a terminal opened before this update still runs the old loop (it
+  # polls /tmp), and a loop whose run dir could not be made polls nothing -- both must get the
+  # fresh-tab path, or the session is stopped with no way back.
+  if [ -n "$run_dir" ]; then export CLAUDE_RESPAWN_PROTOCOL=2; else unset CLAUDE_RESPAWN_PROTOCOL; fi
   local marker="${run_dir:+$run_dir/swap-respawn-$name.flag}"
   local sid_file="${run_dir:+$run_dir/swap-respawn-$name.session}"
   local consecutive_failures=0

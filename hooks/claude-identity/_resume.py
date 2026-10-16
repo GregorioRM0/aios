@@ -122,6 +122,16 @@ def _run_dir() -> str:
     os.chmod(d, 0o700)
     return d
 
+def in_place_capable(pid: int, read=None) -> bool:
+    """Stop-and-resume in the same terminal only for a respawn loop that polls the private run
+    dir. CLAUDE_RESPAWN_CAPABLE alone is not enough: a terminal opened before the run dir existed
+    still runs the old loop, which polls /tmp, and a loop whose run dir could not be made polls
+    nothing. Either would be stopped with no way back, so both take the fresh-tab path instead.
+    The new loop exports CLAUDE_RESPAWN_PROTOCOL=2 only when its run dir works."""
+    read = read or env_var_from_pid
+    return read(pid, "CLAUDE_RESPAWN_CAPABLE") == "1" and read(pid, "CLAUDE_RESPAWN_PROTOCOL") == "2"
+
+
 def build_resume_prompt(name: str, cwd: str, marker_path: str) -> str:
     ts = time.strftime("%Y-%m-%d %H:%M:%S %Z")
     return (
@@ -750,7 +760,7 @@ def main() -> None:
         # signal the wrapper + SIGTERM and the same terminal re-launches
         # claude. Falls back to legacy AppleScript respawn for sessions
         # launched directly without the wrapper.
-        respawn_capable = env_var_from_pid(pid, "CLAUDE_RESPAWN_CAPABLE") == "1"
+        respawn_capable = in_place_capable(pid)
 
         # Write pre-swap marker with git status — Claude reads it on wake
         # to reconcile filesystem vs. transcript expectation.
