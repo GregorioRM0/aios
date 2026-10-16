@@ -126,10 +126,31 @@ def in_place_capable(pid: int, read=None) -> bool:
     """Stop-and-resume in the same terminal only for a respawn loop that polls the private run
     dir. CLAUDE_RESPAWN_CAPABLE alone is not enough: a terminal opened before the run dir existed
     still runs the old loop, which polls /tmp, and a loop whose run dir could not be made polls
-    nothing. Either would be stopped with no way back, so both take the fresh-tab path instead.
+    nothing. Stopping either loses the session, so swap_mode() leaves both running.
     The new loop exports CLAUDE_RESPAWN_PROTOCOL=2 only when its run dir works."""
     read = read or env_var_from_pid
     return read(pid, "CLAUDE_RESPAWN_CAPABLE") == "1" and read(pid, "CLAUDE_RESPAWN_PROTOCOL") == "2"
+
+
+def swap_mode(pid: int, read=None) -> str:
+    """What to do with one live session after an account switch:
+
+      in-place       a protocol-2 loop: signal it, stop claude, the same terminal resumes it.
+      fresh-tab      no respawn loop at all: stop claude, resume it in a new tab.
+      leave-running  a respawn loop that does NOT poll the private run dir (a terminal opened
+                     before the update, or a loop whose run dir could not be made).
+
+    Why leave-running and not fresh-tab for that third case: the loop sees no swap marker it
+    can read, so it treats the stopped claude as a crash (SIGTERM exits non-zero) and starts a
+    fresh `claude --name X` on its own, beside the one the new tab resumes, so two sessions
+    share one name. Killing the loop instead would mean killing the shell that runs it, which
+    on the in-shell path is the operator's own terminal. Leaving the session alone costs
+    nothing: a running session adopts the switched account on its next request (see the
+    docstring at the top), and reopening that terminal gets the in-place path next time."""
+    read = read or env_var_from_pid
+    if read(pid, "CLAUDE_RESPAWN_CAPABLE") != "1":
+        return "fresh-tab"
+    return "in-place" if read(pid, "CLAUDE_RESPAWN_PROTOCOL") == "2" else "leave-running"
 
 
 def build_resume_prompt(name: str, cwd: str, marker_path: str) -> str:
@@ -760,26 +781,42 @@ def main() -> None:
         # signal the wrapper + SIGTERM and the same terminal re-launches
         # claude. Falls back to legacy AppleScript respawn for sessions
         # launched directly without the wrapper.
-        respawn_capable = in_place_capable(pid)
-
-        # Write pre-swap marker with git status — Claude reads it on wake
-        # to reconcile filesystem vs. transcript expectation.
-        marker_path = write_swap_marker(name, session_id, cwd)
-
-        # Build per-session resume prompt referencing the marker
-        prompt = build_resume_prompt(name, cwd, marker_path)
-
-        if dry_run:
-            mode = "in-place" if (respawn_capable and session_id) else "legacy-applescript"
-            dry_run_plan.append(
-                f"{name} pid={pid} mode={mode} session_id={session_id or 'UNKNOWN'} marker={marker_path}"
+        mode = swap_mode(pid)
+        if mode == "leave-running":
+            skipped.append(
+                f"{pid} ({name}) — its terminal runs a respawn loop from before this update; "
+                "left running (it uses the new account on its next request; reopen that "
+                "terminal to get in-place restarts)"
             )
             continue
+        respawn_capable = mode == "in-place"
 
-        # If capable: write the in-place signal files BEFORE the kill so the
-        # wrapper sees them on its first post-exit check.
-        if respawn_capable and session_id:
-            write_in_place_signal(name, session_id, prompt)
+        # Every file below (marker, signal, the fresh tab's prompt) lives in the private run
+        # dir. If it is unusable, nothing can be resumed, so leave the session running rather
+        # than stop it: this runs AFTER the account already switched, and an exception here
+        # would also abort every session still to come in this loop.
+        try:
+            # Write pre-swap marker with git status — Claude reads it on wake
+            # to reconcile filesystem vs. transcript expectation.
+            marker_path = write_swap_marker(name, session_id, cwd)
+
+            # Build per-session resume prompt referencing the marker
+            prompt = build_resume_prompt(name, cwd, marker_path)
+
+            if dry_run:
+                plan = "in-place" if (respawn_capable and session_id) else "legacy-applescript"
+                dry_run_plan.append(
+                    f"{name} pid={pid} mode={plan} session_id={session_id or 'UNKNOWN'} marker={marker_path}"
+                )
+                continue
+
+            # If capable: write the in-place signal files BEFORE the kill so the
+            # wrapper sees them on its first post-exit check.
+            if respawn_capable and session_id:
+                write_in_place_signal(name, session_id, prompt)
+        except (RuntimeError, OSError) as e:
+            skipped.append(f"{pid} ({name}) — private run dir unusable ({e}); left running")
+            continue
 
         # Kill + respawn
         try:

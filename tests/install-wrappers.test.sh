@@ -204,13 +204,84 @@ print(m.in_place_capable(1, env({"CLAUDE_RESPAWN_CAPABLE": "1", "CLAUDE_RESPAWN_
       m.in_place_capable(1, env({"CLAUDE_RESPAWN_CAPABLE": "1"})),
       m.in_place_capable(1, env({"CLAUDE_RESPAWN_PROTOCOL": "2"})))
 ' "$RES" 2>&1 )
-[ "$pyout" = "True False False" ] && ok "in place only for a protocol-2 loop; an old terminal and a run-dir-less loop get a fresh tab" || no "in-place decision wrong" "$pyout"
+[ "$pyout" = "True False False" ] && ok "in place only for a protocol-2 loop" || no "in-place decision wrong" "$pyout"
+pyout=$( "$PYR" -c '
+import importlib.util, sys
+s = importlib.util.spec_from_file_location("r", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+def env(d): return lambda pid, key: d.get(key, "")
+print(m.swap_mode(1, env({"CLAUDE_RESPAWN_CAPABLE": "1", "CLAUDE_RESPAWN_PROTOCOL": "2"})),
+      m.swap_mode(1, env({"CLAUDE_RESPAWN_CAPABLE": "1"})),
+      m.swap_mode(1, env({})))
+' "$RES" 2>&1 )
+[ "$pyout" = "in-place leave-running fresh-tab" ] && ok "an old or run-dir-less loop is left running; only a loop-less session gets a fresh tab" || no "swap_mode wrong" "$pyout"
+
+# What the loop DOES after a swap, not only which path is chosen. A REAL respawn loop whose run dir
+# is unusable exports CAPABLE=1 and no protocol, exactly like a terminal opened before the update:
+# it cannot see the swap marker, so a stopped claude reads as a crash and it starts another one by
+# itself (read -t 60 returns at once on a closed stdin here, standing in for the 60s timeout).
+# _resume.main() runs for real against it, with only the OS-facing edges stubbed: the process env
+# is read from a file the stand-in claude writes (ps -E is macOS-only), and no tab is opened.
+t3=$(mktemp -d); mkdir -p "$t3/bin" "$t3/aios" "$t3/.aios" "$t3/elsewhere" "$t3/sessions"; ln -s "$t3/elsewhere" "$t3/.aios/run"
+cat > "$t3/bin/claude" <<STUB
+#!/bin/sh
+echo start >> "$t3/starts"
+env > "$t3/env"
+sleep 30 & sp=\$!
+trap 'kill \$sp; exit 143' TERM
+echo \$\$ > "$t3/pid"
+wait
+STUB
+chmod +x "$t3/bin/claude"
+env -u CLAUDECODE -u AIOS_RUN_DIR -u CLAUDE_RESPAWN_PROTOCOL HOME="$t3" PATH="$t3/bin:$PATH" bash -c 'eval "$1"; _claude_with_respawn rprobe' _ "$FNS" </dev/null >"$t3/loop.out" 2>&1 &
+loop=$!
+i=0; while [ ! -s "$t3/pid" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
+cpid=$(cat "$t3/pid" 2>/dev/null)
+printf '{"cwd":"%s","sessionId":"sid-rprobe","name":"rprobe"}' "$t3/aios" > "$t3/sessions/$cpid.json"
+# _resume.py gets a WORKING run dir unless a case says otherwise: only the loop's must be broken
+# (that is what makes it an old-shape loop), or main() would never reach the stop it is tested on.
+runresume(){ AIOS_RUN_DIR="${2:-$t3/run-ok}" "$PYR" - "$RES" "$t3" "$1" <<'PY'
+import importlib.util, os, sys
+s = importlib.util.spec_from_file_location("r", sys.argv[1]); m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+t3, extra = sys.argv[2], sys.argv[3]
+def read(pid, key):
+    env = dict(l.rstrip("\n").split("=", 1) for l in open(os.path.join(t3, "env")) if "=" in l)
+    if extra:
+        env.update(dict([extra.split("=", 1)]))
+    return env.get(key, "")
+m.env_var_from_pid = read
+m.SESSIONS_DIR = os.path.join(t3, "sessions")
+m.detect_ide = lambda: ""
+m.POST_SWAP_WAIT_SECS = 0
+m.respawn_session = lambda *a: (True, "stub tab")
+m.wait_for_new_claude = lambda *a, **k: (0, "stub")
+m.main()
+PY
+}
+grep -q '^CLAUDE_RESPAWN_CAPABLE=1$' "$t3/env" && ! grep -q '^CLAUDE_RESPAWN_PROTOCOL=' "$t3/env" \
+  && ok "setup: the loop runs claude as an old terminal would (CAPABLE=1, no protocol)" || no "setup: loop env is not the old-terminal shape" "$(grep RESPAWN "$t3/env")"
+out=$(runresume "" 2>&1)
+sleep 3
+case "$out" in *"left running"*) ok "_resume.main() leaves the old-loop session running" ;; *) no "old-loop session was not left running" "$out" ;; esac
+kill -0 "$cpid" 2>/dev/null && [ "$(grep -c start "$t3/starts")" = 1 ] \
+  && ok "after the swap the loop still has ONE claude, the original" || no "the loop restarted or lost claude" "starts=$(grep -c start "$t3/starts")"
+# A protocol-2 loop with an unusable run dir: the run dir is checked BEFORE anything is stopped,
+# and the failure leaves the session running instead of aborting the restart of every other one.
+out=$(runresume "CLAUDE_RESPAWN_PROTOCOL=2" "$t3/.aios/run" 2>&1); rc=$?
+[ "$rc" = 0 ] && case "$out" in *"private run dir unusable"*"left running"*) true ;; *) false ;; esac \
+  && kill -0 "$cpid" 2>/dev/null && ok "an unusable run dir leaves the session running, and main() does not crash" || no "unusable run dir mishandled (rc=$rc)" "$out"
+# Control: stop that claude the way the fresh-tab path does, and the loop starts a second claude
+# under the same name -- the duplicate this guards against, and proof the count above can see it.
+kill -TERM "$cpid" 2>/dev/null
+i=0; while [ "$(grep -c start "$t3/starts")" -lt 2 ] && [ $i -lt 60 ]; do sleep 0.1; i=$((i+1)); done
+[ "$(grep -c start "$t3/starts")" = 2 ] && grep -q 'exited with code 143' "$t3/loop.out" \
+  && ok "control: stopping claude under an old loop makes it start a duplicate (exit 143 read as a crash)" || no "control: the old loop did not restart" "$(cat "$t3/loop.out")"
+kill "$loop" 2>/dev/null; pkill -TERM -f "$t3/bin/claude" 2>/dev/null; wait "$loop" 2>/dev/null
 fi
 grep -q 'if \[ -n "$run_dir" \]; then export CLAUDE_RESPAWN_PROTOCOL=2; else unset CLAUDE_RESPAWN_PROTOCOL; fi' "$SRC" \
   && ok "the loop announces protocol 2 only when its run dir works" || no "the loop does not gate protocol 2 on its run dir"
-grep -q 'respawn_capable = in_place_capable(pid)' "$RES" && ok "_resume.py decides in place through the protocol check" || no "_resume.py still decides on CAPABLE alone"
+grep -q 'mode = swap_mode(pid)' "$RES" && ok "_resume.py decides through swap_mode (the protocol check)" || no "_resume.py still decides on CAPABLE alone"
 ! grep -n '"/tmp/\(spawn\|swap\|resume\)-' "$RES" >/dev/null && ok "_resume.py names no fixed /tmp path" || no "_resume.py still names a fixed /tmp path"
-rm -rf "$tmp" "$tmp2"
+rm -rf "$tmp" "$tmp2" ${t3:+"$t3"}
 
 echo "── --profile: the mechanism is wired end to end (static) ──"
 grep -q 'CLAUDE_MCP_PROFILE' "$SRC" && ok "launcher exports CLAUDE_MCP_PROFILE for the spawn" || no "CLAUDE_MCP_PROFILE never exported"

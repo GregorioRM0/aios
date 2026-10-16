@@ -78,6 +78,15 @@ hw write job-c ok --valid-for soon 2>/dev/null; [ $? = 2 ] && ok "an unreadable 
 echo "── retiring a check removes it ──"
 hw retire job-b; [ ! -e "$AIOS_HEALTH_DIR/job-b.json" ] && ok "retire removes the file" || no "retire left the file"
 
+echo "── every way to unschedule the watcher also retires its check ──"
+# Registered at install as pending, so a removal that forgets to retire it reads "overdue" forever.
+for f in hooks/claude-identity/com.aios.claude-quota-watch.plist hooks/claude-identity/aios-claude-quota-watch.service hooks/claude-identity/install-quota-watch.ps1; do
+  # Either through the tool, or (the PowerShell installer, which has no python to rely on) by
+  # removing the file the tool would remove.
+  grep -q 'aios-health.py retire quota-watch\|Remove-Item .*health.quota-watch\.json' "$ROOT/$f" \
+    && ok "$(basename "$f") retires quota-watch on removal" || no "$(basename "$f") removes the watcher but leaves its health check"
+done
+
 echo "── the quota watcher writes its own verdict ──"
 PYW=""; for c in python3.13 python3.12 python3.11 python3.10 python3; do
   command -v "$c" >/dev/null 2>&1 && "$c" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null && { PYW="$c"; break; }
