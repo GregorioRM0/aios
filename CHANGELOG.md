@@ -79,6 +79,16 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-14 — The first block of the day can create the daily note without racing another session
+
+`hash: `
+
+> **What you can now do.** Append to a note that does not exist yet — typically today's daily note at the first close of the day — and let the helper create it, so two sessions starting the note at once no longer erase each other's block.
+
+**`aios-note-append --create-if-missing`.** Until now the helper refused a missing note, so a caller had to create it first with its own write, outside the lock: two sessions could both see "missing", both write, and the slower one erased the block the faster one had appended. With the flag the note (and its folder) is created under the same per-note lock the append already takes, so exactly one session creates it and every other one appends. `--header "<line>"` seeds the new note with a first line. Without the flag nothing changes: a missing note is still an error.
+
+**Action required** — none. The flag is opt-in; existing commands behave exactly as before.
+
 ## 2026-10-12 — A moved or renamed hook can no longer lock you out, and feedback finds its right form
 
 `hash: d4099d0 · 1d2168a · 1d02c27 · dfbdcd2`
