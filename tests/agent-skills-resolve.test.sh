@@ -8,7 +8,7 @@
 # `## Skills` block, receive nothing, and still answer — just worse, with nothing
 # anywhere reporting why. Eight bundled agents were in that state:
 #
-#   content-writer · sales-proposal-writer · protocol-steward  (doc-coauthoring)
+#   content-writer · proposal-writer · protocol-steward        (doc-coauthoring)
 #   email-drafter · report-drafter                             (internal-comms)
 #   deck-builder                                               (theme-factory)
 #   aios-builder                                    (mcp-builder, skill-creator)

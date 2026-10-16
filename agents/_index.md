@@ -82,10 +82,10 @@ When a fuzzy match is used, the session tells the user which agent was matched a
 
 | Agent | Purpose | Match keywords | Schedule |
 |---|---|---|---|
-| [[sales-lead-hunter]] | Explore leads, qualify, score, draft outreach emails | lead, prospect, outreach, qualify, pipeline, hunt | on-demand |
-| [[sales-proposal-writer]] | Draft proposals from project notes + the user's consulting catalog | proposal, quote, offer, pitch, engagement letter | on-demand |
-| [[sales-crm-updater]] | Sync deal updates to Monday/CRM from meeting notes | CRM, Monday, deal update, pipeline sync | on-demand |
-| [[brand-monitor]] | Track mentions, competitors, industry news | brand mentions, competitor check, industry news, market scan | weekly (Monday) |
+| [[lead-generator]] | Find buyers for a named offering: ICP card, cited scores, ranked lead sheet, unsent drafts for the top few | lead, leads, prospect list, who should I pitch, outreach, qualify, ICP | on-demand |
+| [[proposal-writer]] | Draft proposals from project notes + the offerings and pricing the vault documents | proposal, quote, offer, pitch, scope, engagement letter | on-demand |
+| [[crm-updater]] | Sync deal updates into the pipeline USER.md names from meetings, notes, mail and chat | CRM, pipeline, deal update, pipeline sync, stale deals | on-demand |
+| [[brand-monitor]] | Track mentions, competitors, industry news | brand mentions, competitor check, industry news, market scan | weekly |
 
 ### aios/strategy/ — Research, advisory, deep dives
 

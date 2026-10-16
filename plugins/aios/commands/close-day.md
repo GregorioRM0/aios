@@ -283,7 +283,7 @@ Check for close-session reports from agent/spawned sessions. These follow the sa
 - **Add an "Agent work" line** in the Close of Day output:
   ```
   ### Agent work
-  - 🤖 [[sales-lead-hunter]]: qualified 3 leads, drafted 2 outreach emails (Gmail drafts)
+  - 🤖 [[lead-generator]]: qualified 3 leads, drafted 2 outreach emails (Gmail drafts)
   - 🤖 [[code-reviewer]]: reviewed PR #42, flagged 1 security issue
   ```
 - In carries: annotate tasks that can be re-assigned to agents tomorrow with `_(→ [[agent-name]])_`
