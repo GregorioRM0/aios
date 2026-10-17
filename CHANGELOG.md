@@ -81,7 +81,7 @@
 
 ## 2026-10-17 — A two-machine vault no longer stays stuck after one file blocked a push
 
-`hash: `
+`hash: ` · [#222](https://github.com/The-AIOS/aios/pull/222)
 
 > **What you can now do.** Keep committing on two machines while a session has a file open: once that file is committed, the commits that were waiting go out by themselves, even when both machines edited the same note on different lines.
 
