@@ -23,7 +23,7 @@ USAGE
   motion-render.py sheet  DIR --out sheet.png [--count 12 | --every K] [--cols 4] [--width 1600]
   motion-render.py onion  DIR --range A:B --out onion.png
   motion-render.py speed  PAGE.html --out speed.png [--fps 60] [--duration 6] [--size WxH] [--corner 0.5] [--allow F,F]
-  motion-render.py export DIR --out film.mp4 [--fps 60] [--audio sound.wav] [--gif out.gif --gif-fps 25]
+  motion-render.py export DIR --out film.mp4 [--fps N, default: the fps DIR was rendered at] [--audio sound.wav] [--gif out.gif --gif-fps 25]
 
 Frames are written as DIR/frame_00000.png. A loop renders frames 0..N-1 (N = duration*fps): frame
 N would equal frame 0, and rendering it puts a stutter at the seam.
@@ -209,6 +209,9 @@ def cmd_frames(args):
                 average_linear(parts, out)
         if os.path.isdir(tmp):
             shutil.rmtree(tmp, ignore_errors=True)
+        # export only sees the folder, so the timing the page declared travels with the frames
+        with open(os.path.join(args.out, "render.json"), "w", encoding="utf-8") as fh:
+            json.dump({"fps": fps, "duration": dur, "size": args.size}, fh)
         print(json.dumps({"out": args.out, "frames": len(idx), "of": n, "fps": fps, "duration": dur,
                           "size": args.size, "subframes": sub}))
     finally:
@@ -353,6 +356,14 @@ def cmd_export(args):
     nums = [frame_no(f) for f in fs]
     if nums != list(range(nums[0], nums[0] + len(nums))):
         die("frames are not a contiguous run (render with --all before exporting)")
+    if args.fps is None:                     # flag > the fps the frames were rendered at > 60
+        try:
+            with open(os.path.join(args.dir, "render.json"), encoding="utf-8") as fh:
+                args.fps = float(json.load(fh)["fps"])
+        except (OSError, ValueError, KeyError):
+            args.fps = 60.0
+            print("motion-render: note: no render.json in %s and no --fps: exporting at 60 fps" % args.dir,
+                  file=sys.stderr)
     pattern = os.path.join(args.dir, "frame_%05d.png")
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(args.fps), "-start_number", str(nums[0]),
            "-i", pattern]
@@ -413,7 +424,7 @@ def main():
                    help="a one-frame change in velocity above this share of the series' top speed is a corner")
     v.add_argument("--allow", default="", help="frames where a corner is intended (a cut, a snap), e.g. 120,240")
     e = sp.add_parser("export"); e.add_argument("dir"); e.add_argument("--out", required=True)
-    e.add_argument("--fps", type=float, default=60); e.add_argument("--audio")
+    e.add_argument("--fps", type=float); e.add_argument("--audio")
     e.add_argument("--gif"); e.add_argument("--gif-fps", type=float, default=25)
     a = ap.parse_args()
     {"frames": cmd_frames, "sheet": cmd_sheet, "onion": cmd_onion, "speed": cmd_speed,
