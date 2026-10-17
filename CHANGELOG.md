@@ -81,7 +81,7 @@
 
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
-`hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
+`hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
 
 > **What you can now do.** Ask `/aios:prospect` what your vault says you could offer that you have not named yet, then ask `lead-generator` who to offer it to: inward, then outward, then `proposal-writer` and `crm-updater` take it from there. See in `/today` when a scheduled job failed or went quiet. Spawn workers and switch accounts on a Mac other people also log into. Add a second Claude account from its own config folder and have it saved as itself.
 
@@ -118,6 +118,8 @@
 **The first docs a newcomer reads are current.** `TOOLS.md`, `START-HERE.md`, `SETUP.md` and the hook and MCP indexes no longer list the retired GitHub connector, name Obsidian, give Stitch's real key, describe the account autopilot on all three systems, and call Foam optional. The setup interview no longer asks for a GitHub token there is nowhere to put.
 
 **Releases that add a command now tell installed vaults to add its `USER.md` section**, enforced by a test, so a new command can never arrive without one.
+
+**A motion export plays at the speed it was made.** `motion-render.py export` defaulted to 60 fps, so a 30 fps piece exported without `--fps`, as the `motion-lab` skill shows it, came out at double speed. Rendering now records its frame rate beside the frames and export uses it. Frames rendered before this update still export at 60 unless you pass `--fps`.
 
 **Action required:** none beyond starting a new Claude session, so the updated `/close-day` and `CLAUDE.md` load.
 
