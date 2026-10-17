@@ -153,6 +153,11 @@ HTMLC
   if command -v ffmpeg >/dev/null 2>&1; then
     $PYBIN "$R" export "$T/f" --fps 30 --out "$T/loop.mp4" --gif "$T/loop.gif" --gif-fps 24 > "$T/x.out" 2>&1 \
       && grep '"gif_ms": 6000' "$T/x.out" >/dev/null && ok "MP4 + 24 fps GIF exported, GIF exactly 6000 ms (no drift)" || no "export" "$(cat "$T/x.out")"
+    # no --fps: export must use the fps the frames were rendered at (here 30), not a 60 default
+    $PYBIN "$R" export "$T/f" --out "$T/nofps.mp4" > "$T/n.out" 2>&1 \
+      && grep '"fps": 30.0' "$T/n.out" >/dev/null \
+      && [ "$(ffprobe -v error -select_streams v -show_entries stream=r_frame_rate -of csv=p=0 "$T/nofps.mp4")" = "30/1" ] \
+      && ok "export without --fps keeps the rendered 30 fps" || no "export without --fps changed the frame rate" "$(cat "$T/n.out")"
   fi
 else skip "no Python Playwright + Chromium here"; fi
 
