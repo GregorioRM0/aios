@@ -210,7 +210,7 @@ def cmd_frames(args):
         if os.path.isdir(tmp):
             shutil.rmtree(tmp, ignore_errors=True)
         # export only sees the folder, so the timing the page declared travels with the frames
-        with open(os.path.join(args.out, "render.json"), "w") as fh:
+        with open(os.path.join(args.out, "render.json"), "w", encoding="utf-8") as fh:
             json.dump({"fps": fps, "duration": dur, "size": args.size}, fh)
         print(json.dumps({"out": args.out, "frames": len(idx), "of": n, "fps": fps, "duration": dur,
                           "size": args.size, "subframes": sub}))
@@ -358,7 +358,7 @@ def cmd_export(args):
         die("frames are not a contiguous run (render with --all before exporting)")
     if args.fps is None:                     # flag > the fps the frames were rendered at > 60
         try:
-            with open(os.path.join(args.dir, "render.json")) as fh:
+            with open(os.path.join(args.dir, "render.json"), encoding="utf-8") as fh:
                 args.fps = float(json.load(fh)["fps"])
         except (OSError, ValueError, KeyError):
             args.fps = 60.0
