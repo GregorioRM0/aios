@@ -79,6 +79,16 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-21 — A mentor that keeps a weekly appointment
+
+`hash: `
+
+> **What you can now do.** Ask `sigmund` for a weekly development session that remembers last week: it keeps a development plan, follows each commitment until it is kept, renegotiated or named as avoided, watches quietly at `/close-day`, and reads transcripts where you led a meeting to tell you how you facilitated.
+
+**A mentor, not only a listener.** `growth-companion` answers when you arrive with a heavy day; nothing in the framework owned the long arc. `sigmund` (in `agents/aios/personal/`) does: one session a week that opens with what you committed to last time, works one or two real pieces from your vault, names the contradiction it sees, and closes with one small commitment and the signal that will show it was kept. It keeps its memory in `context/observed/sigmund-observations.md` (snapshot before every edit), with a living synthesis, a development plan of at most three edges, and a dated log. At `/close-day` it stays silent unless it sees a critical pattern, and then says it in three lines at most. Never invites itself into tactical work.
+
+**Action required:** none. The agent is on demand until you choose a cadence. To give it one, add a line to your own `USER.md` under `### /today` (for example: suggest the weekly session on Fridays) and, if you want the observer, under `### /close-day`. The agent file names the exact wording.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
