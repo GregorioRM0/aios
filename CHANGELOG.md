@@ -79,6 +79,16 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-25 — MCP setup tells you when an install failed
+
+`hash: ` · PR pending
+
+> **What you can now do.** Run `bash mcps/setup.sh` on a Mac with the system Python and get a working install, or a clear list of what failed, instead of a success message over servers that never installed.
+
+**`mcps/setup.sh` no longer reports success over a failed install.** macOS ships Python 3.9, which the Python MCP servers cannot use. The script accepted it, `pip` failed, and every block still printed `✓ installed` and finished with `All MCPs installed`, so a server looked ready and was not. The script now looks for Python 3.10 or newer (versioned names first, then `uv`), rebuilds a server's environment when it was made with a Python that is too old, and checks each install. If anything failed, it ends naming what failed and exits with an error.
+
+**Action required** — check first; do only what applies: if an MCP server from `mcps/` does not appear as connected in `claude mcp list`, run `bash mcps/setup.sh` again and read the last lines. Otherwise nothing.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
