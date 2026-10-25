@@ -1399,6 +1399,12 @@ jobs:
         # warns in writing that a check which always fires is one the operator stops reading.
         run: bash tests/bus-dead-letters.test.sh
 
+      - name: unfinished-work reports open notes with no task, and is silent when one exists
+        # /close-day runs this every evening, so the silent half carries a control per
+        # legitimate shape: a project-note task, a daily-note task with an aliased link,
+        # closed statuses, and out-of-scope folders (logs/, context/, projects/).
+        run: bash tests/unfinished-work.test.sh
+
       - name: CONTRIBUTING routes to all three repos; CHEATSHEET stays an index
         # The contribution graph was one-way: both surface repos told contributors when a
         # change belonged to canonical, and canonical told nobody the reverse — while being

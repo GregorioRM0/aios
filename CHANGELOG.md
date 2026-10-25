@@ -79,6 +79,18 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-25 — Work left half-done gets a task instead of disappearing
+
+`hash: ` · PR pending
+
+> **What you can now do.** Close a day on which only part of a plan shipped and find the rest waiting as a task in its project, instead of discovering a week later that nobody remembered it.
+
+**Partial work no longer closes as done.** `/today` reads tasks, never documents. So a plan saved as a note and ticked off after its first phase had no way back: the rest of it was never surfaced again. `/close-day` and `/close-session` now mark such work as partial, and what is left becomes a `- [ ]` task in its project note, linked to the note that holds the plan.
+
+**A check catches the ones that slip through.** `hooks/unfinished-work.sh` lists notes whose `status:` says the work is still open (`proposal`, `draft`, `in progress`…) when no open task links to them. `/close-day` adds the missing task without asking and tells you in one line; `/today` does the same in the morning. It reads only, and says nothing when every open note has a task. If you write `status:` in another language, set `AIOS_OPEN_STATUSES` (for example `propuesta|borrador|en curso`).
+
+**Action required:** none beyond starting a new Claude session, so the updated `/close-day`, `/close-session` and `/today` load.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
