@@ -79,6 +79,18 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-25 — Your vault's GitHub backup stops sending CI failure emails
+
+`hash: `
+
+> **What you can now do.** Back your vault up to GitHub without a CI failure email on every push once the free Actions minutes run out.
+
+**Setup creates your private vault repo with GitHub Actions turned off.** The vault carries the framework's own CI workflow, so every push to your private repo started a run. In a private vault that workflow only repeats the secret scan `aios-commit` already runs before each push, but each run still billed private-repo minutes. A vault that commits many times a day uses up GitHub Free's monthly allowance, and from then on every push emails a failure you cannot fix: the job never starts, and your notes back up exactly as before. `.github/` never reaches a vault through `/aios:update`, so an older vault keeps whatever workflow it was cloned with. SETUP §8 now creates the repo, turns Actions off, then pushes. `/today`'s *connect my vault to GitHub* runs the same three steps.
+
+**Action required** — check first; do only what applies:
+1. **Only if your vault pushes to a private GitHub repo you own:** find it with `git -C ~/aios remote get-url --push origin` (use your push remote if it is not `origin`), then read `gh api repos/{owner}/{repo}/actions/permissions --jq .enabled`. `false`, an error, or no GitHub remote → skip this. `true` → tell the operator what it costs them (minutes on every push, and failure emails once they run out) and ask once. On yes, run `gh api -X PUT repos/{owner}/{repo}/actions/permissions -F enabled=false`; it changes only that repo's Actions setting and is undone with `enabled=true`. Recommend yes. If the session is not allowed to make the call (an auto-mode permission check can refuse it as a CI change), give the operator that line to type with `!`, once, and move on.
+2. **Start a new Claude session**, so the updated `/today` loads.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
