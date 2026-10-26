@@ -81,7 +81,7 @@
 
 ## 2026-10-26 — A paused quota watcher stops repeating itself
 
-`hash: `
+`hash: ` · [#239](https://github.com/The-AIOS/aios/pull/239)
 
 > **What you can now do.** Pause quota rotation for days without the watcher's log filling with the same line.
 
