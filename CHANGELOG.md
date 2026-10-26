@@ -81,7 +81,7 @@
 
 ## 2026-10-26 — Keep each project's CLAUDE.md a contract, and see what it weighs
 
-`hash: `
+`hash: ` · [#240](https://github.com/The-AIOS/aios/pull/240)
 
 > **What you can now do.** Ask `/aios:housekeeping` which of your projects' `CLAUDE.md` files are heavy enough to cost every session, and which sections carry the weight.
 
