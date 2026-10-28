@@ -417,6 +417,20 @@ else
 fi
 rm -rf "$H5_OLD"
 
+echo "── a leftover index.lock: the commit lands, and the warning names the lock (#232) ──"
+# The commit uses a temp index, so a stale .git/index.lock never stops it; only the real-index
+# sync after it fails. The old warning told the operator to run commands that also fail while
+# the lock exists, and never said a lock was the cause.
+R=$(newrepo); echo a > "$R/a.md"; git -C "$R" add a.md; git -C "$R" commit -qm init
+: > "$R/.git/index.lock"; echo b > "$R/b.md"
+( cd "$R" && "$AC" -m "add b" --no-push -- b.md ) >/dev/null 2>"$R/.err"
+[ "$(git -C "$R" log -1 --format=%s)" = "add b" ] && git -C "$R" cat-file -e HEAD:b.md 2>/dev/null \
+  && ok "the commit lands even with a leftover index.lock" || no "a leftover index.lock stopped the commit"
+grep -q "index.lock" "$R/.err" && grep -q "remove it, then run: git reset -- b.md" "$R/.err" \
+  && ok "the warning names the lock file and the order that works" \
+  || { no "the warning does not name the lock or how to clear it"; sed 's/^/     /' "$R/.err" | head -4; }
+rm -f "$R/.git/index.lock"; rm -rf "$R"
+
 echo ""
 echo "── RESULT: $PASS passed, $FAIL failed  (bash $BASH_VERSION) ──"
 [ "$FAIL" = "0" ] || exit 1

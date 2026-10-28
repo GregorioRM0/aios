@@ -517,6 +517,16 @@ git update-ref $_noderef "$TARGET" "$COMMIT" "$_expect" \
 # is safely committed and pushed. But non-fatal is not the same as unmentioned. One
 # line to stderr converts an unmeasurable failure into a measurable one, which is
 # the whole difference between this recurring and this being fixable next time.
+# A stale .git/index.lock (a git process that crashed or was killed) is the usual reason the real
+# index cannot be written. The commit goes through the temp index and never touches it, so the
+# commit succeeds while every real-index step below fails -- and every fix git suggests fails too
+# until the lock is gone. Name it, and the order that works.
+LOCKFILE=$(git rev-parse --git-path index.lock 2>/dev/null)
+lock_hint(){ # $1 what to run once the lock is gone
+  [ -n "$LOCKFILE" ] && [ -e "$LOCKFILE" ] || return 0
+  printf 'aios-commit:   The cause is a leftover lock file: %s\n' "$LOCKFILE" >&2
+  printf 'aios-commit:   If no other git process is running, remove it, then run: %s\n' "$1" >&2
+}
 if [ ${#PATHS[@]} -gt 0 ]; then
   for _p in "${PATHS[@]}"; do
     # A path gone from BOTH the working tree and the real index (the old half of a staged
@@ -528,17 +538,24 @@ if [ ${#PATHS[@]} -gt 0 ]; then
     if ! _sync_err=$(git add --all -- "$_p" 2>&1); then
       printf 'aios-commit: WARNING — post-commit index sync failed for: %s\n' "$_p" >&2
       [ -n "$_sync_err" ] && printf 'aios-commit:   git said: %s\n' "$_sync_err" >&2
-      printf 'aios-commit:   Your commit SUCCEEDED; this only means the real index still holds\n' >&2
-      printf 'aios-commit:   the old content for that path, so `git status` may show it as\n' >&2
-      printf 'aios-commit:   modified indefinitely. Fix: git restore --staged -- <path>\n' >&2
+      printf 'aios-commit:   Your commit SUCCEEDED; only the real index is behind, so `git status`\n' >&2
+      printf 'aios-commit:   shows that path as a staged change (a new file can show as a staged\n' >&2
+      printf 'aios-commit:   delete plus an untracked copy) until the index catches up.\n' >&2
+      if [ -n "$LOCKFILE" ] && [ -e "$LOCKFILE" ]; then lock_hint "git reset -- $_p"
+      else printf 'aios-commit:   Fix: git reset -- %s\n' "$_p" >&2; fi
     fi
   done
 fi
 # The real-index `git add` above re-derives the mode from the working tree, so on a
 # core.fileMode=false checkout a new --exec path would sit at 100644 against a 100755 HEAD
 # and show as a staged mode change forever. Mirror the commit's mode into the real index.
+# Reported like the sync above: a silent failure here is a staged mode change nobody explains.
 if [ ${#EXECS[@]} -gt 0 ]; then
-  git update-index --chmod=+x -- "${EXECS[@]}" 2>/dev/null || true
+  if ! _sync_err=$(git update-index --chmod=+x -- "${EXECS[@]}" 2>&1); then
+    printf 'aios-commit: WARNING — could not record the executable mode in the real index for: %s\n' "${EXECS[*]}" >&2
+    [ -n "$_sync_err" ] && printf 'aios-commit:   git said: %s\n' "$_sync_err" >&2
+    lock_hint "git update-index --chmod=+x -- ${EXECS[*]}"
+  fi
 fi
 
 # ...and the --untrack counterpart. Without this the real index still lists the file while
@@ -567,7 +584,8 @@ if [ ${#PATHS[@]} -gt 0 ]; then
   if [ -n "$STALE" ]; then
     echo "aios-commit: NOTE — the commit is correct and complete, but your git index still lags HEAD for:" >&2
     printf '  %s\n' $STALE >&2
-    echo "aios-commit: \`git status\` will show these as modified. Clear it with:  git reset -- <those paths>" >&2
+    echo "aios-commit: \`git status\` will show these as staged changes. Clear it with:  git reset -- <those paths>" >&2
+    lock_hint "git reset -- <those paths>"
   fi
 fi
 
