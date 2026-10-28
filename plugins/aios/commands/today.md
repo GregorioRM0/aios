@@ -139,7 +139,7 @@ When the vault backup check returns `backup: none` → one line at the top of th
 
 > *"⚠️ **Your vault is only on this computer** — nothing is backed up yet. When you have a GitHub account: `! gh auth login`, then say *connect my vault to GitHub* (~2 min)."*
 
-If the operator says it, run SETUP §8 (`gh repo create {username}/aios --private --source=. --push`). It re-surfaces every morning until then, deliberately: this is a data-loss risk, not an invitation.
+If the operator says it, run SETUP §8 (create the private repo, turn its Actions off, push — three commands, in that order). It re-surfaces every morning until then, deliberately: this is a data-loss risk, not an invitation.
 
 When it returns `backup: framework-origin ({remote})` → same line, but say what is different: *"⚠️ Your vault pushes to `{remote}`, which is the public AIOS framework repo, not a private one — a push would try to publish your notes there."* Offer SETUP §8 now, or `git -C ~/aios remote remove {remote}` — **the remote the probe named, which is not always `origin`** — to make it local-only until then.
 
