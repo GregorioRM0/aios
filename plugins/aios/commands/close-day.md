@@ -32,6 +32,7 @@ Step 1 runs `uv run ~/aios/hooks/pipeline-executor.py --command close-day` which
    - `Bash(uv run ~/aios/hooks/pipeline-executor.py --command close-day)` — pre-loads Calendar (detailed, with attachments), Calendar next 14 days, Tasks, Slack
    - `Bash(bash ~/aios/hooks/freshness-probe.sh --aios-update)` — **infrastructure freshness check** (the same script `/today` runs — one implementation, so the two surfaces can't drift; SSH `ls-remote` falls back to public HTTPS, and git's error output is kept so a refused credential reads `access-denied`, never `unreachable`). Render per § Aios-update freshness rendering below — at end-of-day, the framing shifts from "before working today" to "before the secondary machine's overnight queue (or first thing tomorrow)".
    - `Bash(uv run ~/aios/hooks/bus-dead-letters.py)` — **bus dead-letter + unclaimed-request check** (same script `/today` runs — one implementation, so the two surfaces can't drift; through `uv` for the reason spelled out in `/today`). It reports two distinct shapes: a retired `.undelivered` request, and a plain `*.json` **nobody ever claimed** — the second is invisible everywhere else, because retirement needs a surface to perform it and a surface that quit performs nothing. Retirement to `.undelivered` stops a request *blocking another surface*; it does not deliver it, and nothing reads that directory. At close-day this matters more than in the morning: an undelivered handoff means a worker was never told to start, so whatever it was meant to produce **will not exist overnight** — and the sender still believes it landed. Render per § Bus dead-letter rendering below.
+   - `Bash(bash ~/aios/hooks/unfinished-work.sh)` — **unfinished-work check** (same script `/today` runs). Handled per § Partial work never closes as done below.
    - `Bash(UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/model-switch-log.py --report --since {today YYYY-MM-DD})` — **model-switch check** (SETUP Hook F). Each line is a session that finished on a model other than the one it asked for, usually a silent fallback after a flagged message. Empty output (or no log, when Hook F is not wired) means nothing to say: say nothing. Otherwise surface one line per row in the `## Close of Day` block, above the verdict line: `> 🔀 **{name} finished on {to}** (asked for {requested}; {reason})` — and treat that session's unattended output as written by that model when you weigh it.
    - `Read` → `USER.md` (for dev project paths, growth routines, session cascade, organization, and `### /close-day` command personalizations)
    - `Read` → `INTENT.md` (if it exists — for focus alignment check, parked item handling in carries)
@@ -191,6 +192,13 @@ The block, appended to the daily note being closed (may be today or yesterday if
 - {Meta-patterns: energy, focus, what worked, what was avoided. Feed /drift.}
 
 ```
+
+## Partial work never closes as done
+
+`/today` reads tasks, not documents. So when a piece of work finishes only part of what it set out to do — one phase of a plan, one PR of several, a proposal written but not executed — marking it `[x]` erases the only trace of the rest, and nothing will ever surface it again.
+
+- **Mark it partial, not done.** Strike only the part that shipped; the remainder becomes `- [ ] {what is left} → [[{note}]]` in the relevant project note's To-Dos (or in `### Carries forward` when no project note fits). The note that holds the plan keeps an open `status:` (`proposal`, `draft`, `in progress`, or the operator's own word) until the whole of it is done.
+- **Then read the unfinished-work check.** Each `unfinished-work:` finding is an open note no task points to: add that task now, the same way, and report it in one line under `### Shipped` or the verdict — *"Unfinished work given a task: [[{note}]] → [[{project}]]."* No question to the operator; this is bookkeeping, not a decision. `unfinished-work: none` → say nothing.
 
 ## Done-outside-a-session check (before any carry is counted)
 
