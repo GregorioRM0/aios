@@ -83,7 +83,7 @@
 
 **🐜 The AIOS now has a home for humans. Ask, share what you built, meet other operators → https://discord.gg/f3rdxBTDMG**
 
-`hash: d67d9c2 · 421ef13 · cc461a5 · 5cfcebf · 5135728 · 8bcf14e · a9552f5 · a0e9c83 · 1ff2019 · 011e6a9 · edf30c5 · 47c79cb · 120bd54 · d61b787 · 1d82288 · 9f375f3 · 24793e0 · 30f5573 · 1c22c2a · 0a62416 · a8b3f29 · f9fe9bc · a75324d · f475ff6 · dae36e3 · 8cc462a · c8384fe · 7cc9241 · 2ef14bd` · [#222](https://github.com/The-AIOS/aios/pull/222) · [#234](https://github.com/The-AIOS/aios/pull/234) · [#235](https://github.com/The-AIOS/aios/pull/235) · [#236](https://github.com/The-AIOS/aios/pull/236) · [#238](https://github.com/The-AIOS/aios/pull/238) · [#239](https://github.com/The-AIOS/aios/pull/239) · [#240](https://github.com/The-AIOS/aios/pull/240)
+`hash: 4a9f371 · d67d9c2 · 421ef13 · cc461a5 · 5cfcebf · 5135728 · 8bcf14e · a9552f5 · a0e9c83 · 1ff2019 · 011e6a9 · edf30c5 · 47c79cb · 120bd54 · d61b787 · 1d82288 · 9f375f3 · 24793e0 · 30f5573 · 1c22c2a · 0a62416 · a8b3f29 · f9fe9bc · a75324d · f475ff6 · dae36e3 · 8cc462a · c8384fe · 7cc9241 · 2ef14bd` · [#222](https://github.com/The-AIOS/aios/pull/222) · [#234](https://github.com/The-AIOS/aios/pull/234) · [#235](https://github.com/The-AIOS/aios/pull/235) · [#236](https://github.com/The-AIOS/aios/pull/236) · [#238](https://github.com/The-AIOS/aios/pull/238) · [#239](https://github.com/The-AIOS/aios/pull/239) · [#240](https://github.com/The-AIOS/aios/pull/240)
 
 > **What you can now do.** Commit on two machines that edited the same note on different lines and have it combine. Keep session transcripts for years and archive only the throwaways. Have a half-done plan come back as a task. Back your vault up to GitHub without CI emails. Run under strict read settings and still get your context floor and your worker's task. Start a session without a permission prompt for your own name.
 
@@ -97,7 +97,7 @@
 
 **Your vault's GitHub backup stops billing CI** (#238). Setup creates the private repo with Actions off, never pushing to the framework first. The credential-file check CI made now runs before every commit, so nothing is lost.
 
-**Sessions can read what they are handed** (#231). Under `blockReadsOutsideWorkingDirectories`, the floor was written where a session could not read it, and so was a worker's task file. The floor now lives in `.aios-run/floor/`, and every launch that hands a session a file adds `--add-dir` for its folder.
+**Sessions can read what they are handed** (#231). Under `blockReadsOutsideWorkingDirectories`, the floor was written where a session could not read it, and so was a worker's task file. The floor now lives in `.aios-run/floor/`, and a worker's task (or a resume prompt) gets its own private folder, granted with `--add-dir`: that folder only, never the run folder with every other session's files.
 
 **Smaller fixes.**
 - The startup identity check is one command, `hooks/whoami`, so it no longer prompts (#230).
