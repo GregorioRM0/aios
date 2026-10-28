@@ -163,5 +163,18 @@ PY
 out=$(run --platform posix)
 case "$out" in *"Nothing to change."*) ok "a second run changes nothing" ;; *) no "second run still wants changes" "$out" ;; esac
 
+echo "── R: transcript retention is set when absent, and an operator's own value is never changed ──"
+# Claude Code deletes transcripts after 30 days by default, at every session start, silently.
+printf '{}\n' > "$S"; out=$(run --platform posix --apply)
+case "$out" in *"+ set   R"*) ok "a file with no cleanupPeriodDays is offered R" ;; *) no "R not offered" "$out" ;; esac
+[ "$($PYBIN -c 'import json,sys; print(json.load(open(sys.argv[1])).get("cleanupPeriodDays"))' "$S")" = 3650 ] \
+  && ok "--apply sets cleanupPeriodDays to 3650" || no "cleanupPeriodDays not written"
+printf '{"cleanupPeriodDays": 30}\n' > "$S"; out=$(run --platform posix --apply)
+case "$out" in *"! note  R"*"your setting, left as it is"*) ok "an operator's 30 is noted, not overridden" ;; *) no "own value not noted" "$out" ;; esac
+[ "$($PYBIN -c 'import json,sys; print(json.load(open(sys.argv[1])).get("cleanupPeriodDays"))' "$S")" = 30 ] \
+  && ok "an operator's own value stays 30 after --apply" || no "the operator's retention was overridden"
+out=$(run --platform posix)
+case "$out" in *"= keep  R"*|*"! note  R"*) ok "a later run does not offer R again" ;; *) no "R offered twice" "$out" ;; esac
+
 echo "── RESULT: $PASS passed, $FAIL failed ──"
 [ "$FAIL" = 0 ]

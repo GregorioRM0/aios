@@ -963,6 +963,14 @@ It costs nothing (a local command, no model call) and prints a table per skill (
 
 **Quarter notes stay derived.** A `01 - calendar/*/{YYYY}-Q{N}-plan.md` (the `okr-coach` agent's one file per quarter) holds objectives and key results, never tasks. **Flag** any `- [ ]` in one: work belongs in project notes and the daily note, and a quarter note that grows checkboxes has become a second planning system. Propose moving each item to its project note.
 
+#### Bucket 36: Session transcripts — keep the sessions, archive the throwaways (NEW — propose-only)
+
+Claude Code deletes transcripts older than `cleanupPeriodDays` (default **30**) at every session start, silently, so a named session you meant to reopen with resume, or an arc you meant to learn from, is gone a month later. Setup and `/aios:update` set a long retention when the settings have none (`hooks/install-settings.py`, item R). Long retention keeps the throwaways too, and this bucket is where they leave on purpose.
+
+**Run** `python3 ~/aios/hooks/transcript-inventory.py` (Windows: the interpreter SETUP §10's probe picks). It reads every transcript's own records and sorts them: **named** (an `agent-name` record: spawned workers, primaries, resumed sessions), **unnamed** interactive sessions, **headless** (`claude -p` and the SDK: routines, probes, test harnesses) and **temp-run** (started in a temp folder). It prints counts and sizes, the retention in force, and the **throwaway candidates**: headless and temp-folder runs older than 14 days. Named and unnamed sessions are counted, never proposed.
+
+**Propose** archiving the candidates as one item, with the count and the size. **Only on the operator's yes**, run `python3 ~/aios/hooks/transcript-inventory.py --archive`: it writes them to `~/claude-archive/transcripts-<date>.tar.gz`, checks every file is in the archive at its full size, and only then deletes them. A file it cannot verify is kept, and a failed archive deletes nothing. **If retention is still Claude Code's 30 days**, say so in one line and offer `python3 ~/aios/hooks/install-settings.py`, which shows the change before making it. **Zero candidates** → say *"0 throwaway transcripts"*.
+
 ### Phase 2 — Present the packet
 
 Categorize all findings into one review table:
@@ -996,6 +1004,7 @@ Categorize all findings into one review table:
 - Skill load cost: {N} never-invoked (owned / synced / plugin), {M} stale plugins
 - Synced-skill collisions: {N} synced skills, {M} collisions
 - Discardable views: {N} explainers past 30 days, {M} checkboxes in quarter notes
+- Session transcripts: {N} throwaway candidates ({size}), retention {days} days
 
 ### 🟢 Auto-applied (no approval needed)
 {Low-stakes mechanical fixes — link adds where unambiguous, snapshot timestamp updates, obvious [x] marks}
