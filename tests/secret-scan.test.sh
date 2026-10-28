@@ -171,7 +171,7 @@ echo '{"diagram":"login flow"}' > "$A/ventures/auth/flow.json"
 ( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && no "control: an auth/*.json passed with no allowlist" || ok "control: without the allowlist, auth/*.json is blocked"
 printf '# false alarms\nventures/auth/flow.json\n' > "$A/.secret-scan-allow"
 ( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && ok "a path in .secret-scan-allow passes the name check" || no "an allowlisted path was still blocked"
-printf '%s\n' "-----BEGIN RSA PRIVATE KEY-----" "MIIEow" > "$A/ventures/auth/flow.json"
+printf '%s%s\n%s\n' "-----BEGIN RSA PRIVATE" " KEY-----" "MIIEow" > "$A/ventures/auth/flow.json"   # split: this file is scanned too
 ( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && no "an allowlisted file holding a private key passed" || ok "an allowlisted file is still content-scanned (a private key inside blocks)"
 echo x > "$A/id.key"; msg=$(cd "$A" && bash "$SCAN" id.key 2>&1)
 case "$msg" in *".secret-scan-allow"*) ok "a name block says how to allow a false alarm" ;; *) no "the block message does not mention .secret-scan-allow" "$msg" ;; esac
