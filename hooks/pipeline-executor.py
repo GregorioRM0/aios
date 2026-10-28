@@ -178,9 +178,30 @@ def _operator_lines(content):
             in_example = True
             continue
         if in_example:
-            continue
+            if not _closes_example(line):
+                continue
+            # The operator wrote below the example block in the same section. The block used
+            # to run to the next heading, so those lines were read as template and Calendar /
+            # Tasks configured there reported "not configured".
+            in_example = False
         if _is_operator_line(line):
             yield line
+
+
+def _closes_example(line):
+    """True for the first line after an EXAMPLE ONLY block that is plainly the operator's own:
+    not blank, not indented (a wrapped continuation of an example bullet), not a quote, table,
+    comment or fence, and not an italic example bullet. Anything ambiguous stays in the block,
+    so a template line is never read as a declaration."""
+    if not line.strip() or line[:1] in (" ", "\t"):
+        return False
+    stripped = line.strip()
+    if stripped.startswith((">", "|", "<!--", "```")):
+        return False
+    body = re.sub(r"^(?:[-*+]|\d+\.)\s+", "", stripped)
+    if body.startswith(("*", "_")):
+        return False
+    return True
 
 
 def _mentions_enabled(content, keyword):

@@ -55,6 +55,8 @@ ns['re'] = _re
 m = re.search(r'def _is_operator_line(?:.|\n)*?\n    return True\n', src)
 if m: exec(m.group(0), ns)
 else: ns['_is_operator_line'] = lambda line: True     # pre-fix code has no such guard
+m3 = re.search(r'def _closes_example(?:.|\n)*?\n    return True\n', src)
+if m3: exec(m3.group(0), ns)                          # absent before the EXAMPLE-ONLY close rule
 m2 = re.search(r'def _operator_lines(?:.|\n)*?\n            yield line\n', src)
 if m2: exec(m2.group(0), ns)
 else: ns['_operator_lines'] = lambda c: (l for l in c.split("\n") if ns['_is_operator_line'](l))
@@ -169,6 +171,26 @@ REMOVED_MIX="- Google Tasks - removed, no lo utilizo
 "
 have "$(probe "$REMOVED_MIX" 'Google Tasks')" "off" "10. retired source off ..."
 have "$(probe "$REMOVED_MIX" 'Slack')"        "ON"  "10. ... while a live source beside it stays on"
+
+# ---------------------------------------------------------------------------
+# TEST 11 - lines the operator writes BELOW an EXAMPLE ONLY block count (#233).
+#           The block used to run to the next heading, so Calendar and Tasks
+#           configured there read "not configured". A wrapped italic example
+#           line stays inside the block.
+# ---------------------------------------------------------------------------
+BELOW="*EXAMPLE ONLY - replace with your own:*
+- *Google Calendar - work + personal,
+  both read daily*
+- Google Calendar - j@example.com, primary
+- Google Tasks - My Tasks list
+"
+have "$(probe "$BELOW" 'Google Calendar')" "ON" "11. a source written below the example block is read"
+have "$(probe "$BELOW" 'Google Tasks')"    "ON" "11. ... and a second one after it"
+WRAPPED="*EXAMPLE ONLY - replace with your own:*
+- *Slack - recap the general channel,
+  and the launches channel daily*
+"
+have "$(probe "$WRAPPED" 'Slack')" "off" "11. a wrapped italic example line stays inside the block"
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
