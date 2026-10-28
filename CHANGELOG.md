@@ -79,81 +79,41 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
-## 2026-10-17 — A two-machine vault no longer stays stuck after one file blocked a push
+## 2026-10-28 — Two machines that sync cleanly, work that finishes outside a session that closes, and sessions that read what they are handed
 
-`hash: ` · [#222](https://github.com/The-AIOS/aios/pull/222)
+**🐜 The AIOS now has a home for humans. Ask, share what you built, meet other operators → https://discord.gg/f3rdxBTDMG**
 
-> **What you can now do.** Keep committing on two machines while a session has a file open: once that file is committed, the commits that were waiting go out by themselves, even when both machines edited the same note on different lines.
+`hash: d67d9c2 · 421ef13 · cc461a5 · 5cfcebf · 5135728 · 8bcf14e · a9552f5 · a0e9c83 · 1ff2019 · 011e6a9 · edf30c5 · 47c79cb · 120bd54 · d61b787 · 1d82288 · 9f375f3 · 24793e0 · 30f5573 · 1c22c2a · 0a62416 · a8b3f29 · f9fe9bc · a75324d · f475ff6 · dae36e3 · 8cc462a · c8384fe · 7cc9241 · 2ef14bd` · [#222](https://github.com/The-AIOS/aios/pull/222) · [#234](https://github.com/The-AIOS/aios/pull/234) · [#235](https://github.com/The-AIOS/aios/pull/235) · [#236](https://github.com/The-AIOS/aios/pull/236) · [#238](https://github.com/The-AIOS/aios/pull/238) · [#239](https://github.com/The-AIOS/aios/pull/239) · [#240](https://github.com/The-AIOS/aios/pull/240)
 
-**One file no longer strands a push for good.** When the other machine changed a file you had open, `aios-commit` correctly refused to combine, but it then stayed stuck: the retry of a pending push was a plain `git push` that can never succeed once the remote has moved, and when the file was finally committed, the two machines having touched the same file was refused by name. Now `git merge-tree` decides by content, so two edits to different lines combine and only a real conflict stops it, and the pending-push retry combines the same way, under the commit lock.
+> **What you can now do.** Commit on two machines that edited the same note on different lines and have it combine. Keep session transcripts for years and archive only the throwaways. Have a half-done plan come back as a task. Back your vault up to GitHub without CI emails. Run under strict read settings and still get your context floor and your worker's task. Start a session without a permission prompt for your own name.
 
-**Combining can no longer overwrite work you have not committed.** It used to miss three cases and write over them: a change you had staged while the file on disk was back to its committed text, a file hidden from git with `assume-unchanged` or `skip-worktree`, and a folder of yours that the other machine turned into a file, which took the untracked files inside it. In each case it now stops and leaves your copy alone.
+**Two machines combine by content, never over your work** (#222). A file both machines changed is no longer refused by name: `git merge-tree` decides, so edits to different lines combine and only a real conflict stops it, and a push left waiting retries the same way. It stops, leaving your copy alone, when you have a staged change, a file hidden with `assume-unchanged` or `skip-worktree`, or a folder the other machine turned into a file.
 
-**Action required:** nothing for you to do. It takes effect on your next commit.
+**Commits say what is stuck, and whose they are.** A leftover `.git/index.lock` is named, with the order that clears it (#232). `--vault` now also commits your `USER.md` and `INTENT.md`, never framework files (#223). With no git identity set, a commit says the guessed name it went out under, and setup now sets one (#224). On Windows, `/aios:update` commits scripts as executable, and only files that match the framework's own (#234).
 
-## 2026-10-23 — Scripts synced on Windows keep their executable bit
+**Partial work gets a task** (#236). `/close-day` and `/close-session` mark half-done work as partial, and what is left becomes a task linked to its plan. A check lists open notes no task points to: `/close-day` adds the task, `/today` shows it. Retired notes under `_archived/` and roadmaps are skipped.
 
-`hash: `
+**Transcripts are kept, and throwaways leave on purpose.** Claude Code deletes transcripts after 30 days, silently. Setup and updates now propose keeping them 10 years when you have no setting of your own, and `/aios:housekeeping` sorts them, proposing to archive only old headless and test runs, never a named session. It archives and verifies before it deletes.
 
-> **What you can now do.** Clone a vault you keep on Windows onto a Linux or macOS machine and have its hooks and by-name tools run, with no mode-only changes showing up after `install-git-hooks.sh`.
+**Your vault's GitHub backup stops billing CI** (#238). Setup creates the private repo with Actions off, never pushing to the framework first. The credential-file check CI made now runs before every commit, so nothing is lost.
 
-**`/aios:update` on Windows now commits scripts as executable.** Git for Windows sets `core.fileMode=false`, so git cannot see the executable bit and records every new file as `100644`. The framework-sync commit therefore stored scripts canonical ships as `755` (`hooks/git/pre-push`, `hooks/clip`, `hooks/resolve-tier`, skill scripts) as non-executable. On a Linux or macOS clone of that vault, git ignored the non-executable `pre-push` hook (leaving only a hint), so its guard never ran, by-name tools failed with *permission denied*, and once `install-git-hooks.sh` ran `chmod +x` the working tree showed those files as modified forever. `aios-commit` gains `--exec <path>`, which commits a path as `100755` without touching the working tree, and `/aios:update` Step 7 passes it for every script canonical stores as `755` that the vault does not. On macOS and Linux nothing changes: `cp` already kept the mode.
+**Sessions can read what they are handed** (#231). Under `blockReadsOutsideWorkingDirectories`, the floor was written where a session could not read it, and so was a worker's task file. The floor now lives in `.aios-run/floor/`, and every launch that hands a session a file adds `--add-dir` for its folder.
 
-**Action required** — none. On a Windows vault the next `/aios:update` also repairs scripts an earlier sync committed as `100644`, as a mode-only change inside its own framework-sync commit. A Linux or macOS clone that set `core.fileMode false` to hide those modifications can unset it after pulling that commit.
+**Smaller fixes.**
+- The startup identity check is one command, `hooks/whoami`, so it no longer prompts (#230).
+- Calendar and Tasks written below an *EXAMPLE ONLY* block in `USER.md` are read (#233).
+- A fresh vault's buffer check no longer reports "cannot measure" (#227).
+- The two Google setup docs give one answer on *Publish app* (#226).
+- MCP setup needs Python 3.10+ and names every server it could not install (#235).
+- A paused quota watcher logs the pause once, not every tick (#239).
+- `/aios:housekeeping` weighs each project's `CLAUDE.md` (#240).
 
-## 2026-10-26 — A paused quota watcher stops repeating itself
-
-`hash: ` · [#239](https://github.com/The-AIOS/aios/pull/239)
-
-> **What you can now do.** Pause quota rotation for days without the watcher's log filling with the same line.
-
-**A pause is said once, not on every tick.** While you had rotation paused, the quota watcher wrote "PAUSED by operator until …" every few minutes; one operator counted 5,031 identical lines in two weeks, which buried everything else in that log. It now writes the line when the pause starts or changes, and once a day while it lasts, so a long pause is never silent. The health file still reports the pause on every tick, so `/today` sees it exactly as before. The brief empty marker while a pause is being written is not treated as a pause of its own.
-
-**Action required** — none. The watcher picks up the change on its next tick.
-
-## 2026-10-26 — Keep each project's CLAUDE.md a contract, and see what it weighs
-
-`hash: ` · [#240](https://github.com/The-AIOS/aios/pull/240)
-
-> **What you can now do.** Ask `/aios:housekeeping` which of your projects' `CLAUDE.md` files are heavy enough to cost every session, and which sections carry the weight.
-
-**A project's `CLAUDE.md` is a contract, not a reference manual.** It is loaded whole, by every session, before the first prompt, so a catalogue kept in it is a tax on every turn. Measured on one repo (2026-10-13): a 347 KB `CLAUDE.md` cost ~164k tokens per session start; its three catalogue sections were 54 % of the file and had been opened four times in six weeks; moving them to `docs/*.md` behind one-line stubs cut the start to ~77k with every test unchanged. `CLAUDE.md` § Project Focus Protocol now says where catalogues go, and `/aios:housekeeping` Bucket 17 weighs each project's `CLAUDE.md` and names its heaviest sections from 50 KB — it proposes, never moves. Canonical's own budget is unchanged: 93,784 → 94,363 bytes, under the 94,500 ratchet.
-
-**Action required:** none beyond starting a new Claude session, so the updated `CLAUDE.md` and `/aios:housekeeping` load.
-
-## 2026-10-25 — MCP setup tells you when an install failed
-
-`hash: ` · PR pending
-
-> **What you can now do.** Run `bash mcps/setup.sh` on a Mac with the system Python and get a working install, or a clear list of what failed, instead of a success message over servers that never installed.
-
-**`mcps/setup.sh` no longer reports success over a failed install.** macOS ships Python 3.9, which the Python MCP servers cannot use. The script accepted it, `pip` failed, and every block still printed `✓ installed` and finished with `All MCPs installed`, so a server looked ready and was not. The script now looks for Python 3.10 or newer (versioned names first, then `uv`), rebuilds a server's environment when it was made with a Python that is too old, and checks each install. If anything failed, it ends naming what failed and exits with an error.
-
-**Action required** — check first; do only what applies: if an MCP server from `mcps/` does not appear as connected in `claude mcp list`, run `bash mcps/setup.sh` again and read the last lines. Otherwise nothing.
-
-## 2026-10-25 — Your vault's GitHub backup stops sending CI failure emails
-
-`hash: `
-
-> **What you can now do.** Back your vault up to GitHub without a CI failure email on every push once the free Actions minutes run out.
-
-**Setup creates your private vault repo with GitHub Actions turned off.** The vault carries the framework's own CI workflow, so every push to your private repo started a run. In a private vault that workflow only repeats the secret scan `aios-commit` already runs before each push, but each run still billed private-repo minutes. A vault that commits many times a day uses up GitHub Free's monthly allowance, and from then on every push emails a failure you cannot fix: the job never starts, and your notes back up exactly as before. `.github/` never reaches a vault through `/aios:update`, so an older vault keeps whatever workflow it was cloned with. SETUP §8 now creates the repo, turns Actions off, then pushes. `/today`'s *connect my vault to GitHub* runs the same three steps.
-
-**Action required** — check first; do only what applies:
-1. **Only if your vault pushes to a private GitHub repo you own:** find it with `git -C ~/aios remote get-url --push origin` (use your push remote if it is not `origin`), then read `gh api repos/{owner}/{repo}/actions/permissions --jq .enabled`. `false`, an error, or no GitHub remote → skip this. `true` → tell the operator what it costs them (minutes on every push, and failure emails once they run out) and ask once. On yes, run `gh api -X PUT repos/{owner}/{repo}/actions/permissions -F enabled=false`; it changes only that repo's Actions setting and is undone with `enabled=true`. Recommend yes. If the session is not allowed to make the call (an auto-mode permission check can refuse it as a CI change), give the operator that line to type with `!`, once, and move on.
-2. **Start a new Claude session**, so the updated `/today` loads.
-
-## 2026-10-25 — Work left half-done gets a task instead of disappearing
-
-`hash: ` · PR pending
-
-> **What you can now do.** Close a day on which only part of a plan shipped and find the rest waiting as a task in its project, instead of discovering a week later that nobody remembered it.
-
-**Partial work no longer closes as done.** `/today` reads tasks, never documents. So a plan saved as a note and ticked off after its first phase had no way back: the rest of it was never surfaced again. `/close-day` and `/close-session` now mark such work as partial, and what is left becomes a `- [ ]` task in its project note, linked to the note that holds the plan.
-
-**A check catches the ones that slip through.** `hooks/unfinished-work.sh` lists notes whose `status:` says the work is still open (`proposal`, `draft`, `in progress`…) when no open task links to them. `/close-day` adds the missing task without asking and tells you in one line; `/today` does the same in the morning. It reads only, and says nothing when every open note has a task. If you write `status:` in another language, set `AIOS_OPEN_STATUSES` (for example `propuesta|borrador|en curso`).
-
-**Action required:** none beyond starting a new Claude session, so the updated `/close-day`, `/close-session` and `/today` load.
+**Action required** — check each first; do only what applies:
+1. **The modified installers.** `/aios:update` re-runs `hooks/claude-identity/install-wrappers.sh` (Windows: `.ps1`); it writes the same shell file, now passing `--add-dir` for task files. It also runs `hooks/install-settings.py`: read its lines to the operator, and `--apply` only on yes. On a vault without `cleanupPeriodDays` it proposes 10-year transcript retention. Recommend yes to both.
+2. **Only if `git -C ~/aios config user.email` prints nothing:** set the operator's name and email with `git config --global`.
+3. **Only if an MCP from `mcps/` is not connected in `claude mcp list`:** run `bash mcps/setup.sh` and read its last lines; it now names what failed (usually Python below 3.10).
+4. **Only if the vault pushes to a private GitHub repo you own:** read `gh api repos/{owner}/{repo}/actions/permissions --jq .enabled`. On `true`, say it bills minutes on every push and ask once; on yes, run `gh api -X PUT repos/{owner}/{repo}/actions/permissions -F enabled=false`.
+5. **Open a new terminal, and start a new Claude session**, last.
 
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
