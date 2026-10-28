@@ -111,6 +111,16 @@
 
 **Action required** — none. The watcher picks up the change on its next tick.
 
+## 2026-10-26 — Keep each project's CLAUDE.md a contract, and see what it weighs
+
+`hash: ` · [#240](https://github.com/The-AIOS/aios/pull/240)
+
+> **What you can now do.** Ask `/aios:housekeeping` which of your projects' `CLAUDE.md` files are heavy enough to cost every session, and which sections carry the weight.
+
+**A project's `CLAUDE.md` is a contract, not a reference manual.** It is loaded whole, by every session, before the first prompt, so a catalogue kept in it is a tax on every turn. Measured on one repo (2026-10-13): a 347 KB `CLAUDE.md` cost ~164k tokens per session start; its three catalogue sections were 54 % of the file and had been opened four times in six weeks; moving them to `docs/*.md` behind one-line stubs cut the start to ~77k with every test unchanged. `CLAUDE.md` § Project Focus Protocol now says where catalogues go, and `/aios:housekeeping` Bucket 17 weighs each project's `CLAUDE.md` and names its heaviest sections from 50 KB — it proposes, never moves. Canonical's own budget is unchanged: 93,784 → 94,364 bytes, under the 94,500 ratchet.
+
+**Action required:** none beyond starting a new Claude session, so the updated `CLAUDE.md` and `/aios:housekeeping` load.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)

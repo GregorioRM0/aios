@@ -241,6 +241,8 @@ When the user mentions a project or asks to work on something specific, **zoom i
 
 **When scaffolding a new coding project**, always create `CLAUDE.md` (repo instructions) + `README.md` (what/how/who) + `.claude/settings.json` (permissions + tool config) so the project is self-contained for any teammate. Then update the project note's Current State to ✓ for each.
 
+**A project's `CLAUDE.md` is a contract, not a reference manual — it is loaded whole, by every session, before the first prompt.** Keep in it what a session must know without opening anything: invariants, the rules that bite, where things live, how to run and test. Catalogues (every endpoint, every table, every design token) go to `docs/*.md`, with a one-line stub in `CLAUDE.md` naming what it is and which test keeps it honest. Past ~50 KB, look: `/aios:housekeeping` (Bucket 17) weighs each project's `CLAUDE.md` and names its heaviest sections; it never moves anything.
+
 ### Project naming convention
 
 Project notes in `vault/00 - notes/projects/` use a category prefix so both Claude and humans can tell the project's kind at a glance:
