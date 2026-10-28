@@ -115,6 +115,19 @@ out=$( env -u CLAUDECODE CLAUDE_ADVISOR_MODEL='x","permissions":{"allow":["Bash"
 ls "$tmp"/aios-advisor-* >/dev/null 2>&1 && no "a refused advisor still left a settings file" || ok "no advisor settings file left in TMPDIR"
 rm -f "$tmp/args"; runspawn worker "task"
 grep -x -- '--effort\|--settings' "$tmp/args" >/dev/null 2>&1 && no "a spawn without the flags passed --effort or --settings" || ok "without the flags, no --effort and no --settings (byte-identical to before)"
+# --add-dir (#231): under blockReadsOutsideWorkingDirectories a worker cannot read outside its
+# working folders, and its task file lives in the run dir outside ~/aios. Every launch whose prompt
+# is a file there carries --add-dir <run dir>; a folder given to spawn passes through, once.
+RUN="$tmp/.aios/run"; adds(){ grep -A1 -x -- '--add-dir' "$tmp/args" 2>/dev/null | grep -v -x -- '--add-dir\|--'; }
+[ "$(adds)" = "$RUN" ] && ok "a spawn with a task passes --add-dir <run dir>, once" || no "the run dir was not added" "$(adds | tr '\n' ' ')"
+rm -f "$tmp/args"; mkdir -p "$tmp/extra"; runspawn --add-dir "$tmp/extra" worker "task"
+[ "$(adds | sort | tr '\n' ' ')" = "$(printf '%s\n%s\n' "$RUN" "$tmp/extra" | sort | tr '\n' ' ')" ] \
+  && ok "a given --add-dir reaches claude beside the run dir" || no "a given --add-dir was lost" "$(adds | tr '\n' ' ')"
+rm -f "$tmp/args"; runspawn --add-dir "$RUN" worker "task"
+[ "$(adds | grep -c -x "$RUN")" = 1 ] && ok "a given --add-dir equal to the run dir arrives once" || no "the run dir was passed twice"
+rm -f "$tmp/args"
+env -u CLAUDECODE -u CLAUDE_ADD_DIRS HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; _claude_with_respawn primary ""' _ "$FNS" >/dev/null 2>&1
+[ -f "$tmp/args" ] && [ -z "$(adds)" ] && ok "a launch with no prompt file adds no --add-dir" || no "a plain launch got --add-dir" "$(adds | tr '\n' ' ')"
 out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --effort ultra worker task' _ "$FNS" 2>&1 ); rc=$?
 [ "$rc" != 0 ] && case "$out" in *"unknown --effort"*) true ;; *) false ;; esac && ok "an unknown --effort is refused, naming the flag" || no "--effort ultra not refused (rc=$rc)" "$out"
 rm -f "$tmp/.aios/run/spawn-task-advw.md" "$tmp/.aios/run/spawn-task-advj.md"
@@ -295,6 +308,10 @@ grep -q "\$effortArgs = @('--effort', \$env:CLAUDE_EFFORT)" "$PS1" && ok "ps1 pa
 grep -q "\$advisorArgs = @('--settings', \$advFile)" "$PS1" && ok "ps1 passes the advisor as a settings file" || no "ps1 never passes the advisor"
 grep -q '\$modelArgs + \$effortArgs + \$advisorArgs' "$PS1" && ok "ps1 effort/advisor args reach the claude invocation" || no "ps1 args built but never passed"
 grep -q 'CLAUDE_ADVISOR_MODEL = .\$spawnAdvisor' "$PS1" && ok "ps1 new-window path carries the advisor" || no "ps1 new-window path drops the advisor"
+grep -q '\[string\[\]\] \$AddDir' "$PS1" && ok "ps1 spawn takes -AddDir (twin of --add-dir)" || no "ps1 spawn has no -AddDir"
+grep -q 'Split-Path -Parent \$BootstrapFile' "$PS1" && ok "ps1 loop adds the prompt file's folder as --add-dir" || no "ps1 loop never adds the prompt file's folder"
+grep -q '\$advisorArgs + \$addDirArgs + \$resumeArgs' "$PS1" && ok "ps1 --add-dir args reach the claude invocation" || no "ps1 --add-dir args built but never passed"
+grep -q 'CLAUDE_ADD_DIRS = ' "$PS1" && grep -q '\$addDirStmt' "$PS1" && ok "ps1 in-process and new-window paths both carry -AddDir" || no "a ps1 spawn path drops -AddDir"
 
 echo "── a flag given LAST with no value fails fast (it used to spin the argument loop forever) ──"
 # `shift 2` with one argument left fails WITHOUT shifting in bash and zsh, so the loop never ended.

@@ -237,7 +237,19 @@ function Invoke-ClaudeWithRespawn {
     if (-not $claudeExe) { $claudeExe = $claudeCmds[0].Source }
     try {
         while ($true) {
-            $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $resumeArgs + @('--remote-control', '--name', $Name)
+            # --add-dir for every launch whose prompt is a FILE (the twin of install-wrappers.sh):
+            # under permissions.blockReadsOutsideWorkingDirectories a session cannot read outside
+            # its working folders, and the task / resume prompt lives in %TEMP%. Plus any folder
+            # spawn -AddDir was given. Rebuilt each pass: a swap points the bootstrap at a new file.
+            $addDirArgs = @(); $seen = @{}
+            $dirs = @()
+            if ($env:CLAUDE_ADD_DIRS) { $dirs += ($env:CLAUDE_ADD_DIRS -split "`n") }
+            if ($BootstrapFile -and (Test-Path $BootstrapFile)) { $dirs += (Split-Path -Parent $BootstrapFile) }
+            foreach ($d in $dirs) {
+                $d = $d.Trim()
+                if ($d -and -not $seen.ContainsKey($d)) { $seen[$d] = $true; $addDirArgs += @('--add-dir', $d) }
+            }
+            $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $addDirArgs + $resumeArgs + @('--remote-control', '--name', $Name)
             if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
                 $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
             }
@@ -323,7 +335,10 @@ function spawn {
         [ValidateSet('low','medium','high','xhigh','max')] [string] $Effort,
         # -Advisor <rung|model> -- an advisor model for the worker; a rung resolves like -Tier,
         # anything else is a model id. No rung has a default advisor. MODEL-ROUTING.md, section "The advisor".
-        [string] $Advisor
+        [string] $Advisor,
+        # -AddDir <folder>[,<folder>] -- extra folders the worker may read, passed to claude as
+        # --add-dir. A surface that hands the worker its own file there names it this way.
+        [string[]] $AddDir
     )
 
     # Tier -> model id. $null = no override -> frontier default (judgment). Every id
@@ -562,12 +577,13 @@ function spawn {
     if ((-not $env:CLAUDECODE) -or $env:AIOS_GLASS_TERM) {
         # In-process path: set CLAUDE_MODEL for the call only, then restore (no leak).
         # Set the per-spawn variables for the call only, then restore them (no leak).
-        $prev = @{ M = $env:CLAUDE_MODEL; E = $env:CLAUDE_EFFORT; A = $env:CLAUDE_ADVISOR_MODEL }
+        $prev = @{ M = $env:CLAUDE_MODEL; E = $env:CLAUDE_EFFORT; A = $env:CLAUDE_ADVISOR_MODEL; D = $env:CLAUDE_ADD_DIRS }
         if ($spawnModel)   { $env:CLAUDE_MODEL = $spawnModel }
         if ($Effort)       { $env:CLAUDE_EFFORT = $Effort }
         if ($spawnAdvisor) { $env:CLAUDE_ADVISOR_MODEL = $spawnAdvisor }
+        if ($AddDir)       { $env:CLAUDE_ADD_DIRS = ($AddDir -join "`n") }
         try { Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile }
-        finally { $env:CLAUDE_MODEL = $prev.M; $env:CLAUDE_EFFORT = $prev.E; $env:CLAUDE_ADVISOR_MODEL = $prev.A }
+        finally { $env:CLAUDE_MODEL = $prev.M; $env:CLAUDE_EFFORT = $prev.E; $env:CLAUDE_ADVISOR_MODEL = $prev.A; $env:CLAUDE_ADD_DIRS = $prev.D }
         return
     }
 
@@ -585,11 +601,14 @@ function spawn {
     $modelStmt = if ($spawnModel) { "`$env:CLAUDE_MODEL = '$spawnModel'" } else { '' }
     $effortStmt = if ($Effort) { "`$env:CLAUDE_EFFORT = '$Effort'" } else { '' }
     $advisorStmt = if ($spawnAdvisor) { "`$env:CLAUDE_ADVISOR_MODEL = '$spawnAdvisor'" } else { '' }
+    if ($AddDir | Where-Object { $_ -match "'" }) { Write-Error "spawn: an -AddDir folder may not contain a single quote"; return }
+    $addDirStmt = if ($AddDir) { "`$env:CLAUDE_ADD_DIRS = '" + ($AddDir -join "`n") + "'" } else { '' }
     $inner = @"
 . `$PROFILE
 $modelStmt
 $effortStmt
 $advisorStmt
+$addDirStmt
 Set-Location '$($PWD.Path)'
 Invoke-ClaudeWithRespawn -Name '$Name' -BootstrapFile '$taskFile'
 "@
