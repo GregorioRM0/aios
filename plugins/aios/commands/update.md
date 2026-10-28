@@ -1016,8 +1016,14 @@ On the answer:
 EXEC=()
 if [ "$(git -C ~/aios config --bool core.fileMode)" = false ]; then
   while IFS= read -r p; do
-    [ -f "$HOME/aios/$p" ] || continue                                 # Tier-0 / not synced
+    case "$p" in tests/*|.github/*|vault/*|*/custom/*) continue ;; esac  # Tier 0 / operator-owned
+    [ -f "$HOME/aios/$p" ] || continue                                 # not synced
     case "$(git -C ~/aios ls-tree HEAD -- "$p")" in 100755*) continue ;; esac
+    # --exec stages the file's whole content, so only a file whose content already matches
+    # canonical (line endings aside) may ride along. One the operator kept AHEAD stays out: its
+    # mode is fixed the day it is synced, never by committing their edits under a framework label.
+    [ "$(LC_ALL=C tr -d '\r' < "$HOME/aios/$p" | shasum -a 256)" = \
+      "$(LC_ALL=C tr -d '\r' < "/tmp/aios-update-check/$p" | shasum -a 256)" ] || continue
     EXEC+=(--exec "$p")
   done < <(git -C /tmp/aios-update-check ls-files -s | awk -F'\t' '$1 ~ /^100755 / {print $2}')
 fi
