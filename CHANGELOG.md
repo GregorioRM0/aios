@@ -101,6 +101,16 @@
 
 **Action required** — none. On a Windows vault the next `/aios:update` also repairs scripts an earlier sync committed as `100644`, as a mode-only change inside its own framework-sync commit. A Linux or macOS clone that set `core.fileMode false` to hide those modifications can unset it after pulling that commit.
 
+## 2026-10-26 — A paused quota watcher stops repeating itself
+
+`hash: ` · [#239](https://github.com/The-AIOS/aios/pull/239)
+
+> **What you can now do.** Pause quota rotation for days without the watcher's log filling with the same line.
+
+**A pause is said once, not on every tick.** While you had rotation paused, the quota watcher wrote "PAUSED by operator until …" every few minutes; one operator counted 5,031 identical lines in two weeks, which buried everything else in that log. It now writes the line when the pause starts or changes, and once a day while it lasts, so a long pause is never silent. The health file still reports the pause on every tick, so `/today` sees it exactly as before. The brief empty marker while a pause is being written is not treated as a pause of its own.
+
+**Action required** — none. The watcher picks up the change on its next tick.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)

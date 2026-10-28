@@ -1473,6 +1473,12 @@ jobs:
         # its parsing, so the checks cannot pass while the real function drifts.
         run: bash tests/quota-watch-pause.test.sh
 
+      - name: a paused quota watcher logs PAUSED once per pause, not once per tick
+        # A long pause wrote the same line every few minutes (thousands in two weeks) and buried the
+        # rest of the log. Runs the shipped _watch.py against a fabricated HOME, with a CONTROL that
+        # removes the memory marker so the check can see the difference.
+        run: bash tests/quota-watch-pause-log-once.test.sh
+
       - name: a token-launched session never drives the seat's rotation
         # A session started with CLAUDE_CODE_OAUTH_TOKEN runs on another account.
         # Its numbers in the shared seat cache could hide the seat's cap or rotate
