@@ -1576,6 +1576,11 @@ jobs:
         # healthy one is silent.
         run: bash tests/aios-health.test.sh
 
+      - name: the session-start identity check needs no permission prompt
+        # hooks/whoami resolves the name (env var, else the transcript) so CLAUDE.md's first action
+        # carries no `$` for Claude Code to refuse to pre-check.
+        run: bash tests/whoami.test.sh
+
       - name: shipping files carry the rule, not one operator's evidence
         # Canonical is authored from inside a live vault, so vault-personal references
         # arrive as GOOD WRITING -- concrete evidence is what makes a rule persuasive.
@@ -2033,6 +2038,8 @@ jobs:
         run: /bin/bash tests/note-append-create-if-missing.test.sh
       - name: routine health under bash 3.2
         run: /bin/bash tests/aios-health.test.sh
+      - name: whoami under bash 3.2
+        run: /bin/bash tests/whoami.test.sh
       - name: release new-command check under bash 3.2
         run: /bin/bash tests/release-new-command.test.sh
       - name: out-of-session close check under bash 3.2

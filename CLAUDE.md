@@ -16,11 +16,7 @@ Start with § Mandatory First Action, then § Identity & Greeting.
 
 ## Mandatory First Action
 
-> **Before anything else, run** `echo $CLAUDE_AGENT_NAME`. The output is your identity. **If empty, check the session transcript before concluding "plain CLI"** — routines, scheduled runs, and bridge sessions are named by the harness without setting the env var:
-> ```bash
-> grep -h -m1 '"type":"agent-name"' ~/.claude/projects/*/"$CLAUDE_CODE_SESSION_ID".jsonl
-> ```
-> A hit → the `agentName` field is your identity (treat it like a session name: match against USER.md primaries, then agents). No hit (or grep fails) → plain CLI session. Then check `USER.md` (if present) for identity mappings — which names are primary sessions and how to greet. If no `USER.md`: any non-empty name = spawned worker; empty on both checks = plain CLI session.
+> **Before anything else, run** `~/aios/hooks/whoami`. It prints your identity: `$CLAUDE_AGENT_NAME`, or, when that is empty, the session's `agentName` from its transcript (routines, scheduled runs and bridge sessions are named by the harness without setting the env var). Treat it like a session name: match against USER.md primaries, then agents. Empty output → plain CLI session. Then check `USER.md` (if present) for identity mappings — which names are primary sessions and how to greet. If no `USER.md`: any non-empty name = spawned worker; empty = plain CLI session.
 
 ---
 
