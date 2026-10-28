@@ -1210,6 +1210,14 @@ jobs:
         # race that never occurred.
         run: bash tests/aios-snapshot.test.sh
 
+      - name: every lock has one holder even when mkdir is not atomic
+        # ubuntu-26.04 ships uutils mkdir 0.10.0, which gave several racers success for the same
+        # folder -- two holders at once in aios-snapshot, aios-commit and aios-note-append. The
+        # suite reproduces that with a shim on any runner, races six writers through each hook,
+        # and requires the pinned pre-fix hooks to show >1 holder (the control). It also lints
+        # that every mkdir mutex claims ownership with a noclobber pid file.
+        run: bash tests/lock-claim-exclusive.test.sh
+
       - name: a stale lock is reclaimed once, and HEAD only moves from where the commit began
         # A dead holder's lock reclaimed by two waiters used to be deleted out from under the
         # one that re-took it; a commit landing mid-run was reverted by update-ref; a push that
@@ -1399,6 +1407,12 @@ jobs:
         # warns in writing that a check which always fires is one the operator stops reading.
         run: bash tests/bus-dead-letters.test.sh
 
+      - name: unfinished-work reports open notes with no task, and is silent when one exists
+        # /close-day runs this every evening, so the silent half carries a control per
+        # legitimate shape: a project-note task, a daily-note task with an aliased link,
+        # closed statuses, and out-of-scope folders (logs/, context/, projects/).
+        run: bash tests/unfinished-work.test.sh
+
       - name: CONTRIBUTING routes to all three repos; CHEATSHEET stays an index
         # The contribution graph was one-way: both surface repos told contributors when a
         # change belonged to canonical, and canonical told nobody the reverse — while being
@@ -1472,6 +1486,12 @@ jobs:
         # ignored AND removed. These import the shipped paused_until() rather than restating
         # its parsing, so the checks cannot pass while the real function drifts.
         run: bash tests/quota-watch-pause.test.sh
+
+      - name: a paused quota watcher logs PAUSED once per pause, not once per tick
+        # A long pause wrote the same line every few minutes (thousands in two weeks) and buried the
+        # rest of the log. Runs the shipped _watch.py against a fabricated HOME, with a CONTROL that
+        # removes the memory marker so the check can see the difference.
+        run: bash tests/quota-watch-pause-log-once.test.sh
 
       - name: a token-launched session never drives the seat's rotation
         # A session started with CLAUDE_CODE_OAUTH_TOKEN runs on another account.
@@ -1563,6 +1583,14 @@ jobs:
         # suite proves overdue, never-run, failed and unreadable files are all reported, and a
         # healthy one is silent.
         run: bash tests/aios-health.test.sh
+
+      - name: the session-start identity check needs no permission prompt
+        # hooks/whoami resolves the name (env var, else the transcript) so CLAUDE.md's first action
+        # carries no `$` for Claude Code to refuse to pre-check.
+        run: bash tests/whoami.test.sh
+
+      - name: transcripts are sorted, and only throwaways are archived, after verification
+        run: bash tests/transcript-inventory.test.sh
 
       - name: shipping files carry the rule, not one operator's evidence
         # Canonical is authored from inside a live vault, so vault-personal references
@@ -2017,10 +2045,16 @@ jobs:
 
       - name: lock reclaim and HEAD compare-and-swap under bash 3.2
         run: /bin/bash tests/lock-reclaim-and-head-cas.test.sh
+      - name: every lock has one holder even when mkdir is not atomic (bash 3.2)
+        run: /bin/bash tests/lock-claim-exclusive.test.sh
       - name: note-append --create-if-missing under bash 3.2
         run: /bin/bash tests/note-append-create-if-missing.test.sh
       - name: routine health under bash 3.2
         run: /bin/bash tests/aios-health.test.sh
+      - name: whoami under bash 3.2
+        run: /bin/bash tests/whoami.test.sh
+      - name: transcript inventory under bash 3.2
+        run: /bin/bash tests/transcript-inventory.test.sh
       - name: release new-command check under bash 3.2
         run: /bin/bash tests/release-new-command.test.sh
       - name: out-of-session close check under bash 3.2

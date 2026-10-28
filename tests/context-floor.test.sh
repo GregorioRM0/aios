@@ -90,13 +90,23 @@ echo
 echo " by default the floor goes to a FILE and stdout carries only its map"
 mkvault "$TMP/m" 12 2000
 MAP="$(CLAUDE_CODE_SESSION_ID=t-1 $PYBIN "$H" "$TMP/m")"; RC=$?
-FF="$TMP/aios-floor-$(id -u 2>/dev/null || echo user)/context-floor-t-1.md"
-[ $RC -eq 0 ] && [ -f "$FF" ] && ok "default run exits 0 and writes the floor to the temp dir" \
+FF="$TMP/m/.aios-run/floor/context-floor-t-1.md"
+[ $RC -eq 0 ] && [ -f "$FF" ] && ok "default run exits 0 and writes the floor inside the framework root (.aios-run/floor/), readable under blockReadsOutsideWorkingDirectories" \
   || no "no floor file (rc=$RC)" "the map would point at nothing"
 $PYBIN "$H" --print "$TMP/m" | cmp -s - "$FF" \
   && ok "the file is byte-identical to --print" || no "file and --print differ" "two deliveries of one floor must agree"
 tail -n 1 "$FF" | grep '^=== END OF FLOOR -- ' >/dev/null && ok "the file ends on the END marker" || no "file has no END marker" ""
 printf '%s' "$MAP" | grep -F "$FF" >/dev/null && ok "the map names the file" || no "the map does not name the file" ""
+# Floors no longer live in a temp folder that empties itself: a new floor sweeps this folder's
+# floors older than 7 days, and leaves recent ones (other live sessions) alone.
+FD="$TMP/m/.aios-run/floor"
+echo old > "$FD/context-floor-old-session.md"; touch -t 202001010000 "$FD/context-floor-old-session.md"
+echo recent > "$FD/context-floor-recent-session.md"
+echo keep > "$FD/notes.txt"; touch -t 202001010000 "$FD/notes.txt"
+CLAUDE_CODE_SESSION_ID=t-2 $PYBIN "$H" "$TMP/m" >/dev/null 2>&1
+{ [ ! -e "$FD/context-floor-old-session.md" ] && [ -f "$FD/context-floor-recent-session.md" ] && [ -f "$FD/notes.txt" ] && [ -f "$FD/context-floor-t-2.md" ]; } \
+  && ok "a new floor removes floors older than 7 days, keeps recent floors and anything else" \
+  || no "the floor sweep removed the wrong files or none" "$(ls -A "$FD" | tr '\n' ' ')"
 # Sessions piped the map through head or tail, or redirected it, and worked from it as if it were
 # the floor (measured 10-03 -> 10-11). Each END of the map must say it is only the map and name the file.
 FIRST=$(printf '%s\n' "$MAP" | head -n 2); LAST=$(printf '%s\n' "$MAP" | tail -n 1)
@@ -149,12 +159,12 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ;; *)
   # GNU first: on Linux `stat -f` is FILESYSTEM status, exits 0, and the BSD fallback never runs.
   P=$(stat -c '%a' "$FF" 2>/dev/null || stat -f '%Lp' "$FF"); D=$(stat -c '%a' "$(dirname "$FF")" 2>/dev/null || stat -f '%Lp' "$(dirname "$FF")")
   [ "$P" = 600 ] && [ "$D" = 700 ] && ok "the floor is private: file 600, folder 700" || no "file $P / folder $D" "the floor holds INTENT and observed context; a shared /tmp would expose it"
-  rm -rf "$TMP/aios-floor-$(id -u)"; ln -s "$TMP/elsewhere" "$TMP/aios-floor-$(id -u)"; mkdir -p "$TMP/elsewhere"
+  rm -rf "$TMP/m/.aios-run/floor"; ln -s "$TMP/elsewhere" "$TMP/m/.aios-run/floor"; mkdir -p "$TMP/elsewhere"
   CLAUDE_CODE_SESSION_ID=t-2 $PYBIN "$H" "$TMP/m" > "$TMP/sl.out" 2>"$TMP/sl.err"
   { [ ! -e "$TMP/elsewhere/context-floor-t-2.md" ] && grep -q 'not a directory owned by you' "$TMP/sl.err" && tail -n 1 "$TMP/sl.out" | grep '^=== END OF FLOOR' >/dev/null; } \
     && ok "a planted symlink folder is refused, and the floor prints in full instead" \
     || no "the floor wrote through a planted symlink" "another user could redirect it"
-  rm -f "$TMP/aios-floor-$(id -u)" ;;
+  rm -f "$TMP/m/.aios-run/floor" ;;
 esac
 $PYBIN "$H" --out "$TMP/x/y/floor.md" "$TMP/m" > "$TMP/fb.out" 2>"$TMP/fb.err"; RC=$?
 { [ $RC -eq 0 ] && tail -n 1 "$TMP/fb.out" | grep '^=== END OF FLOOR' >/dev/null && grep -q 'could not write' "$TMP/fb.err"; } \

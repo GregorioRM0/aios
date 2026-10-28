@@ -80,6 +80,9 @@ morning — goes dark once a week until a human clicks through a consent screen.
   Google's verification requirements, and those requirements are Google's to change, not this
   document's to promise. The Audience screen at the moment you click Publish is the only current
   answer. If it does ask for verification and you would rather not, that is a real decision.
+- **A third option: need less.** Gmail and Drive are the scopes that pull an app toward
+  verification. If you do not need them, leave `gmail` and `drive` out of `--permissions`, and the
+  Publish screen has less to ask about.
 - **Either way, write the cost down** next to whatever depends on this server. Staying in Testing
   means a manual re-auth **every 7 days, forever** — fine for a throwaway experiment, wrong for a
   server a daily automation depends on.

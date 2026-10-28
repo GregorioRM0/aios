@@ -14,6 +14,8 @@ WHAT IT WIRES (SETUP §10 is the reference; tests/install-settings.test.sh keeps
   D  provenance           -- labels text you did not write (email, chat, docs, web, inbox prompts)
   E  the floor at start   -- a compact context floor delivered to every new session
   F  the model-switch log -- one line whenever a session's model changes under it
+  R  transcript retention -- keep session transcripts for 10 years instead of Claude Code's 30 days
+     (set only when the file has no cleanupPeriodDays; an operator's own value is never changed)
 
 USAGE
   install-settings.py              show what would change (default: changes nothing)
@@ -121,7 +123,11 @@ WHAT = {
     "D": "provenance: marks text you did not write (email, chat, docs, the web, inbox prompts)",
     "E": "the floor at start: each new session starts with your trust contract and recent learnings",
     "F": "the model-switch log: records when a session is moved to another model",
+    "R": ("transcript retention: keep your session transcripts for 10 years. Claude Code deletes "
+          "them after 30 days by default, silently, at every session start, so a long-running "
+          "session you want to reopen or learn from is gone a month later"),
 }
+RETENTION_DAYS = 3650
 
 
 def signature(cmd):
@@ -223,6 +229,18 @@ def main():
         status_note = ("you already have your own status line, so it is left as it is -- the quota autopilot's "
                        "cache (hook B) will not be fed until it also runs claude-identity.sh cache (SETUP §10)")
 
+    # R: only when the key is absent. A value the operator chose, even a short one, is theirs.
+    retention_add = "cleanupPeriodDays" not in settings
+    retention_note = None
+    if not retention_add:
+        try:
+            days = int(settings["cleanupPeriodDays"])
+        except (TypeError, ValueError):
+            days = None
+        if days is not None and days < RETENTION_DAYS:
+            retention_note = ("transcripts are kept %d days (your setting, left as it is); "
+                              "/aios:housekeeping can archive throwaway runs instead of letting age delete everything" % days)
+
     print("Claude Code settings: %s" % path)
     shown = set()
     for key, *_ in adds:
@@ -241,9 +259,15 @@ def main():
         print("  ~ guard %s  a missing hook file is skipped instead of blocking every prompt" % key)
     if not venture_guard:
         print("  - later C  the venture guard is added when you mount a company (/aios:company --mount)")
+    if retention_add:
+        print("  + set   R  %s" % WHAT["R"])
+    elif retention_note:
+        print("  ! note  R  " + retention_note)
+    else:
+        print("  = keep  R  already set up")
     print("  Everything else in the file is kept.")
 
-    if not adds and not status_add and not upgrades:
+    if not adds and not status_add and not upgrades and not retention_add:
         print("Nothing to change.")
         return 0
     if not a.apply:
@@ -263,6 +287,8 @@ def main():
         settings["statusLine"] = {"type": "command", "command": status}
     for _, hk in upgrades:
         hk["command"] = guard(str(hk["command"]))
+    if retention_add:
+        settings["cleanupPeriodDays"] = RETENTION_DAYS
 
     backup = None
     tmp = real + ".aios-tmp"
@@ -289,7 +315,8 @@ def main():
     try:
         with open(real, encoding="utf-8") as f:
             back = json.load(f)
-        ok = all(present(back, ev, cmd) for _, ev, _, cmd, _ in rows) and "statusLine" in back
+        ok = (all(present(back, ev, cmd) for _, ev, _, cmd, _ in rows) and "statusLine" in back
+              and "cleanupPeriodDays" in back)
     except (OSError, ValueError):
         ok = False
     if not ok:

@@ -12,11 +12,13 @@ This is the **canonical list** referenced by `CLAUDE.md` → MCP Policy. When yo
 | Slack | `slack-mcp/` | Send/read messages AS YOU, search channels, DMs, threads, unreads | Chrome token extraction (default) or bot token (advanced) |
 | Atlassian | `atlassian-mcp/` | Jira issues + Confluence pages | API token (scoped recommended for least-privilege, classic also works) |
 | Stitch | `stitch-mcp/` | AI-native design → code pipeline (Stitch 2.0) | `STITCH_API_KEY` — the MCP key from Stitch Settings → API Key (the proxy ignores the `gcloud` login) |
-| NotebookLM | `notebooklm-mcp/` | Google NotebookLM — notebooks, audio/podcasts, quizzes | `notebooklm login` ⚠️ **needs Python 3.10+ — see README** |
+| NotebookLM | `notebooklm-mcp/` | Google NotebookLM — notebooks, audio/podcasts, quizzes | `notebooklm login` |
 | Playwright¹ | `playwright-mcp/` | Browser automation — auto-publish, testing, screenshots | Browser storage state (Chrome cookie import) |
 | Nano Banana | `nano-banana-mcp/` | Gemini 2.5 Flash Image generation (cover images, visuals) | `GEMINI_API_KEY` |
 | PDF Generator | `pdf-generator-mcp/` | pandoc (md → HTML) + Chrome (HTML → PDF) | None (local binaries) |
 | Spotify DJ | `spotify-dj-mcp/` | Playback control (play, pause, next, volume, search) | Spotify Dev app + OAuth |
+
+**Every Python MCP here needs Python 3.10 or newer** (their `mcp` pin requires it). `mcps/setup.sh` refuses an older interpreter, fetches a newer one through uv when it can, and names every MCP it could not install.
 
 ¹ **Playwright is setup-only — not a registered MCP server.** It's a *capability layer* (saved browser auth via Chrome cookie extraction in `cookie_import.py`) that Python scripts consume on demand. There is no `server.py`, no `claude mcp add` step. Listed in this table for bundling completeness, but consumption is `Bash(python script.py)`, not MCP tools. See [`playwright-mcp/README.md`](playwright-mcp/README.md) and [`plugins/aios/commands/mcps-setup.md`](../plugins/aios/commands/mcps-setup.md) Playwright section.
 

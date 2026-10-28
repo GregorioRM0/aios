@@ -42,7 +42,7 @@ case "$OUT" in *"patterns.md: Pattern 7"*) ok "the newest entries' titles are de
 printf '%s' "$OUT" | grep 'body-7' >/dev/null && no "an entry BODY was delivered" "compact = titles only" || ok "entry bodies stay in the full file"
 printf '%s' "$OUT" | grep 'Pattern 1 ' >/dev/null && no "an old entry's title was delivered" || ok "only the newest titles, not every title"
 case "$(printf '%s' "$OUT" | head -2)" in *"Read "*"context-floor-s1.md"*"END OF FLOOR"*) ok "it opens with the pointer to the full floor file" ;; *) no "no pointer to the full file first" ;; esac
-[ -f "$T/aios-floor-$(id -u 2>/dev/null || echo user)/context-floor-s1.md" ] && ok "the full floor file is written" || no "full floor file missing"
+[ -f "$V/.aios-run/floor/context-floor-s1.md" ] && ok "the full floor file is written inside the framework root" || no "full floor file missing under .aios-run/floor/"
 printf '%s' "$OUT" | grep 'NOT LOADED YET' >/dev/null && no "the compact floor still says the floor is not loaded" || ok "it does not tell the session the floor is missing"
 hook startup CLAUDE_CODE_ENTRYPOINT=cli | $PYBIN -c 'import json,sys; d=json.load(sys.stdin)["hookSpecificOutput"]; assert d["hookEventName"]=="SessionStart"' \
   && ok "SessionStart output is the hook JSON shape" || no "bad SessionStart JSON"

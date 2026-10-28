@@ -96,7 +96,7 @@ prev=""; for a in "\$@"; do [ "\$prev" = "--settings" ] && cat "\$a" > "$tmp/set
 exit 0
 STUB
 chmod +x "$tmp/bin/claude"
-FNS=$( for f in _aios_run_dir _spawn_adj_animal _spawn_task_preamble _spawn_advisor_block _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
+FNS=$( for f in _aios_run_dir _aios_handoff_dir _spawn_adj_animal _spawn_task_preamble _spawn_advisor_block _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
 runspawn(){ env -u CLAUDECODE -u AIOS_GLASS_TERM -u CLAUDE_EFFORT -u CLAUDE_ADVISOR_MODEL HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; shift; spawn "$@"' _ "$FNS" "$@" >/dev/null 2>&1; }
 rm -f "$tmp/args"; runspawn --effort low --advisor scale worker "task"
 A=$(cat "$tmp/args" 2>/dev/null)
@@ -115,15 +115,40 @@ out=$( env -u CLAUDECODE CLAUDE_ADVISOR_MODEL='x","permissions":{"allow":["Bash"
 ls "$tmp"/aios-advisor-* >/dev/null 2>&1 && no "a refused advisor still left a settings file" || ok "no advisor settings file left in TMPDIR"
 rm -f "$tmp/args"; runspawn worker "task"
 grep -x -- '--effort\|--settings' "$tmp/args" >/dev/null 2>&1 && no "a spawn without the flags passed --effort or --settings" || ok "without the flags, no --effort and no --settings (byte-identical to before)"
+# --add-dir (#231): under blockReadsOutsideWorkingDirectories a worker cannot read outside its
+# working folders, and its task lives under the run dir. The task gets its OWN handoff folder and
+# only that folder is granted: the whole run dir would expose every other session's task and the
+# launchers the surfaces execute. A folder given to spawn passes through, once.
+RUN="$tmp/.aios/run"; adds(){ grep -A1 -x -- '--add-dir' "$tmp/args" 2>/dev/null | grep -v -x -- '--add-dir\|--'; }
+H=$(adds | grep "^$RUN/handoff-[0-9a-f]\{16\}$")
+[ -n "$H" ] && [ "$(adds | grep -c .)" = 1 ] && ok "a spawn with a task passes --add-dir for ONE handoff folder" || no "the grant is not one handoff folder" "$(adds | tr '\n' ' ')"
+adds | grep -q -x "$RUN" && no "the whole run dir was granted" || ok "the run dir itself is never granted"
+[ -f "$H/aios-spawn-task-worker.md" ] && ok "the handoff folder holds the worker's task file" || no "no task file in the handoff folder" "$(ls -la "$H" 2>&1)"
+HM=$(stat -c '%a' "$H" 2>/dev/null || stat -f '%Lp' "$H" 2>/dev/null); [ "$HM" = 700 ] && ok "the handoff folder is mode 700" || no "handoff folder mode $HM"
+NXT=$(grep -A2 -x -- '--add-dir' "$tmp/args" | sed -n 3p); case "$NXT" in --*) ok "--add-dir is followed by a flag, so the prompt is never read as a folder" ;; *) no "--add-dir is followed by '$NXT'" "the flag takes several values; a prompt after it is read as a directory" ;; esac
+rm -f "$tmp/args"; mkdir -p "$tmp/extra"; runspawn --add-dir "$tmp/extra" worker "task"
+adds | grep -q -x "$tmp/extra" && [ "$(adds | grep -c .)" = 2 ] && ok "a given --add-dir reaches claude beside the handoff folder" || no "a given --add-dir was lost" "$(adds | tr '\n' ' ')"
+rm -f "$tmp/args"; runspawn --add-dir "$tmp/extra" --add-dir "$tmp/extra" worker "task"
+[ "$(adds | grep -c -x "$tmp/extra")" = 1 ] && ok "a folder given twice arrives once" || no "a given folder was passed twice"
+mkdir -p "$RUN/handoff-0000000000000000"; touch -t 202001010000 "$RUN/handoff-0000000000000000"
+rm -f "$tmp/args"; runspawn worker "task"
+[ ! -e "$RUN/handoff-0000000000000000" ] && ok "a handoff folder older than a day is swept" || no "an old handoff folder survived"
+# The Windows twin sweeps %TEMP%, which other programs share: it must match only AIOS's own names.
+grep -q "\$_.Name -match '^handoff-\[0-9a-f\]{16}\$'" "$(dirname "$SRC")/install-wrappers.ps1" \
+  && ok "Windows: the %TEMP% sweep removes only handoff-<16 hex> folders, never another app's" \
+  || no "Windows: the handoff sweep in %TEMP% is not limited to AIOS's own folder names"
+rm -f "$tmp/args"
+env -u CLAUDECODE -u CLAUDE_ADD_DIRS HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; _claude_with_respawn primary ""' _ "$FNS" >/dev/null 2>&1
+[ -f "$tmp/args" ] && [ -z "$(adds)" ] && ok "a launch with no prompt file adds no --add-dir" || no "a plain launch got --add-dir" "$(adds | tr '\n' ' ')"
+grep -q 'mv "$run_dir/resume-prompt-$name.md" "$_h/"' "$SRC" && ok "an account-switch resume moves its prompt into a fresh handoff folder" || no "the resume prompt is still read from the run dir itself"
 out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --effort ultra worker task' _ "$FNS" 2>&1 ); rc=$?
 [ "$rc" != 0 ] && case "$out" in *"unknown --effort"*) true ;; *) false ;; esac && ok "an unknown --effort is refused, naming the flag" || no "--effort ultra not refused (rc=$rc)" "$out"
-rm -f "$tmp/.aios/run/spawn-task-advw.md" "$tmp/.aios/run/spawn-task-advj.md"
 runspawn --tier scale --advisor judgment advw "task" >/dev/null 2>&1
-grep -q 'You have an advisor' "$tmp/.aios/run/spawn-task-advw.md" 2>/dev/null && ok "an advised scale worker gets the consult instruction" || no "advised scale worker has no consult instruction"
+grep -q 'You have an advisor' "$tmp"/.aios/run/handoff-*/aios-spawn-task-advw.md 2>/dev/null && ok "an advised scale worker gets the consult instruction" || no "advised scale worker has no consult instruction"
 runspawn --advisor frontier advj "task" >/dev/null 2>&1
-[ -f "$tmp/.aios/run/spawn-task-advj.md" ] && ! grep -q 'You have an advisor' "$tmp/.aios/run/spawn-task-advj.md" && ok "an advised judgment worker does not (it lowers Opus pass rates)" || no "judgment worker got the consult instruction, or no task file"
+ADVJ=$(ls "$tmp"/.aios/run/handoff-*/aios-spawn-task-advj.md 2>/dev/null | head -1)
+[ -n "$ADVJ" ] && ! grep -q 'You have an advisor' "$ADVJ" && ok "an advised judgment worker does not (it lowers Opus pass rates)" || no "judgment worker got the consult instruction, or no task file"
 grep -q "spawnModel -match 'sonnet|haiku'" "$(dirname "$SRC")/install-wrappers.ps1" && ok "ps1 gates the consult instruction the same way" || no "ps1 consult gate missing"
-rm -f "$tmp/.aios/run/spawn-task-advw.md" "$tmp/.aios/run/spawn-task-advj.md"
 out=$( env -u CLAUDECODE HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn --advisor '"'"'x","permissions":{"allow":["Bash"]},"y":"'"'"' worker task' _ "$FNS" 2>&1 ); rc=$?
 [ "$rc" != 0 ] && case "$out" in *"not a rung or a model id"*) true ;; *) false ;; esac && ok "an --advisor that would inject settings JSON is refused" || no "--advisor with JSON characters accepted (rc=$rc)" "$out"
 rm -rf "$tmp"
@@ -153,14 +178,15 @@ echo "── spawn/swap scratch files live in a private per-user dir, never at f
 # the move AND that a hostile run dir is refused rather than silently replaced by /tmp.
 tmp=$(mktemp -d); mkdir -p "$tmp/bin" "$tmp/aios"
 printf '#!/bin/sh\nexit 0\n' > "$tmp/bin/claude"; chmod +x "$tmp/bin/claude"
-FNS=$( for f in _aios_run_dir _spawn_adj_animal _spawn_task_preamble _spawn_advisor_block _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
+FNS=$( for f in _aios_run_dir _aios_handoff_dir _spawn_adj_animal _spawn_task_preamble _spawn_advisor_block _claude_with_respawn spawn; do sed -n "/^$f() {/,/^}/p" "$SRC"; done )
 probe="privdir-$$"
 env -u CLAUDECODE -u AIOS_GLASS_TERM HOME="$tmp" TMPDIR="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; spawn "$2" task' _ "$FNS" "$probe" >/dev/null 2>&1
-[ -f "$tmp/.aios/run/spawn-task-$probe.md" ] && [ -f "$tmp/.aios/run/spawn-launch-$probe.sh" ] && ok "task file and launcher are written to ~/.aios/run" || no "task file / launcher not in ~/.aios/run" "$(ls -la "$tmp/.aios/run" 2>&1)"
+PT=$(ls "$tmp"/.aios/run/handoff-*/aios-spawn-task-$probe.md 2>/dev/null | head -1)
+[ -n "$PT" ] && [ -f "$tmp/.aios/run/spawn-launch-$probe.sh" ] && ok "task file and launcher are written to ~/.aios/run" || no "task file / launcher not in ~/.aios/run" "$(ls -la "$tmp/.aios/run" 2>&1)"
 [ ! -e "/tmp/spawn-task-$probe.md" ] && [ ! -e "/tmp/spawn-launch-$probe.sh" ] && ok "nothing is written at the old /tmp names" || no "spawn still wrote to /tmp"
 mode=$(stat -c '%a' "$tmp/.aios/run" 2>/dev/null || stat -f '%Lp' "$tmp/.aios/run" 2>/dev/null)  # GNU first: on Linux `stat -f` is filesystem stat and does not fail
 [ "$mode" = "700" ] && ok "the run dir is mode 700" || no "run dir mode is $mode, not 700"
-grep -q "$tmp/.aios/run/spawn-task-$probe.md" "$tmp/.aios/run/spawn-launch-$probe.sh" && ok "the launcher points the worker at the private task file" || no "launcher does not reference the private task file"
+grep -q "$PT" "$tmp/.aios/run/spawn-launch-$probe.sh" && ok "the launcher points the worker at the private task file" || no "launcher does not reference the private task file"
 # Control: a run dir that is a symlink (pointing anywhere — here at a world-writable place) is refused.
 tmp2=$(mktemp -d); mkdir -p "$tmp2/.aios" "$tmp2/elsewhere" "$tmp2/bin"; cp "$tmp/bin/claude" "$tmp2/bin/"; ln -s "$tmp2/elsewhere" "$tmp2/.aios/run"
 out=$( env -u CLAUDECODE -u AIOS_GLASS_TERM HOME="$tmp2" TMPDIR="$tmp2" PATH="$tmp2/bin:$PATH" bash -c 'eval "$1"; spawn "$2" task' _ "$FNS" "$probe" 2>&1 ); rc=$?
@@ -295,6 +321,17 @@ grep -q "\$effortArgs = @('--effort', \$env:CLAUDE_EFFORT)" "$PS1" && ok "ps1 pa
 grep -q "\$advisorArgs = @('--settings', \$advFile)" "$PS1" && ok "ps1 passes the advisor as a settings file" || no "ps1 never passes the advisor"
 grep -q '\$modelArgs + \$effortArgs + \$advisorArgs' "$PS1" && ok "ps1 effort/advisor args reach the claude invocation" || no "ps1 args built but never passed"
 grep -q 'CLAUDE_ADVISOR_MODEL = .\$spawnAdvisor' "$PS1" && ok "ps1 new-window path carries the advisor" || no "ps1 new-window path drops the advisor"
+grep -q '\[string\[\]\] \$AddDir' "$PS1" && ok "ps1 spawn takes -AddDir (twin of --add-dir)" || no "ps1 spawn has no -AddDir"
+grep -q "match '\^handoff-\[0-9a-f\]{16}\$'" "$PS1" && ok "ps1 grants only a handoff folder, never %TEMP% itself" || no "ps1 can grant the folder a file merely sits in (all of %TEMP%)"
+grep -q 'taskFile = Join-Path \$handoff "aios-spawn-task-' "$PS1" && ok "ps1 spawn writes its task into a fresh handoff folder" || no "ps1 task still written straight into %TEMP%"
+grep -q 'Move-Item -LiteralPath \$BootstrapFile -Destination \$h' "$PS1" && ok "ps1 resume moves its prompt into a fresh handoff folder" || no "ps1 resume prompt still read from %TEMP%"
+grep -q '\$advisorArgs + \$addDirArgs + \$resumeArgs' "$PS1" && ok "ps1 --add-dir args reach the claude invocation" || no "ps1 --add-dir args built but never passed"
+grep -q 'CLAUDE_ADD_DIRS = ' "$PS1" && grep -q '\$addDirStmt' "$PS1" && ok "ps1 in-process and new-window paths both carry -AddDir" || no "a ps1 spawn path drops -AddDir"
+# The new-window path writes a script for another shell. PowerShell reads ' and the curly quotes
+# as string delimiters, so a folder name spliced into that script as text could run code.
+grep -q "CLAUDE_ADD_DIRS = \[System.Text.Encoding\]::UTF8.GetString(\[Convert\]::FromBase64String" "$PS1" \
+  && ! grep -q "CLAUDE_ADD_DIRS = '\" + (\$AddDir" "$PS1" \
+  && ok "ps1 hands -AddDir to the new shell as base64 data, never as script text" || no "ps1 splices -AddDir into script text"
 
 echo "── a flag given LAST with no value fails fast (it used to spin the argument loop forever) ──"
 # `shift 2` with one argument left fails WITHOUT shifting in bash and zsh, so the loop never ended.

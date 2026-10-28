@@ -16,11 +16,7 @@ Start with § Mandatory First Action, then § Identity & Greeting.
 
 ## Mandatory First Action
 
-> **Before anything else, run** `echo $CLAUDE_AGENT_NAME`. The output is your identity. **If empty, check the session transcript before concluding "plain CLI"** — routines, scheduled runs, and bridge sessions are named by the harness without setting the env var:
-> ```bash
-> grep -h -m1 '"type":"agent-name"' ~/.claude/projects/*/"$CLAUDE_CODE_SESSION_ID".jsonl
-> ```
-> A hit → the `agentName` field is your identity (treat it like a session name: match against USER.md primaries, then agents). No hit (or grep fails) → plain CLI session. Then check `USER.md` (if present) for identity mappings — which names are primary sessions and how to greet. If no `USER.md`: any non-empty name = spawned worker; empty on both checks = plain CLI session.
+> **Before anything else, run** `~/aios/hooks/whoami`. It prints your identity: `$CLAUDE_AGENT_NAME`, or, when that is empty, the session's `agentName` from its transcript (routines, scheduled runs and bridge sessions are named by the harness without setting the env var). Treat it like a session name: match against USER.md primaries, then agents. Empty output → plain CLI session. Then check `USER.md` (if present) for identity mappings — which names are primary sessions and how to greet. If no `USER.md`: any non-empty name = spawned worker; empty = plain CLI session.
 
 ---
 
@@ -240,6 +236,8 @@ When the user mentions a project or asks to work on something specific, **zoom i
 **The Current State table contains** (11 fields): `Type` (Coding / Non-coding / Hybrid — drives path loading) · `Code` (repo home or N/A) · `Drive` (your Drive-mount path, or N/A) · `GitHub` (personal remote) · `Team` (team remote, if shared) · `CLAUDE.md` / `README` / `Settings` (path + ✓/❌ each) · `Stack` · `Status` (Active / Archived / Idea) · `Orient` (one-sentence summary).
 
 **When scaffolding a new coding project**, always create `CLAUDE.md` (repo instructions) + `README.md` (what/how/who) + `.claude/settings.json` (permissions + tool config) so the project is self-contained for any teammate. Then update the project note's Current State to ✓ for each.
+
+**A project's `CLAUDE.md` is a contract, not a reference manual — it is loaded whole, by every session, before the first prompt.** Keep in it what a session must know without opening anything: invariants, the rules that bite, where things live, how to run and test. Catalogues (every endpoint, every table, every design token) go to `docs/*.md`, with a one-line stub in `CLAUDE.md` naming what it is and which test keeps it honest. Past ~50 KB, look: `/aios:housekeeping` (Bucket 17) weighs each project's `CLAUDE.md` and names its heaviest sections; it never moves anything.
 
 ### Project naming convention
 

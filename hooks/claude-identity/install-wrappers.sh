@@ -159,6 +159,21 @@ _aios_run_dir() {
   [ -O "$d" ] || { echo "⚠️  spawn: $d is not owned by $(id -un) — refusing" >&2; return 1; }
   printf '%s' "$d"
 }
+_aios_handoff_dir() {
+  # A fresh private folder for ONE file a session is handed (a spawn task, a resume prompt), so the
+  # session can be given --add-dir on that folder alone. Granting the whole run dir would let a
+  # worker read and edit every other session's task and the launchers the surfaces execute. Same
+  # shape as the App and Glass (handoff-<16 hex>/). Folders older than a day are swept first.
+  local run="$1" h d
+  [ -n "$run" ] && [ -d "$run" ] || return 1
+  find "$run" -maxdepth 1 -type d -name 'handoff-*' -mmin +1440 -exec rm -rf {} + 2>/dev/null
+  h=$(od -An -N8 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+  [ ${#h} -eq 16 ] || return 1
+  d="$run/handoff-$h"
+  mkdir -m 700 "$d" 2>/dev/null || return 1
+  [ -d "$d" ] && [ ! -L "$d" ] && [ -O "$d" ] || return 1
+  printf '%s' "$d"
+}
 _claude_with_respawn() {
   local name="${1:?Usage: _claude_with_respawn <name> [bootstrap] [initial-session-id]}"
   local bootstrap="${2:-}"
@@ -275,8 +290,38 @@ _claude_with_respawn() {
   local marker="${run_dir:+$run_dir/swap-respawn-$name.flag}"
   local sid_file="${run_dir:+$run_dir/swap-respawn-$name.session}"
   local consecutive_failures=0
+  # --add-dir for every launch whose prompt is a FILE in a handoff folder: under
+  # permissions.blockReadsOutsideWorkingDirectories a session cannot read outside its working
+  # folders, and the run dir is outside ~/aios. Only that one folder is granted, never the run dir
+  # (see _aios_handoff_dir). Plus any folder spawn was given. Rebuilt each pass, because the swap
+  # branch below hands the session a new file. --add-dir takes several values, so it must be
+  # followed by a flag, never by the prompt: below it is always followed by --remote-control.
+  # Declared once, before the loop: a bare `local` on an existing name prints it in zsh.
+  local -a add_dir_args=()
+  local _ad="" _seen="" _f="" _h=""
 
   while true; do
+    add_dir_args=(); _seen="
+"
+    # The handoff folder of the prompt file, computed HERE and not inside $( ... ) in the heredoc
+    # below: bash 3.2 misparses a case pattern's ) inside a command substitution.
+    _f=""
+    if [ -n "$run_dir" ]; then
+      case "$bootstrap" in
+        "Read $run_dir/handoff-"*) _f=${bootstrap#Read }; _f=${_f% and follow the instructions inside.}; _f=${_f%/*} ;;
+      esac
+    fi
+    while IFS= read -r _ad; do
+      [ -n "$_ad" ] || continue
+      case "$_seen" in *"
+$_ad
+"*) continue ;; esac
+      _seen="$_seen$_ad
+"; add_dir_args+=(--add-dir "$_ad")
+    done <<ADDDIRS
+${CLAUDE_ADD_DIRS:-}
+$_f
+ADDDIRS
     # `command claude` bypasses function/alias lookup and resolves to the PATH
     # binary directly. Critical for the edge case where the operator NAMES their
     # session "claude" in USER.md — that installs a `claude()` shell function, and
@@ -285,9 +330,9 @@ _claude_with_respawn() {
     # CLI — see detect_primary_session; this guard now covers only the explicit
     # "claude" session-name case.) Safe for all primary names.
     if [ -n "$bootstrap" ]; then
-      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name" "$bootstrap"
+      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${add_dir_args[@]}" "${resume_args[@]}" --remote-control --name "$name" "$bootstrap"
     else
-      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${resume_args[@]}" --remote-control --name "$name"
+      command claude "${model_args[@]}" "${effort_args[@]}" "${advisor_args[@]}" "${mcp_args[@]}" "${add_dir_args[@]}" "${resume_args[@]}" --remote-control --name "$name"
     fi
     local exit_code=$?
 
@@ -306,7 +351,12 @@ _claude_with_respawn() {
         echo ""
         echo "🔄 Account swap detected. Resuming session $sid in 3s…"
         resume_args=(--resume "$sid")
-        bootstrap="Read $run_dir/resume-prompt-$name.md and follow the instructions inside."
+        # The resume prompt moves into its own handoff folder, so --add-dir grants that folder only.
+        if _h=$(_aios_handoff_dir "$run_dir") && mv "$run_dir/resume-prompt-$name.md" "$_h/" 2>/dev/null; then
+          bootstrap="Read $_h/resume-prompt-$name.md and follow the instructions inside."
+        else
+          bootstrap="Read $run_dir/resume-prompt-$name.md and follow the instructions inside."
+        fi
         consecutive_failures=0
       fi
       sleep 3
@@ -544,7 +594,7 @@ spawn() {
   # --effort low|medium|high|xhigh|max — the worker's effort (Claude Code's --effort).
   # --advisor <rung|model> — an advisor model for the worker (a rung name resolves like --tier;
   # anything else is a model id). No rung has a default advisor. MODEL-ROUTING § Advisor.
-  local tier="" model="" profile="" effort="" advisor=""
+  local tier="" model="" profile="" effort="" advisor="" add_dirs=""
   local -a _args=()
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -558,6 +608,14 @@ spawn() {
       --effort=*)  effort="${1#*=}"; shift ;;
       --advisor)   [ $# -ge 2 ] || { echo "spawn: --advisor needs a value" >&2; return 2; }; advisor="$2"; shift 2 ;;
       --advisor=*) advisor="${1#*=}"; shift ;;
+      # --add-dir <dir> (repeatable): an extra folder the worker may read, passed to claude. A
+      # surface that hands the worker its own file there names it this way (Glass does).
+      # One folder per line; the reader skips the empty first one. (No line may START with a
+      # closing brace: this file's checks and tests find a function's end by that.)
+      --add-dir)   [ $# -ge 2 ] || { echo "spawn: --add-dir needs a folder" >&2; return 2; }; add_dirs="$add_dirs
+$2"; shift 2 ;;
+      --add-dir=*) add_dirs="$add_dirs
+${1#*=}"; shift ;;
       *)           _args+=("$1"); shift ;;
     esac
   done
@@ -726,8 +784,12 @@ spawn() {
     return 1
   fi
 
+  case "$add_dirs" in *"'"*) echo "⚠️  spawn: an --add-dir folder may not contain a single quote" >&2; return 1 ;; esac
   local run_dir; run_dir=$(_aios_run_dir) || return 1
-  local task_file="$run_dir/spawn-task-$name.md"
+  # The task gets its own handoff folder (see _aios_handoff_dir): the worker is granted that folder
+  # alone, never the run dir with every other session's task and the launchers in it.
+  local handoff; handoff=$(_aios_handoff_dir "$run_dir") || { echo "⚠️  spawn: cannot create a private handoff folder in $run_dir" >&2; return 1; }
+  local task_file="$handoff/aios-spawn-task-$name.md"
   # The task file opens with the on-demand context preamble (see _spawn_task_preamble): a spawned
   # worker otherwise boots with NO operator context — CLAUDE.md tells it to load context on demand
   # and in practice it often skips that step entirely. The preamble hands it the map and the rule.
@@ -758,6 +820,7 @@ ${spawn_model:+export CLAUDE_MODEL='$spawn_model'}
 ${spawn_profile:+export CLAUDE_MCP_PROFILE='$spawn_profile'}
 ${spawn_effort:+export CLAUDE_EFFORT='$spawn_effort'}
 ${spawn_advisor:+export CLAUDE_ADVISOR_MODEL='$spawn_advisor'}
+${add_dirs:+export CLAUDE_ADD_DIRS='$add_dirs'}
 cd ~/aios 2>/dev/null
 _claude_with_respawn '$name' 'Read $task_file and follow the instructions inside.'
 LAUNCHER
@@ -776,7 +839,9 @@ LAUNCHER
     (
       local lockdir="$run_dir/spawn.lock.d"
       local waited=0
-      while ! mkdir "$lockdir" 2>/dev/null; do
+      # mkdir alone is not a mutex on uutils 0.10 (Ubuntu 26.04): several racers can all "create"
+      # the folder. The noclobber pid file is the claim -- bash opens it O_EXCL, so one racer wins.
+      while ! { mkdir "$lockdir" 2>/dev/null && ( set -C; echo "$$" > "$lockdir/pid" ) 2>/dev/null; }; do
         sleep 0.5
         waited=$((waited + 1))
         if [ $waited -gt 60 ]; then
@@ -784,7 +849,7 @@ LAUNCHER
           rm -rf "$lockdir"
         fi
       done
-      trap "rmdir '$lockdir' 2>/dev/null" EXIT
+      trap "rm -rf '$lockdir' 2>/dev/null" EXIT
 
       local ide_app=""
       local ide_bundle=""
@@ -894,7 +959,7 @@ APPLESCRIPT
         # loaded spawn() ever leaks "spawn:NN: command not found: activate", it is
         # COSMETIC and NON-FATAL — the session STILL launches with its task. Verify
         # before ever declaring spawn broken:  pgrep -fl "--name $name"  (and the
-        # task file ~/.aios/run/spawn-task-$name.md exists). Never fire a duplicate worker
+        # task file ~/.aios/run/handoff-*/aios-spawn-task-$name.md exists). Never fire a duplicate worker
         # off the activate error alone — that races the real session on one repo.
         osascript "$applescript_file" 2>>"$run_dir/spawn-osascript-$name.log" || true
         # Hold the lock ~1.5s after the AppleScript returns so a consecutive spawn
@@ -938,6 +1003,7 @@ APPLESCRIPT
       [ -n "$spawn_model" ]   && export CLAUDE_MODEL="$spawn_model"
       [ -n "$spawn_effort" ]  && export CLAUDE_EFFORT="$spawn_effort"
       [ -n "$spawn_advisor" ] && export CLAUDE_ADVISOR_MODEL="$spawn_advisor"
+      [ -n "$add_dirs" ]      && export CLAUDE_ADD_DIRS="$add_dirs"
       _claude_with_respawn "$name" "Read $task_file and follow the instructions inside."
     )
   fi

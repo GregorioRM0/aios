@@ -90,6 +90,50 @@ fi
 [ ${#files[@]} -eq 0 ] && exit 0
 
 hit=0
+# Credential-shaped FILE NAMES, whatever they contain: a key, a certificate, a token or cookie
+# store, a saved browser session. CI's Vault guards job checks the same names, but a private
+# vault runs with Actions off, so this commit-time check is the one that holds. *.template is
+# what ships in their place; Obsidian's own config is never a credential.
+#
+# A NAME is only a guess, so it has two ways out, and neither skips the content scan below:
+#   * a `.key` that is a zip archive is a Keynote deck (a normal file in 02 - assets/ or
+#     03 - export/), never a key -- keys are text or DER, never a zip;
+#   * any other false alarm: its path, one per line, in `.secret-scan-allow` at the repo root.
+# Without them one deck in the vault blocked every `aios-commit --vault`, /close-day and
+# /close-session commit, with advice ("ship a *.template") that does not apply to a deck.
+_ss_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+_ss_allow=""
+[ -f "$_ss_root/.secret-scan-allow" ] && _ss_allow=$(grep -v '^[[:space:]]*#' "$_ss_root/.secret-scan-allow" | sed 's/[[:space:]]*$//' | grep -v '^$')
+_ss_allowed(){ # $1 path as given -> 0 when listed (relative to the repo root, or absolute)
+  [ -n "$_ss_allow" ] || return 1
+  local a; while IFS= read -r a; do
+    [ "$1" = "$a" ] || [ "$1" = "./$a" ] || [ "$1" = "$_ss_root/$a" ] && return 0
+  done <<EOF
+$_ss_allow
+EOF
+  return 1
+}
+_ss_is_zip(){ [ "$(head -c 4 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = 504b0304 ]; }
+names=""
+for f in ${files[@]+"${files[@]}"}; do
+  case "$f" in *.template|vault/.obsidian/*|./vault/.obsidian/*) continue ;; esac
+  _ss_allowed "$f" && continue
+  case "${f##*/}" in *.key) _ss_is_zip "$f" && continue ;; esac
+  case "${f##*/}" in
+    *.key|*.pem|*.pfx|*.p12|*.cer|*.crt|token.json|credentials.json|.env|.env.local|\
+    storage_state.json|cookies.json|auth_link.html|*-tokens.json|spotify-cache.json|\
+    *oauth*.json|*secret*.json|*credentials*.json) names="${names}  $f
+" ;;
+    *.json) case "/$f" in */auth/*) names="${names}  $f
+" ;; esac ;;
+  esac
+done
+if [ -n "$names" ]; then
+  printf 'secret-scan: BLOCKED — credential-shaped file name(s):\n%s' "$names" >&2
+  echo "secret-scan: real credentials stay gitignored; only a *.template copy ships." >&2
+  echo "secret-scan: not a credential? Add its path to .secret-scan-allow at the repo root (one per line); its contents are still scanned." >&2
+  hit=1
+fi
 # ONE pass with every pattern (`-e` each). The old loop read every file once per pattern, and
 # `-a` (below) makes a binary a full read — measured 11 passes over a 200 MB attachment at ~12 s.
 # -e is load-bearing: a pattern beginning with '-' (the private-key header) is otherwise parsed

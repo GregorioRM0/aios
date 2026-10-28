@@ -280,6 +280,18 @@ before=$(shasum -a 256 < "$T/ro.md")
 $PYBIN "$B" "$T/ro.md" >/dev/null 2>&1
 [ "$(shasum -a 256 < "$T/ro.md")" = "$before" ] && ok "the buffer is byte-identical after a run" || no "buffer-status MODIFIED the file"
 
+echo "── a fresh vault's seed measures, instead of refusing (#227) ──"
+# The seed ends with `---` and a bold **See also:** line inside its last section, `## Emerging`.
+# Read as an entry-shaped line it made every new vault report "cannot measure" at /close-day.
+SEED="vault/00 - notes/context/observed/session-insights.md"
+out=$(python3 "$B" "$SEED" 2>&1); rc=$?
+[ "$rc" = 0 ] && printf '%s' "$out" | grep "Emerging   0/10" >/dev/null \
+  && ok "the shipped seed measures as an empty buffer, exit 0" || no "the seed still refuses (rc=$rc)" "$(printf '%s' "$out" | head -2)"
+T2=$(mktemp -d); printf '## Reinforced\n\n## Emerging\n\n---\n\n### a real entry after a rule\n`class: method` · `first-seen: 2026-10-01` · `route: antifragile.md`\nbody\n' > "$T2/s.md"
+out=$(python3 "$B" "$T2/s.md" 2>&1)
+printf '%s' "$out" | grep "Emerging   1/10" >/dev/null && ok "CONTROL: an entry after a --- still counts" || no "an entry after --- was dropped" "$(printf '%s' "$out" | head -2)"
+rm -rf "$T2"
+
 echo "── the doctrine it enforces is actually written down ──"
 grep -qF 'class: behavioural' CLAUDE.md && ok "CLAUDE.md carries the entry contract" || no "CLAUDE.md never shows the class line"
 grep -qF 'Most method findings fold or drop' CLAUDE.md && ok "CLAUDE.md states the pressure valve" || no "the fold/drop valve is undocumented"

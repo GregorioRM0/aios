@@ -75,7 +75,7 @@ Say `spawn {name}` to launch a named tab dedicated to that role, or `/agent {nam
 | `decision-journaler` | Structured decision capture (verdict / diagnosis / options / reasoning / confidence / revisit-if) | personal |
 | `design-md-author` | Author `DESIGN.md` per Google Labs spec (visual design system + tokens) — pairs with Stitch MCP | communication |
 | `email-drafter` | Draft professional emails matching voice + context | communication |
-| `growth-companion` | Growth-focused conversational companion — surfaces growth edges, holds you accountable without judging | personal |
+| `growth-companion` | Growth-focused companion — listens, surfaces growth edges, and mentors weekly: a development plan in `growth.md` whose commitments it follows up | personal |
 | `invoice-tracker` | Track pending invoices, flag overdue | finance-legal |
 | `journal-prompter` | Generate reflection prompts from sessions + patterns | personal |
 | `lawyer` | Legal review, contract analysis, compliance | finance-legal |

@@ -157,5 +157,23 @@ PY
 )"
 have "$MISSING" "UTC" "6. a missing USER.md falls back to the UTC default"
 
+# ---------------------------------------------------------------------------
+# TEST 7 — Calendars to skip, as the template writes it (#243). Only the bold label
+# used to match, so the template's own shape gave an empty list and every skipped
+# calendar's events still reached the plan, with nothing saying so.
+# ---------------------------------------------------------------------------
+have "$(field '- Calendars to skip: `Feed Calendar, Formula 1` (sports feeds)
+' calendars_skip)" "['Feed Calendar', 'Formula 1']" \
+  "7. plain label, backticked value: names read, trailing note ignored"
+have "$(field '- Calendars to skip: `Feed Calendar`, `Formula 1`
+' calendars_skip)" "['Feed Calendar', 'Formula 1']" \
+  "7b. one backtick pair per name"
+have "$(field '- **Calendars to skip:** Feed Calendar, Formula 1
+' calendars_skip)" "['Feed Calendar', 'Formula 1']" \
+  "7c. the older bold label still reads"
+have "$(field '- *Calendars to skip: `Formula 1, Holidays in Spain`*
+' calendars_skip)" "[]" \
+  "7d. the template's italic placeholder is not read as configured"
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

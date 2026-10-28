@@ -168,6 +168,25 @@ $WRAPPER = @'
 # re-launches `claude --resume <uuid>` in the SAME terminal tab.
 # CLAUDE_RESPAWN_CAPABLE=1 tells _resume.py to use the in-place path
 # instead of legacy keystroke routing.
+# A fresh private folder for ONE file a session is handed (a spawn task, a resume prompt), so the
+# session can be given --add-dir on that folder alone. The task used to sit directly in %TEMP%, and
+# granting its parent would have handed the worker ALL of %TEMP%. Same shape as install-wrappers.sh,
+# the App and Glass (handoff-<16 hex>). Folders older than a day are swept first.
+function New-AiosHandoffDir {
+    param([Parameter(Mandatory)] [string] $Base)
+    # $Base is %TEMP%, shared with every other program: sweep ONLY names this function makes
+    # (handoff- + 16 hex), never another app's 'handoff-*' folder.
+    Get-ChildItem -LiteralPath $Base -Directory -Filter 'handoff-*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^handoff-[0-9a-f]{16}$' -and $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+    $bytes = New-Object byte[] 8
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    $hex = -join ($bytes | ForEach-Object { $_.ToString('x2') })
+    $dir = Join-Path $Base ('handoff-' + $hex)
+    New-Item -ItemType Directory -Path $dir -ErrorAction Stop | Out-Null
+    return $dir
+}
+
 function Invoke-ClaudeWithRespawn {
     param(
         [Parameter(Mandatory)] [string] $Name,
@@ -237,7 +256,23 @@ function Invoke-ClaudeWithRespawn {
     if (-not $claudeExe) { $claudeExe = $claudeCmds[0].Source }
     try {
         while ($true) {
-            $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $resumeArgs + @('--remote-control', '--name', $Name)
+            # --add-dir for every launch whose prompt is a FILE (the twin of install-wrappers.sh):
+            # under permissions.blockReadsOutsideWorkingDirectories a session cannot read outside
+            # its working folders, and the task / resume prompt lives in %TEMP%. Plus any folder
+            # spawn -AddDir was given. Rebuilt each pass: a swap points the bootstrap at a new file.
+            $addDirArgs = @(); $seen = @{}
+            $dirs = @()
+            if ($env:CLAUDE_ADD_DIRS) { $dirs += ($env:CLAUDE_ADD_DIRS -split "`n") }
+            # Only a handoff folder is ever granted, never the folder a file merely sits in (%TEMP%).
+            if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
+                $parent = Split-Path -Parent $BootstrapFile
+                if ((Split-Path -Leaf $parent) -match '^handoff-[0-9a-f]{16}$') { $dirs += $parent }
+            }
+            foreach ($d in $dirs) {
+                $d = $d.Trim()
+                if ($d -and -not $seen.ContainsKey($d)) { $seen[$d] = $true; $addDirArgs += @('--add-dir', $d) }
+            }
+            $claudeArgs = @() + $modelArgs + $effortArgs + $advisorArgs + $addDirArgs + $resumeArgs + @('--remote-control', '--name', $Name)
             if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
                 $claudeArgs += "Read $BootstrapFile and follow the instructions inside."
             }
@@ -249,6 +284,12 @@ function Invoke-ClaudeWithRespawn {
                 if (-not $sid) { break }
                 $resumeArgs    = @('--resume', $sid)
                 $BootstrapFile = Join-Path $env:TEMP "resume-prompt-$Name.md"
+                # Move the prompt into its own handoff folder, so --add-dir grants that folder only.
+                try {
+                    $h = New-AiosHandoffDir -Base $env:TEMP
+                    Move-Item -LiteralPath $BootstrapFile -Destination $h -ErrorAction Stop
+                    $BootstrapFile = Join-Path $h "resume-prompt-$Name.md"
+                } catch { }
                 Start-Sleep -Seconds 3
             } else {
                 break
@@ -323,7 +364,10 @@ function spawn {
         [ValidateSet('low','medium','high','xhigh','max')] [string] $Effort,
         # -Advisor <rung|model> -- an advisor model for the worker; a rung resolves like -Tier,
         # anything else is a model id. No rung has a default advisor. MODEL-ROUTING.md, section "The advisor".
-        [string] $Advisor
+        [string] $Advisor,
+        # -AddDir <folder>[,<folder>] -- extra folders the worker may read, passed to claude as
+        # --add-dir. A surface that hands the worker its own file there names it this way.
+        [string[]] $AddDir
     )
 
     # Tier -> model id. $null = no override -> frontier default (judgment). Every id
@@ -531,7 +575,8 @@ function spawn {
       ''
     ) -join [Environment]::NewLine)
 
-    $taskFile = Join-Path $env:TEMP "spawn-task-$Name.md"
+    $handoff = New-AiosHandoffDir -Base $env:TEMP
+    $taskFile = Join-Path $handoff "aios-spawn-task-$Name.md"
     Set-Content -Path $taskFile -Value ($taskPreamble + "`n" + $Task) -Encoding UTF8
     # An ADVISED worker on a Sonnet- or Haiku-class model gets a consult instruction: unprompted,
     # those executors almost never call the advisor (MODEL-ROUTING.md, section "The advisor"). Opus and
@@ -562,12 +607,13 @@ function spawn {
     if ((-not $env:CLAUDECODE) -or $env:AIOS_GLASS_TERM) {
         # In-process path: set CLAUDE_MODEL for the call only, then restore (no leak).
         # Set the per-spawn variables for the call only, then restore them (no leak).
-        $prev = @{ M = $env:CLAUDE_MODEL; E = $env:CLAUDE_EFFORT; A = $env:CLAUDE_ADVISOR_MODEL }
+        $prev = @{ M = $env:CLAUDE_MODEL; E = $env:CLAUDE_EFFORT; A = $env:CLAUDE_ADVISOR_MODEL; D = $env:CLAUDE_ADD_DIRS }
         if ($spawnModel)   { $env:CLAUDE_MODEL = $spawnModel }
         if ($Effort)       { $env:CLAUDE_EFFORT = $Effort }
         if ($spawnAdvisor) { $env:CLAUDE_ADVISOR_MODEL = $spawnAdvisor }
+        if ($AddDir)       { $env:CLAUDE_ADD_DIRS = ($AddDir -join "`n") }
         try { Invoke-ClaudeWithRespawn -Name $Name -BootstrapFile $taskFile }
-        finally { $env:CLAUDE_MODEL = $prev.M; $env:CLAUDE_EFFORT = $prev.E; $env:CLAUDE_ADVISOR_MODEL = $prev.A }
+        finally { $env:CLAUDE_MODEL = $prev.M; $env:CLAUDE_EFFORT = $prev.E; $env:CLAUDE_ADVISOR_MODEL = $prev.A; $env:CLAUDE_ADD_DIRS = $prev.D }
         return
     }
 
@@ -585,11 +631,19 @@ function spawn {
     $modelStmt = if ($spawnModel) { "`$env:CLAUDE_MODEL = '$spawnModel'" } else { '' }
     $effortStmt = if ($Effort) { "`$env:CLAUDE_EFFORT = '$Effort'" } else { '' }
     $advisorStmt = if ($spawnAdvisor) { "`$env:CLAUDE_ADVISOR_MODEL = '$spawnAdvisor'" } else { '' }
+    # The folders reach the new shell as base64 DATA, never as code: PowerShell also reads the
+    # typographic (curly) single quotes as single-quote delimiters, so checking a path for ' alone would let a folder
+    # name close the string and run whatever follows. The base64 alphabet has no quote of any kind.
+    $addDirStmt = if ($AddDir) {
+        $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($AddDir -join "`n")))
+        "`$env:CLAUDE_ADD_DIRS = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$b64'))"
+    } else { '' }
     $inner = @"
 . `$PROFILE
 $modelStmt
 $effortStmt
 $advisorStmt
+$addDirStmt
 Set-Location '$($PWD.Path)'
 Invoke-ClaudeWithRespawn -Name '$Name' -BootstrapFile '$taskFile'
 "@

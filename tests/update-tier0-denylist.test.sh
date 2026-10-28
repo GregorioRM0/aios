@@ -401,6 +401,19 @@ else
   fi
 fi
 
+# 12. Step 7's exec-bit loop stages each path it names with its WHOLE content, so it must skip the
+# Tier-0 and operator-owned paths, and only name a file whose content already matches canonical.
+# Otherwise a fork's tests/ or an operator-edited hook rides into the framework-sync commit.
+EXECBLOCK=$(awk '/^EXEC=\(\)$/{f=1} f{print} f&&/^fi$/{exit}' "$U")
+case "$EXECBLOCK" in
+  *'tests/*|.github/*|vault/*|*/custom/*) continue'*) ok "12a. the exec-bit loop skips tests/, .github/, vault/ and custom/" ;;
+  *) no "12a. the exec-bit loop can name a Tier-0 or custom/ path" "$(printf '%s' "$EXECBLOCK" | head -3)" ;;
+esac
+case "$EXECBLOCK" in
+  *'/tmp/aios-update-check/$p" | shasum -a 256)" ] || continue'*) ok "12b. the exec-bit loop names a file only when its content matches canonical" ;;
+  *) no "12b. the exec-bit loop can commit an operator's own edits under the framework-sync label" ;;
+esac
+
 echo
 echo "  $PASS passed, $FAIL failed"
 [ "$FAIL" = 0 ] || exit 1

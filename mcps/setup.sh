@@ -74,7 +74,15 @@ vbin() { if [ -d ".venv/Scripts" ]; then echo ".venv/Scripts"; else echo ".venv/
 req_sha() { $PY -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read().replace(b"\r\n",b"\n")).hexdigest())' "$1" 2>/dev/null; }
 needs_install() {
   [ -d "$1/.venv" ] || return 0
-  [ -n "$PY" ] && [ -f "$1/requirements.txt" ] || return 1
+  # A venv but no Python >= 3.10 to check it with: the venv may be the one an older script built
+  # on Python 3.9, which this MCP's pins cannot run on. Skipping it quietly ended in "All MCPs
+  # installed" over an install nobody verified, so it is named as a failure instead.
+  if [ -z "$PY" ]; then
+    echo "→ $(basename "$1")..." >&2
+    echo "  ✗ not checked — its .venv exists, but no Python >= ${PY_MIN:-3.10} is here to verify or update it" >&2
+    FAILED="${FAILED:-} $(basename "$1")"; return 1
+  fi
+  [ -f "$1/requirements.txt" ] || return 1
   [ "$(cat "$1/.venv/.aios-requirements.sha256" 2>/dev/null)" != "$(req_sha "$1/requirements.txt")" ]
 }
 stamp_install() { req_sha requirements.txt > .venv/.aios-requirements.sha256; }
@@ -86,17 +94,65 @@ stamp_install() { req_sha requirements.txt > .venv/.aios-requirements.sha256; }
 # vs .venv/Scripts path, fixed via vbin() above; surfaced by a Windows operator
 # 2026-05-27). Probe for a REAL interpreter: python3 → python → py -3. $PY is used
 # UNQUOTED below so `py -3` word-splits correctly.
+#
+# A REAL interpreter is not enough — it must also be NEW enough. The `mcp` package needs
+# Python >= 3.10, and macOS ships /usr/bin/python3 at 3.9: the probe accepted it, pip found
+# "No matching distribution for mcp==1.28.1", and the block still printed "✓ installed" over an
+# empty venv (measured 2026-10-20 on a fresh Mac). So: prefer versioned names, accept only
+# >= 3.10, and fall back to uv (which can fetch a Python without admin rights) before giving up.
+PY_MIN="3.10"
+py_ok() { $1 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; }
 PY=""
-for cand in python3 python "py -3"; do
-  if $cand -c 'import sys' >/dev/null 2>&1; then PY="$cand"; break; fi
+for cand in python3.12 python3.13 python3.11 python3.10 python3 python "py -3"; do
+  if py_ok "$cand"; then PY="$cand"; break; fi
 done
+if [ -z "$PY" ] && command -v uv >/dev/null 2>&1; then
+  _uvpy="$(uv python find 3.12 2>/dev/null)"
+  if [ -z "$_uvpy" ]; then
+    echo "→ No Python >= $PY_MIN on PATH — fetching Python 3.12 via uv (no admin needed)..."
+    uv python install 3.12 >/dev/null 2>&1 && _uvpy="$(uv python find 3.12 2>/dev/null)"
+  fi
+  [ -n "$_uvpy" ] && py_ok "$_uvpy" && PY="$_uvpy"
+fi
 if [ -z "$PY" ]; then
-  echo "✗ No working Python found (python3 / python / py -3 all failed)."
+  echo "✗ No Python >= $PY_MIN found (python3.1x / python3 / python / py -3 / uv all failed)."
+  echo "  macOS ships Python 3.9, which is too old. Easiest fix: install uv"
+  echo "  (https://docs.astral.sh/uv/) and re-run — this script then fetches Python itself."
   echo "  On Windows: install Python from python.org, then disable the Store alias —"
   echo "  Settings → Apps → Advanced app settings → App execution aliases → turn OFF"
   echo "  python.exe and python3.exe. Node-only MCPs (slack/stitch) still set up below."
   echo ""
+else
+  echo "Using Python: $PY ($($PY -c 'import sys; print(sys.version.split()[0])'))"
+  echo ""
 fi
+
+# Build the venv and install requirements for one Python MCP; return non-zero on ANY failure
+# and record it in FAILED. Every block used to run `pip install … && stamp_install` and then
+# echo "✓ installed" unconditionally, so a failed pip was reported as success. A venv built by
+# a too-old Python (the 3.9 case above) is rebuilt rather than reused, or the next run would
+# fail the same way inside it forever.
+FAILED=""
+py_install() {
+  _name="$1"
+  if [ -z "$PY" ]; then
+    echo "  ✗ skipped — no Python >= $PY_MIN"; FAILED="$FAILED $_name"; return 1
+  fi
+  if [ -d .venv ] && ! py_ok "$(vbin)/python"; then
+    echo "  ↻ existing .venv uses a Python older than $PY_MIN — rebuilding it"
+    rm -rf .venv
+  fi
+  if ! { [ -d .venv ] || $PY -m venv .venv; }; then
+    echo "  ✗ could not create .venv"; FAILED="$FAILED $_name"; return 1
+  fi
+  # A venv made by `uv venv` has no pip — bootstrap it rather than fail on a missing binary.
+  # pip is called as `python -m pip`: ensurepip installs only `pip3`, never a bare `pip`.
+  "$(vbin)/python" -m pip --version >/dev/null 2>&1 || "$(vbin)/python" -m ensurepip -q >/dev/null 2>&1
+  if ! "$(vbin)/python" -m pip install -r requirements.txt -q; then
+    echo "  ✗ pip install failed — see the error above"; FAILED="$FAILED $_name"; return 1
+  fi
+  stamp_install
+}
 
 # Platform-correct install hint for a missing tool. The messages below used to say
 # "brew install X" unconditionally, which on Windows and most Linux boxes names a
@@ -159,21 +215,21 @@ fi
 if want notebooklm-mcp && [ -d "$SCRIPT_DIR/notebooklm-mcp" ] && needs_install "$SCRIPT_DIR/notebooklm-mcp"; then
   echo "→ notebooklm-mcp..."
   cd "$SCRIPT_DIR/notebooklm-mcp"
-  [ -d .venv ] || $PY -m venv .venv
-  "$(vbin)/pip" install -r requirements.txt -q && stamp_install
-  "$(vbin)/playwright" install chromium 2>/dev/null
-  "$(vbin)/notebooklm" skill install 2>/dev/null || true
-  echo "  ✓ installed (authenticate: run notebooklm login from mcps/notebooklm-mcp/$(vbin))"
+  if py_install notebooklm-mcp; then
+    "$(vbin)/playwright" install chromium 2>/dev/null
+    "$(vbin)/notebooklm" skill install 2>/dev/null || true
+    echo "  ✓ installed (authenticate: run notebooklm login from mcps/notebooklm-mcp/$(vbin))"
+  fi
 fi
 
 # --- Playwright MCP ---
 if want playwright-mcp && [ -d "$SCRIPT_DIR/playwright-mcp" ] && needs_install "$SCRIPT_DIR/playwright-mcp"; then
   echo "→ playwright-mcp..."
   cd "$SCRIPT_DIR/playwright-mcp"
-  [ -d .venv ] || $PY -m venv .venv
-  "$(vbin)/pip" install -r requirements.txt -q && stamp_install
-  "$(vbin)/playwright" install chromium 2>/dev/null
-  echo "  ✓ installed (chromium bundled)"
+  if py_install playwright-mcp; then
+    "$(vbin)/playwright" install chromium 2>/dev/null
+    echo "  ✓ installed (chromium bundled)"
+  fi
 fi
 
 # --- Atlassian MCP (vendored via pipx/uvx) ---
@@ -183,11 +239,18 @@ if want atlassian-mcp && [ -d "$SCRIPT_DIR/atlassian-mcp" ]; then
     echo "  ⚠ neither uvx nor pipx found — install one ($(pkg_hint uv)), then re-run"
   else
     if command -v uvx >/dev/null 2>&1; then
-      uvx 'mcp-atlassian==0.23.1' --help >/dev/null 2>&1 || true
-      echo "  ✓ ready (invoked via uvx mcp-atlassian==0.23.1 at runtime)"
+      if uvx 'mcp-atlassian==0.23.1' --help >/dev/null 2>&1; then
+        echo "  ✓ ready (invoked via uvx mcp-atlassian==0.23.1 at runtime)"
+      else
+        echo "  ✗ uvx could not fetch mcp-atlassian==0.23.1 (offline, or no Python >= $PY_MIN for uv)"
+        FAILED="$FAILED atlassian-mcp"
+      fi
     else
-      pipx install 'mcp-atlassian==0.23.1' --force 2>/dev/null
-      echo "  ✓ installed via pipx"
+      if pipx install 'mcp-atlassian==0.23.1' --force; then
+        echo "  ✓ installed via pipx"
+      else
+        echo "  ✗ pipx install failed — see the error above"; FAILED="$FAILED atlassian-mcp"
+      fi
     fi
   fi
 fi
@@ -196,29 +259,25 @@ fi
 if want nano-banana-mcp && [ -d "$SCRIPT_DIR/nano-banana-mcp" ] && needs_install "$SCRIPT_DIR/nano-banana-mcp"; then
   echo "→ nano-banana-mcp..."
   cd "$SCRIPT_DIR/nano-banana-mcp"
-  [ -d .venv ] || $PY -m venv .venv
-  "$(vbin)/pip" install -r requirements.txt -q && stamp_install
-  echo "  ✓ installed (requires GEMINI_API_KEY — see README)"
+  py_install nano-banana-mcp && echo "  ✓ installed (requires GEMINI_API_KEY — see README)"
 fi
 
 # --- PDF Generator MCP ---
 if want pdf-generator-mcp && [ -d "$SCRIPT_DIR/pdf-generator-mcp" ] && needs_install "$SCRIPT_DIR/pdf-generator-mcp"; then
   echo "→ pdf-generator-mcp..."
   cd "$SCRIPT_DIR/pdf-generator-mcp"
-  [ -d .venv ] || $PY -m venv .venv
-  "$(vbin)/pip" install -r requirements.txt -q && stamp_install
-  command -v pandoc >/dev/null 2>&1 || echo "  ⚠ pandoc not found — $(pkg_hint pandoc)"
-  have_chrome || echo "  ⚠ Google Chrome not found — install from https://google.com/chrome"
-  echo "  ✓ installed (requires pandoc + Chrome)"
+  if py_install pdf-generator-mcp; then
+    command -v pandoc >/dev/null 2>&1 || echo "  ⚠ pandoc not found — $(pkg_hint pandoc)"
+    have_chrome || echo "  ⚠ Google Chrome not found — install from https://google.com/chrome"
+    echo "  ✓ installed (requires pandoc + Chrome)"
+  fi
 fi
 
 # --- Spotify DJ MCP ---
 if want spotify-dj-mcp && [ -d "$SCRIPT_DIR/spotify-dj-mcp" ] && needs_install "$SCRIPT_DIR/spotify-dj-mcp"; then
   echo "→ spotify-dj-mcp..."
   cd "$SCRIPT_DIR/spotify-dj-mcp"
-  [ -d .venv ] || $PY -m venv .venv
-  "$(vbin)/pip" install -r requirements.txt -q && stamp_install
-  echo "  ✓ installed (requires Spotify Dev app + SPOTIFY_CLIENT_ID/SECRET — see README)"
+  py_install spotify-dj-mcp && echo "  ✓ installed (requires Spotify Dev app + SPOTIFY_CLIENT_ID/SECRET — see README)"
 fi
 
 # --- Stitch MCP (Google AI-native design — runs via npx, no install needed) ---
@@ -240,6 +299,12 @@ if [ -n "$WANTED" ] && [ "$MATCHED" = "0" ]; then
   echo "  No MCP by that name is bundled here, so NOTHING was installed."
   echo "  Run \`bash mcps/setup.sh --list\` to see the real names (either the folder"
   echo "  name like \`nano-banana-mcp\` or the connector id like \`nano-banana\` works)."
+  exit 1
+fi
+
+if [ -n "$FAILED" ]; then
+  echo "✗ These MCPs did NOT install:$FAILED"
+  echo "  Read the ✗ lines above for the reason, fix it, and re-run this script with those names."
   exit 1
 fi
 

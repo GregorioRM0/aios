@@ -190,6 +190,20 @@ def _first_lines(body, n=3):
     return [l.strip() for l in visible.split("\n") if l.strip()][:n]
 
 
+def _strip_footer(body):
+    """Drop a trailing `---` block that holds no entry. The shipped seed ends with `---` and a
+    bold **See also:** line, which falls inside the LAST section; read as an entry-shaped line it
+    made every fresh vault refuse with "cannot measure". A block after `---` that does carry an
+    entry (a `### ` heading or a top-level `- ` bullet) is kept and counted."""
+    rules = list(re.finditer(r"^---\s*$", body, re.M))
+    if not rules:
+        return body
+    tail = body[rules[-1].end():]
+    if re.search(r"^(?:### |- )", tail, re.M):
+        return body
+    return body[:rules[-1].start()]
+
+
 def parse(text):
     """-> {section: [entry, ...]}. Raises ValueError when it cannot measure."""
     if not text.strip():
@@ -208,6 +222,7 @@ def parse(text):
             key = "Reinforced"
         if key is None:
             continue
+        body = _strip_footer(body)
         entries = []
         for chunk in _entry_chunks(body):
             first, _, rest = chunk.partition('\n')

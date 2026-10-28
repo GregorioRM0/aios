@@ -68,6 +68,24 @@ out=$(cd "$tmp" && bash s.sh definitely-not-an-mcp 2>&1); rc=$?
   || no "control produced a pass" "the guard may be keying off something else"
 rm -rf "$tmp"
 
+echo "── 5. an existing venv with no Python >= 3.10 is a named failure, not a silent skip ──"
+# An operator who ran the old script on macOS has a .venv built on Python 3.9. With no newer
+# Python, the first version of the 3.10 fix skipped that MCP and still printed "All MCPs
+# installed". Every interpreter name the script tries is stubbed to an old Python, and uv to fail.
+tmp=$(mktemp -d); mkdir -p "$tmp/mcps/nano-banana-mcp/.venv" "$tmp/bin"
+cp mcps/setup.sh "$tmp/mcps/setup.sh"
+echo "mcp==1.28.1" > "$tmp/mcps/nano-banana-mcp/requirements.txt"
+for c in python3.12 python3.13 python3.11 python3.10 python3 python py uv; do
+  printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/$c"; chmod +x "$tmp/bin/$c"
+done
+out=$(PATH="$tmp/bin:$PATH" bash "$tmp/mcps/setup.sh" nano-banana-mcp 2>&1); rc=$?
+[ "$rc" -ne 0 ] && printf '%s' "$out" | grep "nano-banana-mcp" >/dev/null && printf '%s' "$out" | grep "did NOT install" >/dev/null \
+  && ok "an unverifiable venv exits non-zero and is named" \
+  || no "an unverifiable venv was skipped silently (rc=$rc)" "$(printf '%s' "$out" | tail -2)"
+printf '%s' "$out" | grep "All MCPs installed" >/dev/null \
+  && no "it still printed the success line" || ok "the success line did not print"
+rm -rf "$tmp"
+
 echo ""
 echo "  $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

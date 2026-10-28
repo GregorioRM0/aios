@@ -10,7 +10,7 @@ This bundle is what makes AIOS not just a productivity OS but a thinking partner
 |---|---|
 | [[study-buddy]] | Pre-read chapters, prepare briefs, facilitate study sessions. Pairs with growth routine "Study" in USER.md `### Growth routines` |
 | [[journal-prompter]] | Generate reflection prompts from your sessions + observed patterns. Useful when you want depth but don't know what to ask yourself |
-| [[growth-companion]] | Listen. Witness. Surface where growth IS happening from your observed context. Anti-sycophancy by design. Spanish-aware. |
+| [[growth-companion]] | Listen. Witness. Surface where growth IS happening from your observed context. And mentor: a weekly session, a development plan in `growth.md` whose commitments are followed until kept, renegotiated or named as avoided, a quiet observer at close-day, and a read on how you led a meeting. Anti-sycophancy by design. |
 | [[onboarding-aios]] | Day-N AIOS orientation. Reads how long you've been on AIOS, surfaces the relevant cheatsheet/command/milestone for where you actually are |
 | [[aios-feedback]] | Report something about AIOS upstream: routes to the right repo, de-duplicates, scrubs your vault out of the draft, and files only after you say yes |
 | [[decision-journaler]] | Proactive Decision Journal — works through a significant decision via inversion + pre-mortem + tradeoff-rule pressure-test before you commit |
@@ -21,6 +21,7 @@ This bundle is what makes AIOS not just a productivity OS but a thinking partner
 - You want a system that holds space for hard days, not just productive ones
 - You learn deliberately and want studying to compound
 - You make significant decisions regularly and want them pressure-tested
+- You want someone to hold you to a weekly development practice, not just listen when you show up
 - You're new to AIOS and want a guide who meets you where you are
 - You journal (or want to) and need structured prompts
 

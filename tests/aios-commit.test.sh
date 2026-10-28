@@ -136,6 +136,31 @@ R=$(newrepo); ( cd "$R"; echo t > tracked.txt; git add tracked.txt; git commit -
   || no "--untrack-only swept the tree — `git add --all --` with no pathspec stages EVERYTHING"
 rm -rf "$R"
 
+# core.fileMode=false (the Git for Windows default) makes `git add` record every NEW file as
+# 100644, so /aios:update committed canonical's 755 scripts non-executable and every Linux/macOS
+# clone of that vault inherited them. --exec carries the intended mode. Simulated on any OS by
+# setting the flag, with the file deliberately 644 on disk (what git sees on Windows).
+echo "── aios-commit --exec: records 100755 on a core.fileMode=false checkout ──"
+R=$(newrepo); ( cd "$R"; git config core.fileMode false; echo i > init.txt; git add -A; git commit -qm init
+  printf '#!/bin/sh\necho hi\n' > tool; chmod 644 tool
+  "$AC" -m "new script" --no-push --exec tool >/dev/null 2>&1
+  [ "$(git ls-tree HEAD -- tool | cut -c1-6)" = 100755 ] \
+    && [ "$(git ls-files -s -- tool | cut -c1-6)" = 100755 ] \
+    && [ -z "$(git status --porcelain -- tool)" ] ) \
+  && ok "--exec: new file committed 100755, real index agrees, status clean" \
+  || no "--exec: new file landed 100644 in HEAD or the real index (or shows as modified)"
+rm -rf "$R"
+
+echo "── aios-commit --exec: repairs a 100644 already in HEAD (mode-only, content unchanged) ──"
+R=$(newrepo); ( cd "$R"; git config core.fileMode false; printf '#!/bin/sh\n' > tool; chmod 644 tool
+  git add tool; git commit -qm init; H0=$(git rev-parse HEAD)
+  "$AC" -m "repair mode" --no-push --exec tool >/dev/null 2>&1
+  [ "$H0" != "$(git rev-parse HEAD)" ] && [ "$(git ls-tree HEAD -- tool | cut -c1-6)" = 100755 ] \
+    && [ "$(git diff --name-only HEAD~1 HEAD)" = tool ] && [ -z "$(git status --porcelain)" ] ) \
+  && ok "--exec: mode-only repair commits (the no-op guard does not swallow it)" \
+  || no "--exec: mode-only repair was skipped as a no-op or left the tree dirty"
+rm -rf "$R"
+
 # The real-index sync used ONE `git add --all -- <every path>` call. That form is all-or-nothing:
 # a single pathspec matching nothing (the `git mv old new` case — caller passes both, `old` is
 # gone from worktree AND index) exits 128 and stages NOTHING. The error was swallowed, so commit
@@ -391,6 +416,52 @@ else
   echo "  - SKIP old-hook reproduction: $H5_PIN not present or identical"
 fi
 rm -rf "$H5_OLD"
+
+echo "── --vault sweeps the operator's USER.md and INTENT.md, never framework files (#223) ──"
+# Both live at the repo root, outside vault/, but they are the operator's own files and the docs
+# treat them as vault content. Before, a session that edited only INTENT.md heard "no vault
+# changes to commit" and left it dirty.
+R=$(newrepo); mkdir -p "$R/vault"; echo n > "$R/vault/n.md"; for f in USER.md INTENT.md SETUP.md; do echo 0 > "$R/$f"; done
+git -C "$R" add -A; git -C "$R" commit -qm init
+echo 1 > "$R/INTENT.md"
+( cd "$R" && "$AC" --vault -m "intent only" --no-push ) >/dev/null 2>&1
+[ "$(git -C "$R" log -1 --format=%s)" = "intent only" ] && [ -z "$(git -C "$R" status --porcelain -- INTENT.md)" ] \
+  && ok "--vault commits INTENT.md when it is the only change" || no "--vault left INTENT.md uncommitted"
+echo 2 > "$R/vault/n.md"; echo 2 > "$R/USER.md"; echo 2 > "$R/SETUP.md"
+( cd "$R" && "$AC" --vault -m "user and note" --no-push ) >/dev/null 2>&1
+CH=$(git -C "$R" show --name-only --format= HEAD | sort | tr '\n' ' ')
+[ "$CH" = "USER.md vault/n.md " ] && git -C "$R" status --porcelain -- SETUP.md | grep . >/dev/null \
+  && ok "--vault sweeps USER.md with the vault, and a dirty framework file (SETUP.md) is left alone" \
+  || no "--vault scope wrong for root files: committed [$CH]"
+rm -rf "$R"
+
+echo "── no git identity: the commit lands and says whose name it went out under (#224) ──"
+# With no user.email anywhere, git guesses one from the account and host, and nothing said so.
+R=$(mktemp -d); git -C "$R" init -q; echo a > "$R/a.md"
+OUT=$( cd "$R" && env -u GIT_AUTHOR_EMAIL -u EMAIL GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+       "$AC" -m "no identity" --no-push -- a.md 2>&1 >/dev/null )
+# Whether git can then commit depends on the machine: macOS guesses user@host.local, while a host
+# with no usable domain refuses ("Please tell me who you are"). Either way the warning came first.
+printf '%s' "$OUT" | grep "no git identity is set" >/dev/null \
+  && ok "an unset identity is named before the commit, whether git then guesses or refuses" || no "an unset identity went unmentioned" "$OUT"; rm -rf "$R"
+R=$(newrepo); echo a > "$R/a.md"
+OUT=$( cd "$R" && "$AC" -m "has identity" --no-push -- a.md 2>&1 >/dev/null )
+printf '%s' "$OUT" | grep "no git identity" >/dev/null && no "control: a configured identity was warned about" \
+  || ok "control: a configured identity is silent"; rm -rf "$R"
+
+echo "── a leftover index.lock: the commit lands, and the warning names the lock (#232) ──"
+# The commit uses a temp index, so a stale .git/index.lock never stops it; only the real-index
+# sync after it fails. The old warning told the operator to run commands that also fail while
+# the lock exists, and never said a lock was the cause.
+R=$(newrepo); echo a > "$R/a.md"; git -C "$R" add a.md; git -C "$R" commit -qm init
+: > "$R/.git/index.lock"; echo b > "$R/b.md"
+( cd "$R" && "$AC" -m "add b" --no-push -- b.md ) >/dev/null 2>"$R/.err"
+[ "$(git -C "$R" log -1 --format=%s)" = "add b" ] && git -C "$R" cat-file -e HEAD:b.md 2>/dev/null \
+  && ok "the commit lands even with a leftover index.lock" || no "a leftover index.lock stopped the commit"
+grep -q "index.lock" "$R/.err" && grep -q "remove it, then run: git reset -- b.md" "$R/.err" \
+  && ok "the warning names the lock file and the order that works" \
+  || { no "the warning does not name the lock or how to clear it"; sed 's/^/     /' "$R/.err" | head -4; }
+rm -f "$R/.git/index.lock"; rm -rf "$R"
 
 echo ""
 echo "── RESULT: $PASS passed, $FAIL failed  (bash $BASH_VERSION) ──"

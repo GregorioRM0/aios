@@ -111,9 +111,9 @@ APIs & Services → Library → **enable one API per service in your `--permissi
 Enable only what you list. A missing API produces `403 SERVICE_DISABLED` *at call time* (not at startup, and not an auth error); a missing *scope* is the different failure covered in § *Adding a service later*.
 
 ### 3. Configure the OAuth consent screen
-APIs & Services → OAuth consent screen → **External** (for personal Gmail) → CREATE. Fill Branding (app name + your email ×2). On the Audience tab, **leave publishing status as "Testing"** (avoids the multi-week verification review) and **add your email under Test users**.
+APIs & Services → OAuth consent screen → **External** (for personal Gmail) → CREATE. Fill Branding (app name + your email ×2). On the Audience tab, start in **Testing** and **add your email under Test users**.
 
-**Testing-mode caveats:** refresh tokens expire every 7 days (re-consent weekly); each test user sees an "Unverified app" warning and must click Advanced → Continue (unsafe). Safe for personal use. **Don't click PUBLISH APP** unless distributing to non-test users — it triggers Google verification and can block all auth until complete.
+**Whether to publish is answered in one place:** `personal-account-setup.md` § *The one trap no script can remove — a 7-day clock*. In short: Testing expires refresh tokens every 7 days (re-consent weekly), and moving to **In production** (*Publish app*) is what stops that. With Gmail or Drive scopes Google may ask for verification at that screen; read what it asks before deciding. If you would rather not go through it, stay in Testing and re-consent weekly, or leave `gmail`/`drive` out of `--permissions`. Either way each user sees an "Unverified app" warning and clicks Advanced → Continue.
 
 ### 4. Add scopes
 APIs & Services → OAuth consent screen → Data Access → ADD OR REMOVE SCOPES → "Manually add scopes" textbox → paste the list (§ *Reference — scopes*) → Add to table → UPDATE → SAVE. **Add every scope the services you listed require** — each maps to specific tools; drop one and those tools fail. Don't chase a fixed number: the required set is a function of your `--permissions` list, and the baseline in § Reference covers the core nine only (`chat` / `appscript` / `search` add more). Note: the scope view can be limited to 10 rows — adjust the view to see/select all.
@@ -138,8 +138,8 @@ Trigger any tool call → MCP emits an "ACTION REQUIRED" auth URL → open it, s
 
 - **Scope drift** (the cause of most "it worked yesterday" failures): when the MCP version bumps and adds tools (e.g. Slides support), the new scopes must be added to the consent screen. The pre-bump cached token lacks them; refresh fails confusingly. **Mitigation:** re-check the consent-screen scope list against the MCP's requested scopes after every `git pull` / MCP update.
 - **Multi-account confusion:** if signed into multiple Google accounts, OAuth may default to the wrong one. Use an incognito window with only the target account.
-- **Testing-mode 7-day expiry:** re-consent weekly, or publish to Production (multi-week review).
-- **The "publish" trap:** clicking PUBLISH APP thinking it just saves consent-screen changes triggers verification and can block auth. Stay in Testing unless you truly need Production; if you must, use a separate OAuth client and keep the Testing client live.
+- **Testing-mode 7-day expiry:** re-consent weekly, or publish to In production (see `personal-account-setup.md` § *a 7-day clock* for what Google may ask).
+- **Publish is a decision, not a save button:** *Publish app* changes the publishing status; it does not save consent-screen edits. Decide it with `personal-account-setup.md` § *a 7-day clock*, and if Google asks for verification you do not want, stay in Testing.
 - **Stale-process OAuth loop (Windows):** stale Python workspace processes accumulate across Claude Code restarts; the oldest holds port 8000, the newest holds the state token → callback hits the wrong process → "Invalid or expired OAuth state." Kill all workspace Python processes, verify port 8000 is free, retrigger a tool call to respawn a single fresh MCP.
 
 ---

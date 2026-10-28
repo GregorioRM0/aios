@@ -79,6 +79,47 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-28 — Two machines that sync cleanly, work that finishes outside a session that closes, and sessions that read what they are handed
+
+**🐜 The AIOS now has a home for humans. Ask, share what you built, meet other operators → https://discord.gg/f3rdxBTDMG**
+
+`hash: 7291306 · 9ac3c17 · bb27798 · 6b0b820 · 4a9f371 · d67d9c2 · 421ef13 · cc461a5 · 5cfcebf · 5135728 · 8bcf14e · a9552f5 · a0e9c83 · 1ff2019 · 011e6a9 · edf30c5 · 47c79cb · 120bd54 · d61b787 · 1d82288 · 9f375f3 · 24793e0 · 30f5573 · 1c22c2a · 0a62416 · a8b3f29 · f9fe9bc · a75324d · f475ff6 · dae36e3 · 8cc462a · c8384fe · 7cc9241 · 2ef14bd` · [#222](https://github.com/The-AIOS/aios/pull/222) · [#234](https://github.com/The-AIOS/aios/pull/234) · [#235](https://github.com/The-AIOS/aios/pull/235) · [#236](https://github.com/The-AIOS/aios/pull/236) · [#238](https://github.com/The-AIOS/aios/pull/238) · [#239](https://github.com/The-AIOS/aios/pull/239) · [#240](https://github.com/The-AIOS/aios/pull/240) · [#229](https://github.com/The-AIOS/aios/pull/229)
+
+> **What you can now do.** Commit on two machines that edited the same note on different lines and have it combine. Keep session transcripts for years and archive only the throwaways. Have a half-done plan come back as a task. Back your vault up to GitHub without CI emails. Run under strict read settings and still get your context floor and your worker's task. Start a session without a permission prompt for your own name. Ask `growth-companion` for a weekly session that remembers last week's commitment.
+
+**Two machines combine by content, never over your work** (#222). A file both machines changed is no longer refused by name: `git merge-tree` decides, so edits to different lines combine and only a real conflict stops it, and a push left waiting retries the same way. It stops, leaving your copy alone, when you have a staged change, a file hidden with `assume-unchanged` or `skip-worktree`, or a folder the other machine turned into a file.
+
+**Commits say what is stuck, and whose they are.** A leftover `.git/index.lock` is named, with the order that clears it (#232). `--vault` now also commits your `USER.md` and `INTENT.md`, never framework files (#223). With no git identity set, a commit says the guessed name it went out under, and setup now sets one (#224). On Windows, `/aios:update` commits scripts as executable, and only files that match the framework's own (#234).
+
+**Partial work gets a task** (#236). `/close-day` and `/close-session` mark half-done work as partial, and what is left becomes a task linked to its plan. A check lists open notes no task points to: `/close-day` adds the task, `/today` shows it. Retired notes under `_archived/` and roadmaps are skipped.
+
+**`growth-companion` mentors as well as listens** (#229). It already listened when you arrived with a heavy day; nothing followed up. It can now run a weekly session that opens with last week's commitment, works one or two real things from your vault, names one contradiction, and closes with one small commitment and the sign it was kept. The plan lives in `growth.md` under `## Development plan`: at most three edges, open commitments marked kept, partial or avoided, and graduated edges, each of which becomes a dated entry in `growth.md`. It can also watch quietly at `/close-day`, and read a transcript of a meeting you led for how you facilitated. Nothing runs until you ask: to give it a cadence, add a line to your `USER.md` under `### /today` and, for the observer, under `### /close-day`; the agent file has the wording.
+
+**Transcripts are kept, and throwaways leave on purpose.** Claude Code deletes transcripts after 30 days, silently. Setup and updates now propose keeping them 10 years when you have no setting of your own, and `/aios:housekeeping` sorts them, proposing to archive only old headless and test runs, never a named session. It archives and verifies before it deletes.
+
+**Your vault's GitHub backup stops billing CI** (#238). Setup creates the private repo with Actions off, never pushing to the framework first. The credential-file check CI made now runs before every commit, so nothing is lost. A Keynote deck (`.key`) is never taken for a key, and any other false alarm can be listed in `.secret-scan-allow`; its contents are still scanned.
+
+**Sessions can read what they are handed** (#231). Under `blockReadsOutsideWorkingDirectories`, the floor was written where a session could not read it, and so was a worker's task file. The floor now lives in `.aios-run/floor/`, and a worker's task (or a resume prompt) gets its own private folder, granted with `--add-dir`: that folder only, never the run folder with every other session's files.
+
+**Locks hold on Ubuntu 26.04.** Its `mkdir` (uutils 0.10) can tell several processes at once that each created the same folder, so two commits, closes or snapshots could run together and lose each other's work. Every lock now claims ownership by creating its pid file exclusively, which bash does itself, so one process holds it whatever `mkdir` the system ships.
+
+**Smaller fixes.**
+- The startup identity check is one command, `hooks/whoami`. The old one asked at every session start even when allowed; this one stays allowed once you allow it (#230).
+- Calendar and Tasks written below an *EXAMPLE ONLY* block in `USER.md` are read (#233).
+- A multi-day all-day event shows on every day it covers in the calendar `/today` reads, not only its first; and `Calendars to skip` is read as the template writes it (#243).
+- A fresh vault's buffer check no longer reports "cannot measure" (#227).
+- The two Google setup docs give one answer on *Publish app* (#226).
+- MCP setup needs Python 3.10+ and names every server it could not install (#235).
+- A paused quota watcher logs the pause once, not every tick (#239).
+- `/aios:housekeeping` weighs each project's `CLAUDE.md` (#240).
+
+**Action required** — check each first; do only what applies:
+1. **The modified installers.** `/aios:update` re-runs `hooks/claude-identity/install-wrappers.sh` (Windows: `.ps1`); it writes the same shell file, now passing `--add-dir` for task files. It also runs `hooks/install-settings.py`: read its lines to the operator, and `--apply` only on yes. On a vault without `cleanupPeriodDays` it proposes 10-year transcript retention. Recommend yes to both.
+2. **Only if `git -C ~/aios config user.email` prints nothing:** set the operator's name and email with `git config --global`.
+3. **Only if an MCP from `mcps/` is not connected in `claude mcp list`:** run `bash mcps/setup.sh` and read its last lines; it now names what failed (usually Python below 3.10).
+4. **Only if the vault pushes to a private GitHub repo you own:** read `gh api repos/{owner}/{repo}/actions/permissions --jq .enabled`. On `true`, say it bills minutes on every push and ask once; on yes, run `gh api -X PUT repos/{owner}/{repo}/actions/permissions -F enabled=false`.
+5. **Open a new terminal, and start a new Claude session**, last.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)

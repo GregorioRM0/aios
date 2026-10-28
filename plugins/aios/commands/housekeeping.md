@@ -445,6 +445,24 @@ Comprehensive integrity check of the two operating files that govern every sessi
 7. **Excluded calendars / personal email** — verify `Excluded calendars` and personal Google account are reachable (or marked optional explicitly).
 8. **Personal antifragile graduations** — if `## Personal antifragile graduations` has entries, verify each links to its source antifragile.md entry (the lineage trace).
 
+**C. Project `CLAUDE.md` weight (the file every session in that repo loads whole):**
+
+1. **Find the files — every Coding or Hybrid project gets a line, measured or not.** For each note in `vault/00 - notes/projects/` whose Current State table says `Type` Coding or Hybrid, read its `CLAUDE.md` row: an absolute path → that file; a relative path → resolved against the project's `Code` path, never against where housekeeping runs; no path → `{Code}/CLAUDE.md`. Show the resolved path in the report. Measure it whenever the file is readable on this machine, whatever mark the row carries (a ✓, no mark or an unknown one), and say so when the mark disagrees with what you found. Otherwise list the project as **"not measured"** with the reason — row ❌ or N/A, row missing, repo not cloned here, file unreadable. A project is never left out of the report silently, and "not measured" is never "healthy".
+2. **Weigh each one.** `wc -c < "$F"` for bytes; `bytes × 10 / 37` for the token proxy `tests/claude-md-budget.test.sh` uses. **Flag at 50,000 bytes or more** (~13.5k tokens per session start). For a flagged file, name its five heaviest sections. Everything is counted, in bytes (`LC_ALL=C`): what comes before the first heading is its own entry, a `##` or `###` inside a fenced block (backticks or tildes, indented up to three spaces, closed only by the same fence; CRLF files too) is not a heading, and each `###` is weighed on its own rather than inside its `##` (inlined here because `tests/` is never synced to a vault):
+
+   ```bash
+   LC_ALL=C awk 'BEGIN { n = "(before the first heading)" }
+        { t = $0; sub(/\r$/, "", t); sub(/^ ? ? ?/, "", t); fence = 0 }
+        fc != "" && match(t, /^(`+|~+)[ \t]*$/) && substr(t, 1, 1) == fc { m = t; sub(/[ \t]*$/, "", m); if (length(m) >= fl) { fc = ""; fence = 1 } }
+        fc == "" && !fence && match(t, /^(```+|~~~+)/) && !(substr(t, 1, 1) == "`" && index(substr(t, RLENGTH + 1), "`")) { fc = substr(t, 1, 1); fl = RLENGTH; fence = 1 }
+        fc == "" && !fence && /^###? / { if (b) printf "%8d  %s\n", b, n; n = $0; sub(/^#+ /, "", n); sub(/\r$/, "", n); b = 0 }
+        { b += length($0) + 1 }
+        END { if (b) printf "%8d  %s\n", b, n }' "$F" | sort -rn | head -5
+   ```
+
+   The weight is almost always a catalogue — every endpoint, table, environment variable or design token — and a catalogue's home is `docs/*.md` behind a one-line stub, with the test that keeps the doc honest reading `docs/` instead.
+3. **Propose, never move.** What is a contract and what is a catalogue is the repo owner's call; this check only makes the running total visible, which is what nobody had. A repo can sit above the line on purpose; the proposal says what it costs per session and which sections carry it, and stops there.
+
 **Proposal table format:**
 
 | # | File | Issue | Severity | Recommended fix |
@@ -453,6 +471,7 @@ Comprehensive integrity check of the two operating files that govern every sessi
 | 17.2 | CLAUDE.md:382 | Path `agents/` is stale (post-restructure now `agents/`) | high | [ ] update path |
 | 17.3 | USER.md:74 | `{operator-personal}@example.com` listed as Personal email — verify still active | low | [ ] confirm |
 | 17.4 | USER.md:134 | `### /old-command` personalization has no matching `plugins/aios/commands/old-command.md` | medium | [ ] remove orphan personalization |
+| 17.5 | `{repo}/CLAUDE.md` | 347 KB (~94k tokens) loaded whole by every session; its design-system section alone is 42 KB | medium | [ ] move catalogues to `docs/*.md` behind a stub |
 
 **Severity levels:**
 
@@ -944,6 +963,14 @@ It costs nothing (a local command, no model call) and prints a table per skill (
 
 **Quarter notes stay derived.** A `01 - calendar/*/{YYYY}-Q{N}-plan.md` (the `okr-coach` agent's one file per quarter) holds objectives and key results, never tasks. **Flag** any `- [ ]` in one: work belongs in project notes and the daily note, and a quarter note that grows checkboxes has become a second planning system. Propose moving each item to its project note.
 
+#### Bucket 36: Session transcripts — keep the sessions, archive the throwaways (NEW — propose-only)
+
+Claude Code deletes transcripts older than `cleanupPeriodDays` (default **30**) at every session start, silently, so a named session you meant to reopen with resume, or an arc you meant to learn from, is gone a month later. Setup and `/aios:update` set a long retention when the settings have none (`hooks/install-settings.py`, item R). Long retention keeps the throwaways too, and this bucket is where they leave on purpose.
+
+**Run** `python3 ~/aios/hooks/transcript-inventory.py` (Windows: the interpreter SETUP §10's probe picks). It reads every transcript's own records and sorts them: **named** (an `agent-name` record: spawned workers, primaries, resumed sessions), **unnamed** interactive sessions, **headless** (`claude -p` and the SDK: routines, probes, test harnesses) and **temp-run** (started in a temp folder). It prints counts and sizes, the retention in force, and the **throwaway candidates**: headless and temp-folder runs older than 14 days. Named and unnamed sessions are counted, never proposed.
+
+**Propose** archiving the candidates as one item, with the count and the size. **Only on the operator's yes**, run `python3 ~/aios/hooks/transcript-inventory.py --archive`: it writes them to `~/claude-archive/transcripts-<date>.tar.gz`, checks every file is in the archive at its full size, and only then deletes them. A file it cannot verify is kept, and a failed archive deletes nothing. **If retention is still Claude Code's 30 days**, say so in one line and offer `python3 ~/aios/hooks/install-settings.py`, which shows the change before making it. **Zero candidates** → say *"0 throwaway transcripts"*.
+
 ### Phase 2 — Present the packet
 
 Categorize all findings into one review table:
@@ -977,6 +1004,7 @@ Categorize all findings into one review table:
 - Skill load cost: {N} never-invoked (owned / synced / plugin), {M} stale plugins
 - Synced-skill collisions: {N} synced skills, {M} collisions
 - Discardable views: {N} explainers past 30 days, {M} checkboxes in quarter notes
+- Session transcripts: {N} throwaway candidates ({size}), retention {days} days
 
 ### 🟢 Auto-applied (no approval needed)
 {Low-stakes mechanical fixes — link adds where unambiguous, snapshot timestamp updates, obvious [x] marks}

@@ -27,6 +27,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCAN="$ROOT/hooks/git/secret-scan.sh"
+PYBIN=""; for _c in python3 python "py -3"; do $_c -c "import sys" >/dev/null 2>&1 && { PYBIN="$_c"; break; }; done; [ -n "$PYBIN" ] || PYBIN=false
 PASS=0; FAIL=0
 ok(){ PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"; }
 no(){ FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
@@ -147,6 +148,34 @@ for i in $(seq 1 3000); do printf '%s\n' "$L"; done > "$C/many.md"
 out=$(bash "$SCAN" "$C/many.md" 2>&1); rc=$?
 printf '%s' "$out" | grep -c 'BLOCKED' >/dev/null && ! printf '%s' "$out" | grep -c 'FAILED to scan' >/dev/null && ok "~1.3 MB of hits → BLOCKED, not 'FAILED to scan' (grep SIGPIPE)" || no "many hits misreported" "$out"
 rm -rf "$C"
+
+echo "── credential-shaped file NAMES are blocked whatever they contain ──"
+# The half of CI's Vault guards job a private vault loses when Actions are off.
+C="$TMP/names"; mkdir -p "$C/mcps/x/auth" "$C/vault/.obsidian"
+for n in server.pem id.key my-tokens.json client_secret.json google-oauth.json cookies.json .env; do
+  echo "nothing secret inside" > "$C/$n"
+  bash "$SCAN" "$C/$n" >/dev/null 2>&1 && no "a file named $n passed" || ok "a file named $n is blocked"
+done
+echo '{}' > "$C/mcps/x/auth/site.json"
+bash "$SCAN" "$C/mcps/x/auth/site.json" >/dev/null 2>&1 && no "a saved session under auth/ passed" || ok "a saved session under auth/*.json is blocked"
+echo x > "$C/client_secret.json.template"; echo '{}' > "$C/vault/.obsidian/app.json"; echo x > "$C/notes.md"
+bash "$SCAN" "$C/client_secret.json.template" "$C/notes.md" >/dev/null 2>&1 \
+  && ok "control: a *.template and an ordinary note pass" || no "control: a template or plain note was blocked"
+# A Keynote deck is a .key too: a zip archive. It must pass; a text .key must not.
+"$PYBIN" -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1],"w"); z.writestr("Index/Document.iwa","x"); z.close()' "$C/Q3 board deck.key" 2>/dev/null \
+  || printf 'PK\003\004rest-of-a-zip' > "$C/Q3 board deck.key"
+bash "$SCAN" "$C/Q3 board deck.key" >/dev/null 2>&1 && ok "a Keynote deck (.key that is a zip) passes" || no "a Keynote deck was blocked as a key"
+# The allowlist: a listed path skips the NAME check only -- a real secret inside still blocks.
+A="$TMP/allow"; mkdir -p "$A/ventures/auth"; git -C "$A" init -q
+echo '{"diagram":"login flow"}' > "$A/ventures/auth/flow.json"
+( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && no "control: an auth/*.json passed with no allowlist" || ok "control: without the allowlist, auth/*.json is blocked"
+printf '# false alarms\nventures/auth/flow.json\n' > "$A/.secret-scan-allow"
+( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && ok "a path in .secret-scan-allow passes the name check" || no "an allowlisted path was still blocked"
+printf '%s%s\n%s\n' "-----BEGIN RSA PRIVATE" " KEY-----" "MIIEow" > "$A/ventures/auth/flow.json"   # split: this file is scanned too
+( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && no "an allowlisted file holding a private key passed" || ok "an allowlisted file is still content-scanned (a private key inside blocks)"
+echo x > "$A/id.key"; msg=$(cd "$A" && bash "$SCAN" id.key 2>&1)
+case "$msg" in *".secret-scan-allow"*) ok "a name block says how to allow a false alarm" ;; *) no "the block message does not mention .secret-scan-allow" "$msg" ;; esac
+rm -rf "$C" "$A"
 
 printf '\n%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

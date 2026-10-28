@@ -302,12 +302,14 @@ esac
 # a crash that left the lock behind would otherwise fail every later update until someone
 # noticed. The reclaim is an atomic `mv` to a name unique to this run, so when two runs both
 # judge the lock stale exactly one rename succeeds and the other refuses — one owner, never two.
+# The claim is mkdir PLUS a noclobber `owner` file: uutils mkdir 0.10 (Ubuntu 26.04) can report
+# success to several racers at once, while `set -C` makes bash itself create the file O_EXCL.
 LOCK=/tmp/aios-update-check.lock
-if ! mkdir "$LOCK" 2>/dev/null; then
+if ! { mkdir "$LOCK" 2>/dev/null && ( set -C; : > "$LOCK/owner" ) 2>/dev/null; }; then
   if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +30 2>/dev/null)" ] \
      && mv "$LOCK" "$LOCK.stale.$$" 2>/dev/null; then
     rm -rf /tmp/aios-update-check "$LOCK.stale.$$"
-    mkdir "$LOCK" 2>/dev/null || { echo "FATAL: reclaimed a stale $LOCK but another run took it first — rerun when it finishes; do NOT run Step 7's cleanup." >&2; exit 1; }
+    { mkdir "$LOCK" 2>/dev/null && ( set -C; : > "$LOCK/owner" ) 2>/dev/null; } || { echo "FATAL: reclaimed a stale $LOCK but another run took it first — rerun when it finishes; do NOT run Step 7's cleanup." >&2; exit 1; }
     echo "note: reclaimed a stale $LOCK (older than 30 min — a previous /aios:update most likely crashed)." >&2
   else
     echo "FATAL: another /aios:update holds $LOCK — its clone is not this run's to touch. Rerun when it finishes; do NOT run Step 7's cleanup, the clone and the lock are the other run's." >&2
@@ -1010,8 +1012,27 @@ On the answer:
 
 **Then commit the framework-sync to the vault repo — the atomic apply→advance→commit that leaves the vault clean and pushable.** Without this, the vault sits *applied-but-uncommitted* after every update: un-pushable, and drifting from canonical for anyone who pulls the vault (e.g. a teammate on plain `git pull`). Commit **exactly the Tier-1 paths this run applied** (from Steps 3 + 6.5) plus `.aios-update`, via `aios-commit` — scoped, so the operator's in-flight vault *content* is untouched, and `aios-commit`'s plumbing bypasses the pre-commit guard by design:
 ```bash
-cd ~/aios && ~/aios/hooks/aios-commit -m "sync: framework → {short-HEAD} (via /aios:update)" -- {the Tier-1 paths applied this run} .aios-update
+# Carry canonical's exec bit. With core.fileMode=false (the Git for Windows default) git cannot
+# see it, so every NEW script lands as 100644 and a Linux/macOS clone of this vault gets hooks
+# that do not run. Name each canonical-755 path the vault does not already store as 755.
+EXEC=()
+if [ "$(git -C ~/aios config --bool core.fileMode)" = false ]; then
+  while IFS= read -r p; do
+    case "$p" in tests/*|.github/*|vault/*|*/custom/*) continue ;; esac  # Tier 0 / operator-owned
+    [ -f "$HOME/aios/$p" ] || continue                                 # not synced
+    case "$(git -C ~/aios ls-tree HEAD -- "$p")" in 100755*) continue ;; esac
+    # --exec stages the file's whole content, so only a file whose content already matches
+    # canonical (line endings aside) may ride along. One the operator kept AHEAD stays out: its
+    # mode is fixed the day it is synced, never by committing their edits under a framework label.
+    [ "$(LC_ALL=C tr -d '\r' < "$HOME/aios/$p" | shasum -a 256)" = \
+      "$(LC_ALL=C tr -d '\r' < "/tmp/aios-update-check/$p" | shasum -a 256)" ] || continue
+    EXEC+=(--exec "$p")
+  done < <(git -C /tmp/aios-update-check ls-files -s | awk -F'\t' '$1 ~ /^100755 / {print $2}')
+fi
+cd ~/aios && ~/aios/hooks/aios-commit -m "sync: framework → {short-HEAD} (via /aios:update)" "${EXEC[@]}" -- {the Tier-1 paths applied this run} .aios-update
 ```
+`EXEC` also repairs scripts an earlier sync already committed as 100644 — a mode-only change, carried in this same framework-sync commit. On macOS/Linux it stays empty: `cp` preserved the mode and git saw it.
+
 If only the tracker advanced (no Tier-1 file changed), commit just `.aios-update`. **Framework-sync commits stay DISTINCT from operator session-work commits** (clean attribution), and `aios-commit --vault` at session-end / `/close-day` stays scoped to vault *content* — never framework infra, which is THIS command's domain. Finally `rm -rf /tmp/aios-update-check /tmp/aios-update-check.lock` — clone first, lock last — unless Step 1's lock refused this run (then neither is this run's to remove).
 
 > **`hash=` is written ONLY by this command, after a clean fully-applied run. NEVER hand-edit it** — hand-bumping it past un-pulled commits is exactly what creates permanent orphans (see `antifragile.md` #65). The rule is about *that field*, and saying so precisely matters now that the file is no longer single-writer: `hooks/aios-star-check --decline` appends `star-ask=` to the same file, deliberately, because a decline must be per-operator rather than per-machine and `.aios-update` is what travels with the vault. It touches nothing else and never reads `hash=`. A rule stated as *"never write this file"* would have been read as forbidding that, or quietly ignored — neither of which protects `hash=`.

@@ -32,6 +32,7 @@ Step 1 runs `uv run ~/aios/hooks/pipeline-executor.py --command close-day` which
    - `Bash(uv run ~/aios/hooks/pipeline-executor.py --command close-day)` — pre-loads Calendar (detailed, with attachments), Calendar next 14 days, Tasks, Slack
    - `Bash(bash ~/aios/hooks/freshness-probe.sh --aios-update)` — **infrastructure freshness check** (the same script `/today` runs — one implementation, so the two surfaces can't drift; SSH `ls-remote` falls back to public HTTPS, and git's error output is kept so a refused credential reads `access-denied`, never `unreachable`). Render per § Aios-update freshness rendering below — at end-of-day, the framing shifts from "before working today" to "before the secondary machine's overnight queue (or first thing tomorrow)".
    - `Bash(uv run ~/aios/hooks/bus-dead-letters.py)` — **bus dead-letter + unclaimed-request check** (same script `/today` runs — one implementation, so the two surfaces can't drift; through `uv` for the reason spelled out in `/today`). It reports two distinct shapes: a retired `.undelivered` request, and a plain `*.json` **nobody ever claimed** — the second is invisible everywhere else, because retirement needs a surface to perform it and a surface that quit performs nothing. Retirement to `.undelivered` stops a request *blocking another surface*; it does not deliver it, and nothing reads that directory. At close-day this matters more than in the morning: an undelivered handoff means a worker was never told to start, so whatever it was meant to produce **will not exist overnight** — and the sender still believes it landed. Render per § Bus dead-letter rendering below.
+   - `Bash(bash ~/aios/hooks/unfinished-work.sh)` — **unfinished-work check** (same script `/today` runs). Handled per § Partial work never closes as done below.
    - `Bash(UV_CACHE_DIR="${TMPDIR:-/tmp}/uv-cache" uv run ~/aios/hooks/model-switch-log.py --report --since {today YYYY-MM-DD})` — **model-switch check** (SETUP Hook F). Each line is a session that finished on a model other than the one it asked for, usually a silent fallback after a flagged message. Empty output (or no log, when Hook F is not wired) means nothing to say: say nothing. Otherwise surface one line per row in the `## Close of Day` block, above the verdict line: `> 🔀 **{name} finished on {to}** (asked for {requested}; {reason})` — and treat that session's unattended output as written by that model when you weigh it.
    - `Read` → `USER.md` (for dev project paths, growth routines, session cascade, organization, and `### /close-day` command personalizations)
    - `Read` → `INTENT.md` (if it exists — for focus alignment check, parked item handling in carries)
@@ -192,6 +193,13 @@ The block, appended to the daily note being closed (may be today or yesterday if
 
 ```
 
+## Partial work never closes as done
+
+`/today` reads tasks, not documents. So when a piece of work finishes only part of what it set out to do — one phase of a plan, one PR of several, a proposal written but not executed — marking it `[x]` erases the only trace of the rest, and nothing will ever surface it again.
+
+- **Mark it partial, not done.** Strike only the part that shipped; the remainder becomes `- [ ] {what is left} → [[{note}]]` in the relevant project note's To-Dos (or in `### Carries forward` when no project note fits). The note that holds the plan keeps an open `status:` (`proposal`, `draft`, `in progress`, or the operator's own word) until the whole of it is done.
+- **Then read the unfinished-work check.** Each `unfinished-work:` finding is an open note no task points to: add that task now, the same way, and report it in one line under `### Shipped` or the verdict — *"Unfinished work given a task: [[{note}]] → [[{project}]]."* No question to the operator; this is bookkeeping, not a decision. `unfinished-work: none` → say nothing.
+
 ## Done-outside-a-session check (before any carry is counted)
 
 A task the operator finished outside every session never reaches a session, so without this step it carries, its count climbs, and at ×6 the triage below asks them for a reason for something already done. The count then makes a false statement about the person. So before writing `### Carries forward`, and before the carry-reason triage below, check every carried **outward action** against the world.
@@ -218,7 +226,7 @@ Before writing `### Carries forward`, scan each item crossing into tomorrow. **(
 1. "{task A}" — carrying to ×{N+1}, no reason tagged.
    Pick: strategic-deferral / blocked-on-{who?} / needs-challenge / waiting-on-date / park
 
-2. "{task B}" — carrying to ×{N+1}, current reason "blocked-on-Enrique" is 32 days stale.
+2. "{task B}" — carrying to ×{N+1}, current reason "blocked-on-{name}" is 32 days stale.
    Retag or reaffirm: same-reason-still-valid / new-reason / park
 
 (Reply with the number + choice, e.g. "1 strategic-deferral, 2 park". Untagged carries get ⚠️ in tomorrow's plan; tagged ones don't.)
@@ -790,7 +798,7 @@ cd ~/aios && ~/aios/hooks/aios-commit --vault -m "Sweep uncommitted vault edits 
 
 Why two. The sweep picks up whatever is uncommitted, and that is not only the human's Obsidian edits. A session still running, or one that closed without committing, has files in it too. In one commit called "Close day", that work would read as close-day's, and nobody could tell afterwards which lines close-day wrote. Separate, the first commit holds the files close-day wrote and the second is plainly labelled a sweep. The split is by **file**, not by line: if someone else also left uncommitted edits in a file close-day wrote (the closed note, typically, edited in Obsidian), those go in whole with the first commit. `aios-commit` stages whole files, and telling one writer's lines from another's in the same file is not something it can do. When there is nothing left to sweep, the second command reports that and commits nothing.
 
-`--vault` sweeps the dirty vault paths for you — **space- and rename-safe** (it enumerates `git diff --name-only HEAD` ∪ untracked under `vault/` + `.aios-update`, minus the machine-local noise), so it never truncates a path like `vault/00 - notes/…` the way a `git status | awk '{print $2}'` sweep would. It stages only those paths via a throwaway index (working tree untouched), self-scans for secrets, and pushes with defer-on-offline. Run `/close-day` when active sessions have closed (that's what the Glass Close-all button is for) so nothing is mid-write.
+`--vault` sweeps the dirty vault paths for you — **space- and rename-safe** (it enumerates `git diff --name-only HEAD` ∪ untracked under `vault/` + `.aios-update` + `USER.md` + `INTENT.md`, minus the machine-local noise), so it never truncates a path like `vault/00 - notes/…` the way a `git status | awk '{print $2}'` sweep would. It stages only those paths via a throwaway index (working tree untouched), self-scans for secrets, and pushes with defer-on-offline. Run `/close-day` when active sessions have closed (that's what the Glass Close-all button is for) so nothing is mid-write.
 
 ## The compass offer (at most once, and only when it has been earned)
 

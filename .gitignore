@@ -87,6 +87,8 @@ vault/.obsidian/workspace-mobile.json
 .aios-snapshot.lock/
 .aios-snapshot.lock.reclaim/
 .aios-snapshot.*.tmp
+# The context floor, written per session for the session to read: private, never committed.
+.aios-run/
 *.routebak-*
 
 # The vendored superpowers skills keep working state in <project>/.superpowers/

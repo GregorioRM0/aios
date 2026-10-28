@@ -449,6 +449,37 @@ def pick_target(current: str, t5: int, t7: int) -> tuple:
 
 PAUSE_FILE = os.path.join(CONFIG_DIR, "quota-watch.paused")
 PAUSE_WRITE_GRACE_SECS = 5
+# A paused watcher said "PAUSED" on every tick: thousands of identical lines over a long pause.
+# It now says it once per pause, and again once a day while the pause lasts.
+PAUSE_LOGGED = os.path.join(CONFIG_DIR, "quota-watch.paused-logged")
+PAUSE_RELOG_SECS = 24 * 3600
+# Set by paused_until() when the pause is only the write grace (an empty marker seconds old):
+# its `until` is synthetic, so it is not a pause of its own to log or remember.
+PAUSE_WRITING = False
+
+
+def log_paused(msg: str, until: float) -> None:
+    """Log the pause when it is new (another `until`) or a day old; otherwise only record it for health."""
+    global LAST_LOG
+    LAST_LOG = msg
+    if PAUSE_WRITING:
+        return
+    key = str(int(until))
+    try:
+        with open(PAUSE_LOGGED, encoding="utf-8") as f:
+            same = f.read().strip() == key
+        # 0 <= age: a clock that went backwards (or a marker dated ahead) must not silence the daily reminder
+        fresh = 0 <= time.time() - os.path.getmtime(PAUSE_LOGGED) < PAUSE_RELOG_SECS
+    except Exception:
+        same = fresh = False
+    if same and fresh:
+        return
+    log(msg)
+    try:
+        with open(PAUSE_LOGGED, "w", encoding="utf-8") as f:
+            f.write(key + "\n")
+    except Exception:
+        pass
 
 
 def paused_until() -> float:
@@ -466,6 +497,8 @@ def paused_until() -> float:
     Why a file and not an env var: the hot path runs from the statusLine pipe,
     whose environment the operator does not control; a file under CONFIG_DIR is
     the one channel both the launchd agent and the statusLine kick can read."""
+    global PAUSE_WRITING
+    PAUSE_WRITING = False
     try:
         with open(PAUSE_FILE, encoding="utf-8") as f:
             raw = f.read().strip()
@@ -475,6 +508,7 @@ def paused_until() -> float:
     except Exception:
         return 0
     if raw == "" and age < PAUSE_WRITE_GRACE_SECS:
+        PAUSE_WRITING = True
         return time.time() + PAUSE_WRITE_GRACE_SECS
     until = 0.0
     try:
@@ -728,8 +762,18 @@ def main(self_path: str) -> None:
 
         until = paused_until()
         if until:
-            log(f"PAUSED by operator until {time.strftime('%Y-%m-%d %H:%M', time.localtime(until))} — no rotation, no adoption check")
+            log_paused(f"PAUSED by operator until {time.strftime('%Y-%m-%d %H:%M', time.localtime(until))} — no rotation, no adoption check", until)
             return
+        # Not paused: forget the last pause, so a new one is said even if it reuses the same `until`.
+        try:
+            os.remove(PAUSE_LOGGED)
+        except FileNotFoundError:
+            pass
+        except OSError:
+            try:  # cannot remove (permissions): empty it, so no `until` can match it
+                open(PAUSE_LOGGED, "w", encoding="utf-8").close()
+            except OSError:
+                pass
 
         if not os.path.exists(CACHE):
             log("no cache yet — skip (is the Stop hook installed?)")

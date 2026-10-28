@@ -168,8 +168,10 @@ else
   [ -z "$(git -C "$A" status --porcelain 2>/dev/null)" ] && ok ".glass/ is ignored: the checkout is clean" || no "the checkout is dirty" "$(git -C "$A" status --porcelain | head -3)"
 fi
 
-echo "-- 5. a renamed repo's old name is not taken silently; the tracker reads over HTTPS --"
+echo "-- 5. a renamed repo's old name is not taken silently; the tracker reads over HTTPS; the vault repo runs no CI --"
 grep -q 'gh repo view "\$u/aios" --json name -q .name' SETUP.md && ok "step 2 asks GitHub which name 'aios' resolves to" || no "no redirect check before gh repo create" "a new aios would break a renamed repo's old links"
+awk '/git remote get-url origin.*the-aios\/aios.*git remote remove origin/{o=NR} /^gh repo create \{your-username\}\/aios --private --source=\. \\$/{if(o)c=NR} /^  && gh api -X PUT repos\/\{your-username\}\/aios\/actions\/permissions -F enabled=false \\$/{if(c)a=NR} /^  && git push -u origin HEAD$/{if(a)p=1} END{exit !p}' SETUP.md && ok "§8 drops the framework origin, then create && Actions off && first push, chained" || no "§8 does not turn Actions off before the first push, or can push to the framework" "every vault push bills CI minutes; a failed create followed by a push sends the vault to the public repo"
+grep -q -- '--source=. --push' SETUP.md plugins/aios/commands/today.md && no "a one-step create-and-push survives" "it pushes before Actions can be turned off" || ok "no create-and-push shortcut skips the Actions step"
 grep -q "^   printf 'repo=https://github.com/The-AIOS/aios.git" SETUP.md && ok "setup writes the tracker over HTTPS" || no "the tracker is not HTTPS" "a machine with no SSH key pays a failed SSH attempt on every check"
 grep -q 'git@github.com:The-AIOS/aios' plugins/aios/commands/update.md && no "update.md still defaults to SSH" "" || ok "update.md defaults to HTTPS"
 
