@@ -67,6 +67,26 @@ mk vocab; note vocab plan propuesta
 out=$(AIOS_VAULT="$T/vocab" AIOS_OPEN_STATUSES='propuesta|borrador' bash "$S")
 case "$out" in *"reflections/plan.md"*) ok "AIOS_OPEN_STATUSES is honoured" ;; *) no "custom status ignored: '$out'" ;; esac
 
+echo "-- a retired note under _archived/ is history, never revived as a task --"
+mk arch; mkdir -p "$T/arch/00 - notes/reflections/_archived"
+printf -- '---\nstatus: proposal\n---\nold plan\n' > "$T/arch/00 - notes/reflections/_archived/old plan.md"
+out=$(run arch)
+[ "$out" = "unfinished-work: none" ] && ok "_archived/ is skipped" || no "a retired note was reported: '$out'" "close-day would turn it back into a task every night"
+
+echo "-- a roadmap is its own truth surface, not a note waiting for a task --"
+mk road; printf -- '---\ntype: roadmap\nstatus: in progress\n---\n- AB-1 open\n' > "$T/road/00 - notes/reflections/the roadmap.md"
+out=$(run road)
+[ "$out" = "unfinished-work: none" ] && ok "type: roadmap is skipped" || no "a roadmap was reported: '$out'"
+
+echo "-- a link to plan-v2 is not a link to plan --"
+mk prefix; note prefix "plan" draft
+printf -- '- [ ] ship it → [[plan-v2]]\n' > "$T/prefix/00 - notes/projects/p.md"
+out=$(run prefix)
+case "$out" in *"reflections/plan.md"*) ok "a prefix-only link still reports the note" ;; *) no "[[plan-v2]] counted as a link to plan: '$out'" ;; esac
+printf -- '- [ ] ship it → [[plan#phase 2]]\n' > "$T/prefix/00 - notes/projects/p.md"
+out=$(run prefix)
+[ "$out" = "unfinished-work: none" ] && ok "CONTROL: [[plan#heading]] is a link to plan" || no "a heading link was not counted: '$out'"
+
 echo
 echo "-- $PASS passed, $FAIL failed --"
 [ "$FAIL" -eq 0 ]

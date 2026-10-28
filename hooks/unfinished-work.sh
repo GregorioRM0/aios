@@ -6,7 +6,7 @@
 # Why: /today and the carries read TASKS, not documents. A multi-phase plan saved as a note
 # and closed as done after its first phase has no exit — nothing ever surfaces the rest.
 #
-# Called by /close-day (daily) and /today (Mondays).
+# Called daily by /close-day (which adds the missing task) and /today (which only shows it).
 # Output: one `unfinished-work:` line per finding, or `unfinished-work: none`. Always exits 0.
 #
 # Status vocabulary: operators write `status:` in their own language. Override the default
@@ -26,14 +26,19 @@ found=0
 while IFS= read -r -d '' f; do
   status=$(awk 'NR==1 && $0!="---"{exit} NR>1 && $0=="---"{exit} /^status:/{sub(/^status:[[:space:]]*/,""); gsub(/["'"'"']/,""); print; exit}' "$f")
   [ -n "$status" ] || continue
+  # A roadmap is a truth surface itself: its open keys are tracked there, and a project-note task
+  # pointing at the whole file would be a second, competing status for all of them.
+  awk 'NR==1 && $0!="---"{exit} NR>1 && $0=="---"{exit} /^type:[[:space:]]*["'"'"']?roadmap/{f=1} END{exit !f}' "$f" && continue
   printf '%s\n' "$status" | grep -qiE "^($OPEN)\$" || continue
   base=$(basename "$f" .md)
-  if ! printf '%s\n' "$open_tasks" | grep -qF "[[$base"; then
+  # The exact note, never a prefix: [[plan]] must not count as a link to plan-v2.
+  if ! printf '%s\n' "$open_tasks" | grep -qF -e "[[$base]]" -e "[[$base|" -e "[[$base#"; then
     echo "unfinished-work: ${f#$NOTES/} (status: $status) — no open task links to it"
     found=$((found+1))
   fi
 done < <(find "$NOTES" -type f -name '*.md' \
-  -not -path "$NOTES/logs/*" -not -path "$NOTES/context/*" -not -path "$NOTES/projects/*" -print0)
+  -not -path "$NOTES/logs/*" -not -path "$NOTES/context/*" -not -path "$NOTES/projects/*" \
+  -not -path "*/_archived/*" -print0)   # retired notes are history, not work left open
 
 [ "$found" -eq 0 ] && echo "unfinished-work: none"
 exit 0

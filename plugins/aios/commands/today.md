@@ -108,7 +108,7 @@ For each `company-{name}: BEHIND` line returned by the per-company freshness che
 
 **Unfinished-work rendering (synthesis, Message 2):**
 - **`unfinished-work: none`** → silent.
-- **One or more findings** → for each, add the missing task to the note's project note To-Dos as `- [ ] {what is left} → [[{note}]]` (or to today's Parking lot when no project fits), and say so in one line at the top of the plan: *"Unfinished work with no task: [[{note}]] — added a task to [[{project}]]."* Never mark the note itself done, and never change its `status:` — the operator decides when it is finished.
+- **One or more findings** → show each in one line at the top of the plan, with the task it needs: *"Unfinished work with no task: [[{note}]] (status: {status}) — `/close-day` adds `- [ ] {what is left} → [[{note}]]` to [[{project}]] tonight, or say \"add it now\"."* `/today` writes the daily note and nothing else, so the task itself is added by `/close-day` (or now, if the operator says so). Never mark the note done, and never change its `status:` — the operator decides when the work is finished.
 
 **Bus dead-letter rendering (handled in Message 1a, alongside the aios-update check):**
 
