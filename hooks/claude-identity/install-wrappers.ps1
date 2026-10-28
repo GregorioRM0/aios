@@ -629,8 +629,8 @@ function spawn {
     $modelStmt = if ($spawnModel) { "`$env:CLAUDE_MODEL = '$spawnModel'" } else { '' }
     $effortStmt = if ($Effort) { "`$env:CLAUDE_EFFORT = '$Effort'" } else { '' }
     $advisorStmt = if ($spawnAdvisor) { "`$env:CLAUDE_ADVISOR_MODEL = '$spawnAdvisor'" } else { '' }
-    # The folders reach the new shell as base64 DATA, never as code: PowerShell also reads the curly
-    # quotes ‘ ’ ‚ ‛ as single-quote delimiters, so checking a path for ' alone would let a folder
+    # The folders reach the new shell as base64 DATA, never as code: PowerShell also reads the
+    # typographic (curly) single quotes as single-quote delimiters, so checking a path for ' alone would let a folder
     # name close the string and run whatever follows. The base64 alphabet has no quote of any kind.
     $addDirStmt = if ($AddDir) {
         $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($AddDir -join "`n")))

@@ -79,10 +79,10 @@ for c in python3.12 python3.13 python3.11 python3.10 python3 python py uv; do
   printf '#!/bin/sh\nexit 1\n' > "$tmp/bin/$c"; chmod +x "$tmp/bin/$c"
 done
 out=$(PATH="$tmp/bin:$PATH" bash "$tmp/mcps/setup.sh" nano-banana-mcp 2>&1); rc=$?
-[ "$rc" -ne 0 ] && printf '%s' "$out" | grep -q "nano-banana-mcp" && printf '%s' "$out" | grep -q "did NOT install" \
+[ "$rc" -ne 0 ] && printf '%s' "$out" | grep "nano-banana-mcp" >/dev/null && printf '%s' "$out" | grep "did NOT install" >/dev/null \
   && ok "an unverifiable venv exits non-zero and is named" \
   || no "an unverifiable venv was skipped silently (rc=$rc)" "$(printf '%s' "$out" | tail -2)"
-printf '%s' "$out" | grep -q "All MCPs installed" \
+printf '%s' "$out" | grep "All MCPs installed" >/dev/null \
   && no "it still printed the success line" || ok "the success line did not print"
 rm -rf "$tmp"
 

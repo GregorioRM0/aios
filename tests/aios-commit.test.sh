@@ -430,7 +430,7 @@ echo 1 > "$R/INTENT.md"
 echo 2 > "$R/vault/n.md"; echo 2 > "$R/USER.md"; echo 2 > "$R/SETUP.md"
 ( cd "$R" && "$AC" --vault -m "user and note" --no-push ) >/dev/null 2>&1
 CH=$(git -C "$R" show --name-only --format= HEAD | sort | tr '\n' ' ')
-[ "$CH" = "USER.md vault/n.md " ] && git -C "$R" status --porcelain -- SETUP.md | grep -q . \
+[ "$CH" = "USER.md vault/n.md " ] && git -C "$R" status --porcelain -- SETUP.md | grep . >/dev/null \
   && ok "--vault sweeps USER.md with the vault, and a dirty framework file (SETUP.md) is left alone" \
   || no "--vault scope wrong for root files: committed [$CH]"
 rm -rf "$R"
@@ -440,11 +440,11 @@ echo "── no git identity: the commit lands and says whose name it went out u
 R=$(mktemp -d); git -C "$R" init -q; echo a > "$R/a.md"
 OUT=$( cd "$R" && env -u GIT_AUTHOR_EMAIL -u EMAIL GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
        "$AC" -m "no identity" --no-push -- a.md 2>&1 >/dev/null )
-[ "$(git -C "$R" log -1 --format=%s 2>/dev/null)" = "no identity" ] && printf '%s' "$OUT" | grep -q "no git identity is set" \
+[ "$(git -C "$R" log -1 --format=%s 2>/dev/null)" = "no identity" ] && printf '%s' "$OUT" | grep "no git identity is set" >/dev/null \
   && ok "an unset identity still commits, and the warning says so" || no "an unset identity went unmentioned" ; rm -rf "$R"
 R=$(newrepo); echo a > "$R/a.md"
 OUT=$( cd "$R" && "$AC" -m "has identity" --no-push -- a.md 2>&1 >/dev/null )
-printf '%s' "$OUT" | grep -q "no git identity" && no "control: a configured identity was warned about" \
+printf '%s' "$OUT" | grep "no git identity" >/dev/null && no "control: a configured identity was warned about" \
   || ok "control: a configured identity is silent"; rm -rf "$R"
 
 echo "── a leftover index.lock: the commit lands, and the warning names the lock (#232) ──"
