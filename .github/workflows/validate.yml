@@ -1210,6 +1210,14 @@ jobs:
         # race that never occurred.
         run: bash tests/aios-snapshot.test.sh
 
+      - name: every lock has one holder even when mkdir is not atomic
+        # ubuntu-26.04 ships uutils mkdir 0.10.0, which gave several racers success for the same
+        # folder -- two holders at once in aios-snapshot, aios-commit and aios-note-append. The
+        # suite reproduces that with a shim on any runner, races six writers through each hook,
+        # and requires the pinned pre-fix hooks to show >1 holder (the control). It also lints
+        # that every mkdir mutex claims ownership with a noclobber pid file.
+        run: bash tests/lock-claim-exclusive.test.sh
+
       - name: a stale lock is reclaimed once, and HEAD only moves from where the commit began
         # A dead holder's lock reclaimed by two waiters used to be deleted out from under the
         # one that re-took it; a commit landing mid-run was reverted by update-ref; a push that
@@ -2037,6 +2045,8 @@ jobs:
 
       - name: lock reclaim and HEAD compare-and-swap under bash 3.2
         run: /bin/bash tests/lock-reclaim-and-head-cas.test.sh
+      - name: every lock has one holder even when mkdir is not atomic (bash 3.2)
+        run: /bin/bash tests/lock-claim-exclusive.test.sh
       - name: note-append --create-if-missing under bash 3.2
         run: /bin/bash tests/note-append-create-if-missing.test.sh
       - name: routine health under bash 3.2

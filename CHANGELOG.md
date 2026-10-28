@@ -99,6 +99,8 @@
 
 **Sessions can read what they are handed** (#231). Under `blockReadsOutsideWorkingDirectories`, the floor was written where a session could not read it, and so was a worker's task file. The floor now lives in `.aios-run/floor/`, and a worker's task (or a resume prompt) gets its own private folder, granted with `--add-dir`: that folder only, never the run folder with every other session's files.
 
+**Locks hold on Ubuntu 26.04.** Its `mkdir` (uutils 0.10) can tell several processes at once that each created the same folder, so two commits, closes or snapshots could run together and lose each other's work. Every lock now claims ownership by creating its pid file exclusively, which bash does itself, so one process holds it whatever `mkdir` the system ships.
+
 **Smaller fixes.**
 - The startup identity check is one command, `hooks/whoami`, so it no longer prompts (#230).
 - Calendar and Tasks written below an *EXAMPLE ONLY* block in `USER.md` are read (#233).

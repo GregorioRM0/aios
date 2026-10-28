@@ -302,12 +302,14 @@ esac
 # a crash that left the lock behind would otherwise fail every later update until someone
 # noticed. The reclaim is an atomic `mv` to a name unique to this run, so when two runs both
 # judge the lock stale exactly one rename succeeds and the other refuses — one owner, never two.
+# The claim is mkdir PLUS a noclobber `owner` file: uutils mkdir 0.10 (Ubuntu 26.04) can report
+# success to several racers at once, while `set -C` makes bash itself create the file O_EXCL.
 LOCK=/tmp/aios-update-check.lock
-if ! mkdir "$LOCK" 2>/dev/null; then
+if ! { mkdir "$LOCK" 2>/dev/null && ( set -C; : > "$LOCK/owner" ) 2>/dev/null; }; then
   if [ -n "$(find "$LOCK" -maxdepth 0 -mmin +30 2>/dev/null)" ] \
      && mv "$LOCK" "$LOCK.stale.$$" 2>/dev/null; then
     rm -rf /tmp/aios-update-check "$LOCK.stale.$$"
-    mkdir "$LOCK" 2>/dev/null || { echo "FATAL: reclaimed a stale $LOCK but another run took it first — rerun when it finishes; do NOT run Step 7's cleanup." >&2; exit 1; }
+    { mkdir "$LOCK" 2>/dev/null && ( set -C; : > "$LOCK/owner" ) 2>/dev/null; } || { echo "FATAL: reclaimed a stale $LOCK but another run took it first — rerun when it finishes; do NOT run Step 7's cleanup." >&2; exit 1; }
     echo "note: reclaimed a stale $LOCK (older than 30 min — a previous /aios:update most likely crashed)." >&2
   else
     echo "FATAL: another /aios:update holds $LOCK — its clone is not this run's to touch. Rerun when it finishes; do NOT run Step 7's cleanup, the clone and the lock are the other run's." >&2

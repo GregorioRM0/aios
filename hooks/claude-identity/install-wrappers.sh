@@ -839,7 +839,9 @@ LAUNCHER
     (
       local lockdir="$run_dir/spawn.lock.d"
       local waited=0
-      while ! mkdir "$lockdir" 2>/dev/null; do
+      # mkdir alone is not a mutex on uutils 0.10 (Ubuntu 26.04): several racers can all "create"
+      # the folder. The noclobber pid file is the claim -- bash opens it O_EXCL, so one racer wins.
+      while ! { mkdir "$lockdir" 2>/dev/null && ( set -C; echo "$$" > "$lockdir/pid" ) 2>/dev/null; }; do
         sleep 0.5
         waited=$((waited + 1))
         if [ $waited -gt 60 ]; then
@@ -847,7 +849,7 @@ LAUNCHER
           rm -rf "$lockdir"
         fi
       done
-      trap "rmdir '$lockdir' 2>/dev/null" EXIT
+      trap "rm -rf '$lockdir' 2>/dev/null" EXIT
 
       local ide_app=""
       local ide_bundle=""

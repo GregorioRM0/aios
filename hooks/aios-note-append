@@ -78,17 +78,23 @@ LOCKDIR="$(dirname "$NOTE")"
 # this two-line section leaves it behind, and the lock wait then times out naming it.
 reclaim(){ # $1 lock dir · $2 the dead pid that was read
   local m="$1.reclaim" cur
-  if ! mkdir "$m" 2>/dev/null; then
+  if ! { mkdir "$m" 2>/dev/null && ( set -C; echo "$$" > "$m/pid" ) 2>/dev/null; }; then
     sleep 0.05; return 0
   fi
   cur=$(cat "$1/pid" 2>/dev/null || true)
   if [ -n "$cur" ] && [ "$cur" = "$2" ] && ! kill -0 "$cur" 2>/dev/null; then
     rm -rf "$1" 2>/dev/null
   fi
-  rmdir "$m" 2>/dev/null
+  rm -rf "$m" 2>/dev/null
   return 0
 }
-acquire(){ local t=0 h; while ! mkdir "$LOCK" 2>/dev/null; do
+# Owning the lock takes TWO steps, and the second is the one that counts. `mkdir` alone is not a
+# mutex everywhere: uutils mkdir 0.10.0 -- /usr/bin/mkdir on Ubuntu 26.04 -- checks, then
+# creates, and reports success to several racers at once (measured on the runner: 6 of 40
+# rounds of 50 racers had more than one winner, up to 10). So the pid file is created with
+# `set -C` (noclobber): bash itself opens it O_EXCL, whatever mkdir the system ships, and
+# exactly one racer can create it. Only that racer holds the lock; the rest see contention.
+acquire(){ local t=0 h; while ! { mkdir "$LOCK" 2>/dev/null && ( set -C; echo "$$" > "$LOCK/pid" ) 2>/dev/null; }; do
     # mkdir can fail for two very different reasons, and only one of them is contention.
     # If the lock directory does not exist afterwards, mkdir failed because the location
     # is not writable — a read-only mount, a restrictive ACL, a cloud-sync folder mid-lock.
@@ -104,9 +110,9 @@ acquire(){ local t=0 h; while ! mkdir "$LOCK" 2>/dev/null; do
     h=$(cat "$LOCK/pid" 2>/dev/null || true)
     if [ -n "$h" ] && ! kill -0 "$h" 2>/dev/null; then reclaim "$LOCK" "$h"; fi   # counts toward the timeout
     t=$((t+1)); if [ "$t" -gt 600 ]; then
-      [ -d "$LOCK.reclaim" ] && die "note lock timeout: $LOCK.reclaim was left by a process that died while reclaiming. If no close is running, remove it: rmdir \"$LOCK.reclaim\" — until then every run stops here"
+      [ -d "$LOCK.reclaim" ] && die "note lock timeout: $LOCK.reclaim was left by a process that died while reclaiming. If no close is running, remove it: rm -rf \"$LOCK.reclaim\" — until then every run stops here"
       die "note lock timeout on $NOTE"; fi; sleep 0.1
-  done; echo "$$" > "$LOCK/pid"; }
+  done; }
 LOCKED=0
 release(){ [ "$LOCKED" = 1 ] && { rm -rf "$LOCK" 2>/dev/null; LOCKED=0; }; }
 trap release EXIT
