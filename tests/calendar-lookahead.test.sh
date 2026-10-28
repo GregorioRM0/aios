@@ -120,6 +120,46 @@ eq("weekday is English", [pe._weekday_name(d) for d in
    ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
 eq("malformed day degrades, never raises", pe._weekday_name("not-a-date"), "?")
 
+# 6b. A multi-day all-day event sits under EVERY day it covers (#243). end.date is
+#     exclusive: Wed 23 to Sat 26 is Wed, Thu, Fri. Listing it on Wednesday only
+#     made Thursday and Friday read as free in a block marked AUTHORITATIVE.
+from datetime import date
+conf = ev("Conference", "2026-09-23", "2026-09-26")
+call = ev("Call", "2026-09-24T09:00:00+02:00", "2026-09-24T09:30:00+02:00")
+multi = pe._render_calendar(order([conf, call]), ME, None, dated=True,
+                            window=(date(2026, 9, 23), date(2026, 10, 7)))
+eq("a 3-day all-day event is listed on each of its days",
+   [l for l in multi.split("\n") if l.strip()],
+   ["**2026-09-23 (Wednesday)**",
+    "- All day — Conference (day 1 of 3)",
+    "**2026-09-24 (Thursday)**",
+    "- All day — Conference (day 2 of 3)",
+    "- 09:00 – 09:30 — Call",
+    "**2026-09-25 (Friday)**",
+    "- All day — Conference (day 3 of 3)"])
+# An event that began before the window shows from the window's first day,
+# numbered from its real start; days past the window are not listed.
+early = pe._render_calendar(order([ev("Trip", "2026-09-20", "2026-09-26")]), ME, None, dated=True,
+                            window=(date(2026, 9, 23), date(2026, 9, 24)))
+eq("an event that began before the window starts at the window, numbered from its start",
+   [l for l in early.split("\n") if l.strip()],
+   ["**2026-09-23 (Wednesday)**", "- All day — Trip (day 4 of 6)",
+    "**2026-09-24 (Thursday)**", "- All day — Trip (day 5 of 6)"])
+# The single-day block keeps one row, and says which day of the span today is.
+today_only = pe._render_calendar(order([ev("Trip", "2026-09-20", "2026-09-26")]), ME, None,
+                                 window=(date(2026, 9, 23), date(2026, 9, 23)))
+eq("the today block keeps one row and names the day of the span",
+   today_only, "- All day — Trip (day 4 of 6)")
+# A one-day all-day event is unchanged: no span tag.
+eq("a one-day all-day event carries no span tag",
+   pe._render_calendar(order([ev("Holiday", "2026-09-23", "2026-09-24")]), ME, None, dated=True,
+                       window=(date(2026, 9, 23), date(2026, 9, 30))).split("\n")[1],
+   "- All day — Holiday")
+checks.append(("the fetch passes its window to the renderer",
+               "window=(_date_only(time_min), _date_only(time_max))" in
+               io.open("hooks/pipeline-executor.py", encoding="utf-8").read(),
+               "google_calendar_events does not pass window="))
+
 # 7. The per-calendar cap scales with the window.
 eq("single day keeps the 50 cap",
    pe._per_calendar_cap("2026-09-24T00:00:00+02:00", "2026-09-24T23:59:59+02:00"), 50)

@@ -104,6 +104,7 @@
 **Smaller fixes.**
 - The startup identity check is one command, `hooks/whoami`. The old one asked at every session start even when allowed; this one stays allowed once you allow it (#230).
 - Calendar and Tasks written below an *EXAMPLE ONLY* block in `USER.md` are read (#233).
+- A multi-day all-day event shows on every day it covers in the calendar `/today` reads, not only its first; and `Calendars to skip` is read as the template writes it (#243).
 - A fresh vault's buffer check no longer reports "cannot measure" (#227).
 - The two Google setup docs give one answer on *Publish app* (#226).
 - MCP setup needs Python 3.10+ and names every server it could not install (#235).

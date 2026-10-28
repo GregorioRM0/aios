@@ -324,9 +324,18 @@ def parse_sources():
         # Calendars the operator does not want in the daily plan (entertainment
         # feeds, subscriptions). Matched case-insensitively against the calendar's
         # display name OR its id, so either is a valid way to name one.
-        m = re.match(r'- \*\*Calendars to skip:\*\* (.+)', line)
+        #
+        # Read in the form the template shows (plain label, value in backticks) as well as the
+        # older bold label. Only the bold form used to match, so an operator who filled the line
+        # in by following the template got an empty list, and nothing said so (#243). Backticked
+        # values are taken from inside the backticks, so a trailing note on the line is not read
+        # as a calendar name. The italic form stays unread: it is the template's placeholder.
+        m = re.match(r'- (?:\*\*Calendars to skip:\*\*|Calendars to skip:) (.+)', line)
         if m:
-            config["calendars_skip"] = [c.strip() for c in m.group(1).split(",") if c.strip()]
+            raw = m.group(1)
+            if "`" in raw:
+                raw = ",".join(re.findall(r'`([^`]*)`', raw))
+            config["calendars_skip"] = [c.strip() for c in raw.split(",") if c.strip()]
 
     # NOT widened to accept the template's italic form (`- *Timezone: …*`). The italics are
     # the placeholder marker on all four scalar lines, and a source may only be switched on
@@ -584,10 +593,26 @@ def google_calendar_events(creds_path, email, time_min, time_max, detailed=False
             seen[key] = True
             order.append((key, (cal_id, cal_name, event)))
 
-    return _render_calendar(order, email, timezone_name, detailed=detailed, dated=dated)
+    return _render_calendar(order, email, timezone_name, detailed=detailed, dated=dated,
+                            window=(_date_only(time_min), _date_only(time_max)))
 
 
-def _render_calendar(order, email, timezone_name, detailed=False, dated=False):
+def _all_day_span(event):
+    """The days an all-day event covers, as dates: [start.date, end.date).
+
+    Google's end.date is EXCLUSIVE, so a Wed-Fri event ends on Saturday. A missing or
+    non-advancing end is read as one day rather than none."""
+    from datetime import timedelta
+    start = _date_only(event["start"]["date"])
+    try:
+        end = _date_only(event.get("end", {}).get("date", ""))
+    except Exception:
+        end = start
+    n = max(1, (end - start).days)
+    return [start + timedelta(days=i) for i in range(n)]
+
+
+def _render_calendar(order, email, timezone_name, detailed=False, dated=False, window=None):
     """Render fetched events (and per-calendar read errors) as markdown lines.
 
     Pure — no network — so the ordering, timezone and day-grouping rules can be
@@ -603,12 +628,39 @@ def _render_calendar(order, email, timezone_name, detailed=False, dated=False):
             continue
         rendered.append(payload)
 
+    # A multi-day all-day event becomes one row per day it covers, each saying which day of
+    # the span it is (#243). Listing it only on its first day made a Wed-Fri conference read
+    # as a one-day thing, and the lookahead is AUTHORITATIVE, so Thursday and Friday read as
+    # free. `window` (first and last date requested) keeps the rows inside the block: an event
+    # that began before the window shows from the window's first day, still numbered from its
+    # real start. The single-day render keeps one row and only gains the "day N of M".
+    expanded = []
+    for cal_id, cal_name, e in rendered:
+        start = e.get("start", {})
+        if "date" not in start:
+            expanded.append((cal_id, cal_name, e, None, ""))
+            continue
+        try:
+            span = _all_day_span(e)
+        except Exception:
+            expanded.append((cal_id, cal_name, e, start["date"], ""))
+            continue
+        total = len(span)
+        for i, d in enumerate(span):
+            if window and not (window[0] <= d <= window[1]):
+                continue
+            tag = f" (day {i + 1} of {total})" if total > 1 else ""
+            expanded.append((cal_id, cal_name, e, d.isoformat(), tag))
+            if not dated:
+                break
+    rendered = expanded
+
     # Chronological across all calendars. All-day events sort ahead of timed ones
     # because they are the day's context ("Home", travel), not appointments in it.
     def _sort_key(item):
         start = item[2].get("start", {})
         if "date" in start:
-            return (start["date"], 0, "")
+            return (item[3], 0, "")
         when = start.get("dateTime", "")
         # Sort on the LOCAL instant, not the raw string: mixing `…Z` and
         # `…+02:00` sorts by wall-clock digits, which puts a mirrored event on
@@ -620,14 +672,14 @@ def _render_calendar(order, email, timezone_name, detailed=False, dated=False):
         return (instant.strftime("%Y-%m-%d"), 1, instant.isoformat())
 
     current_day = None
-    for cal_id, cal_name, e in sorted(rendered, key=_sort_key):
+    for cal_id, cal_name, e, all_day, span_tag in sorted(rendered, key=_sort_key):
         start = e.get("start", {})
         end = e.get("end", {})
 
         if dated:
             # The same local-instant rule the sort uses, so a header can never
             # disagree with the order of the lines beneath it.
-            day = start.get("date")
+            day = all_day
             if not day:
                 inst = _event_instant(start.get("dateTime", ""), timezone_name)
                 day = inst.strftime("%Y-%m-%d") if inst else start.get("dateTime", "")[:10]
@@ -642,7 +694,7 @@ def _render_calendar(order, email, timezone_name, detailed=False, dated=False):
         # is not mistaken for a personal block (and vice versa).
         origin = "" if cal_id == email or cal_id == "primary" else f"  _[{cal_name}]_"
         if "date" in start:
-            lines.append(f"- All day — {summary}{origin}")
+            lines.append(f"- All day — {summary}{span_tag}{origin}")
         else:
             s_time = _local_hhmm(start.get("dateTime", ""), timezone_name)
             e_time = _local_hhmm(end.get("dateTime", ""), timezone_name)
