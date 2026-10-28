@@ -168,6 +168,23 @@ $WRAPPER = @'
 # re-launches `claude --resume <uuid>` in the SAME terminal tab.
 # CLAUDE_RESPAWN_CAPABLE=1 tells _resume.py to use the in-place path
 # instead of legacy keystroke routing.
+# A fresh private folder for ONE file a session is handed (a spawn task, a resume prompt), so the
+# session can be given --add-dir on that folder alone. The task used to sit directly in %TEMP%, and
+# granting its parent would have handed the worker ALL of %TEMP%. Same shape as install-wrappers.sh,
+# the App and Glass (handoff-<16 hex>). Folders older than a day are swept first.
+function New-AiosHandoffDir {
+    param([Parameter(Mandatory)] [string] $Base)
+    Get-ChildItem -LiteralPath $Base -Directory -Filter 'handoff-*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
+        ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+    $bytes = New-Object byte[] 8
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    $hex = -join ($bytes | ForEach-Object { $_.ToString('x2') })
+    $dir = Join-Path $Base ('handoff-' + $hex)
+    New-Item -ItemType Directory -Path $dir -ErrorAction Stop | Out-Null
+    return $dir
+}
+
 function Invoke-ClaudeWithRespawn {
     param(
         [Parameter(Mandatory)] [string] $Name,
@@ -244,7 +261,11 @@ function Invoke-ClaudeWithRespawn {
             $addDirArgs = @(); $seen = @{}
             $dirs = @()
             if ($env:CLAUDE_ADD_DIRS) { $dirs += ($env:CLAUDE_ADD_DIRS -split "`n") }
-            if ($BootstrapFile -and (Test-Path $BootstrapFile)) { $dirs += (Split-Path -Parent $BootstrapFile) }
+            # Only a handoff folder is ever granted, never the folder a file merely sits in (%TEMP%).
+            if ($BootstrapFile -and (Test-Path $BootstrapFile)) {
+                $parent = Split-Path -Parent $BootstrapFile
+                if ((Split-Path -Leaf $parent) -match '^handoff-[0-9a-f]{16}$') { $dirs += $parent }
+            }
             foreach ($d in $dirs) {
                 $d = $d.Trim()
                 if ($d -and -not $seen.ContainsKey($d)) { $seen[$d] = $true; $addDirArgs += @('--add-dir', $d) }
@@ -261,6 +282,12 @@ function Invoke-ClaudeWithRespawn {
                 if (-not $sid) { break }
                 $resumeArgs    = @('--resume', $sid)
                 $BootstrapFile = Join-Path $env:TEMP "resume-prompt-$Name.md"
+                # Move the prompt into its own handoff folder, so --add-dir grants that folder only.
+                try {
+                    $h = New-AiosHandoffDir -Base $env:TEMP
+                    Move-Item -LiteralPath $BootstrapFile -Destination $h -ErrorAction Stop
+                    $BootstrapFile = Join-Path $h "resume-prompt-$Name.md"
+                } catch { }
                 Start-Sleep -Seconds 3
             } else {
                 break
@@ -546,7 +573,8 @@ function spawn {
       ''
     ) -join [Environment]::NewLine)
 
-    $taskFile = Join-Path $env:TEMP "spawn-task-$Name.md"
+    $handoff = New-AiosHandoffDir -Base $env:TEMP
+    $taskFile = Join-Path $handoff "aios-spawn-task-$Name.md"
     Set-Content -Path $taskFile -Value ($taskPreamble + "`n" + $Task) -Encoding UTF8
     # An ADVISED worker on a Sonnet- or Haiku-class model gets a consult instruction: unprompted,
     # those executors almost never call the advisor (MODEL-ROUTING.md, section "The advisor"). Opus and
