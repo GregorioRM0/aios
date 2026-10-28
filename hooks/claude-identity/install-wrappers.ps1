@@ -601,8 +601,13 @@ function spawn {
     $modelStmt = if ($spawnModel) { "`$env:CLAUDE_MODEL = '$spawnModel'" } else { '' }
     $effortStmt = if ($Effort) { "`$env:CLAUDE_EFFORT = '$Effort'" } else { '' }
     $advisorStmt = if ($spawnAdvisor) { "`$env:CLAUDE_ADVISOR_MODEL = '$spawnAdvisor'" } else { '' }
-    if ($AddDir | Where-Object { $_ -match "'" }) { Write-Error "spawn: an -AddDir folder may not contain a single quote"; return }
-    $addDirStmt = if ($AddDir) { "`$env:CLAUDE_ADD_DIRS = '" + ($AddDir -join "`n") + "'" } else { '' }
+    # The folders reach the new shell as base64 DATA, never as code: PowerShell also reads the curly
+    # quotes ‘ ’ ‚ ‛ as single-quote delimiters, so checking a path for ' alone would let a folder
+    # name close the string and run whatever follows. The base64 alphabet has no quote of any kind.
+    $addDirStmt = if ($AddDir) {
+        $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($AddDir -join "`n")))
+        "`$env:CLAUDE_ADD_DIRS = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('$b64'))"
+    } else { '' }
     $inner = @"
 . `$PROFILE
 $modelStmt

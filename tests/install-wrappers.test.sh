@@ -312,6 +312,11 @@ grep -q '\[string\[\]\] \$AddDir' "$PS1" && ok "ps1 spawn takes -AddDir (twin of
 grep -q 'Split-Path -Parent \$BootstrapFile' "$PS1" && ok "ps1 loop adds the prompt file's folder as --add-dir" || no "ps1 loop never adds the prompt file's folder"
 grep -q '\$advisorArgs + \$addDirArgs + \$resumeArgs' "$PS1" && ok "ps1 --add-dir args reach the claude invocation" || no "ps1 --add-dir args built but never passed"
 grep -q 'CLAUDE_ADD_DIRS = ' "$PS1" && grep -q '\$addDirStmt' "$PS1" && ok "ps1 in-process and new-window paths both carry -AddDir" || no "a ps1 spawn path drops -AddDir"
+# The new-window path writes a script for another shell. PowerShell reads ' and the curly quotes
+# as string delimiters, so a folder name spliced into that script as text could run code.
+grep -q "CLAUDE_ADD_DIRS = \[System.Text.Encoding\]::UTF8.GetString(\[Convert\]::FromBase64String" "$PS1" \
+  && ! grep -q "CLAUDE_ADD_DIRS = '\" + (\$AddDir" "$PS1" \
+  && ok "ps1 hands -AddDir to the new shell as base64 data, never as script text" || no "ps1 splices -AddDir into script text"
 
 echo "── a flag given LAST with no value fails fast (it used to spin the argument loop forever) ──"
 # `shift 2` with one argument left fails WITHOUT shifting in bash and zsh, so the loop never ended.
