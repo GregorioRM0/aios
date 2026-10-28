@@ -79,6 +79,18 @@
 >
 > Three version numbers exist and are **not** the same: the framework (`plugins/aios/.claude-plugin/plugin.json`), **AIOS Glass** and the **AIOS App**, each versioned independently. Where an entry says "Glass" or "App" it means that surface. Their current numbers are deliberately not written here — read each from its own manifest, because a version in prose goes stale silently.
 
+## 2026-10-17 — A two-machine vault no longer stays stuck after one file blocked a push
+
+`hash: ` · [#222](https://github.com/The-AIOS/aios/pull/222)
+
+> **What you can now do.** Keep committing on two machines while a session has a file open: once that file is committed, the commits that were waiting go out by themselves, even when both machines edited the same note on different lines.
+
+**One file no longer strands a push for good.** When the other machine changed a file you had open, `aios-commit` correctly refused to combine, but it then stayed stuck: the retry of a pending push was a plain `git push` that can never succeed once the remote has moved, and when the file was finally committed, the two machines having touched the same file was refused by name. Now `git merge-tree` decides by content, so two edits to different lines combine and only a real conflict stops it, and the pending-push retry combines the same way, under the commit lock.
+
+**Combining can no longer overwrite work you have not committed.** It used to miss three cases and write over them: a change you had staged while the file on disk was back to its committed text, a file hidden from git with `assume-unchanged` or `skip-worktree`, and a folder of yours that the other machine turned into a file, which took the untracked files inside it. In each case it now stops and leaves your copy alone.
+
+**Action required:** nothing for you to do. It takes effect on your next commit.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)
