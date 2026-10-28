@@ -417,6 +417,24 @@ else
 fi
 rm -rf "$H5_OLD"
 
+echo "── --vault sweeps the operator's USER.md and INTENT.md, never framework files (#223) ──"
+# Both live at the repo root, outside vault/, but they are the operator's own files and the docs
+# treat them as vault content. Before, a session that edited only INTENT.md heard "no vault
+# changes to commit" and left it dirty.
+R=$(newrepo); mkdir -p "$R/vault"; echo n > "$R/vault/n.md"; for f in USER.md INTENT.md SETUP.md; do echo 0 > "$R/$f"; done
+git -C "$R" add -A; git -C "$R" commit -qm init
+echo 1 > "$R/INTENT.md"
+( cd "$R" && "$AC" --vault -m "intent only" --no-push ) >/dev/null 2>&1
+[ "$(git -C "$R" log -1 --format=%s)" = "intent only" ] && [ -z "$(git -C "$R" status --porcelain -- INTENT.md)" ] \
+  && ok "--vault commits INTENT.md when it is the only change" || no "--vault left INTENT.md uncommitted"
+echo 2 > "$R/vault/n.md"; echo 2 > "$R/USER.md"; echo 2 > "$R/SETUP.md"
+( cd "$R" && "$AC" --vault -m "user and note" --no-push ) >/dev/null 2>&1
+CH=$(git -C "$R" show --name-only --format= HEAD | sort | tr '\n' ' ')
+[ "$CH" = "USER.md vault/n.md " ] && git -C "$R" status --porcelain -- SETUP.md | grep -q . \
+  && ok "--vault sweeps USER.md with the vault, and a dirty framework file (SETUP.md) is left alone" \
+  || no "--vault scope wrong for root files: committed [$CH]"
+rm -rf "$R"
+
 echo "── a leftover index.lock: the commit lands, and the warning names the lock (#232) ──"
 # The commit uses a temp index, so a stale .git/index.lock never stops it; only the real-index
 # sync after it fails. The old warning told the operator to run commands that also fail while
