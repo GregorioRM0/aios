@@ -29,6 +29,13 @@
 #     the path is ignored git refuses to add it at all), which used to force a raw `git commit`
 #     past the attribution guard. Combine freely with normal paths: a typical call commits the
 #     .gitignore edit AND the untrack in one commit.
+#   aios-commit -m "message" --exec <path> [--exec <path>] [--] [<path> ...]
+#     --exec commits a path AS EXECUTABLE (100755) whatever the working tree reports. On a
+#     checkout with core.fileMode=false (the Git for Windows default) git cannot see the exec
+#     bit, so `git add` records every NEW file as 100644 — a script canonical ships as 755
+#     lands non-executable in the commit, and every Linux/macOS clone of that repo inherits
+#     it. The caller names the paths because only it knows the intended mode (for
+#     /aios:update: the canonical clone). Implies staging the path. Working tree untouched.
 #     --vault sweeps the changed vault paths for you (space- AND rename-safe: it enumerates
 #     `git diff --name-only HEAD` ∪ untracked under vault/ + .aios-update, minus machine-local
 #     noise) — so callers never hand-roll a `git status | awk` sweep that truncates paths with
@@ -39,7 +46,7 @@ set -uo pipefail
 
 die(){ echo "aios-commit: $*" >&2; exit 1; }
 
-MSG=""; NO_PUSH=0; VAULT_MODE=0; PATHS=(); UNTRACK=()
+MSG=""; NO_PUSH=0; VAULT_MODE=0; PATHS=(); UNTRACK=(); EXECS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -m)   MSG="${2:-}"; shift 2 ;;
@@ -53,6 +60,8 @@ while [ $# -gt 0 ]; do
     # impossible through the one sanctioned commit path, forcing a raw `git commit`.
     # Repeatable. Operates on the throwaway index only — the working tree is never touched.
     --untrack) [ -n "${2:-}" ] || die "--untrack needs a path"; UNTRACK+=("$2"); shift 2 ;;
+    # --exec: stage the path and record it 100755 (see USAGE). Repeatable.
+    --exec) [ -n "${2:-}" ] || die "--exec needs a path"; PATHS+=("$2"); EXECS+=("$2"); shift 2 ;;
     --)   shift; while [ $# -gt 0 ]; do PATHS+=("$1"); shift; done ;;
     *)    PATHS+=("$1"); shift ;;
   esac
@@ -400,6 +409,13 @@ if [ ${#PATHS[@]} -gt 0 ]; then
   GIT_INDEX_FILE="$TMPIDX" git add --all -- "${PATHS[@]}" || die "failed to stage the given paths"
 fi
 
+# --exec paths: record 100755 in the temp index. After the add, so a new file is in the index
+# to be marked; before the no-op guard, so a mode-only repair (content unchanged) still commits.
+if [ ${#EXECS[@]} -gt 0 ]; then
+  GIT_INDEX_FILE="$TMPIDX" git update-index --chmod=+x -- "${EXECS[@]}" \
+    || die "failed to mark --exec paths executable (each must exist in the working tree)"
+fi
+
 # --untrack paths: drop them from the temp index so the commit records a REMOVAL, while the
 # file stays on disk. --cached is what keeps the working tree untouched; --ignore-unmatch makes
 # it idempotent (re-running on an already-untracked path is a no-op, caught by the guard below).
@@ -516,6 +532,12 @@ if [ ${#PATHS[@]} -gt 0 ]; then
       printf 'aios-commit:   modified indefinitely. Fix: git restore --staged -- <path>\n' >&2
     fi
   done
+fi
+# The real-index `git add` above re-derives the mode from the working tree, so on a
+# core.fileMode=false checkout a new --exec path would sit at 100644 against a 100755 HEAD
+# and show as a staged mode change forever. Mirror the commit's mode into the real index.
+if [ ${#EXECS[@]} -gt 0 ]; then
+  git update-index --chmod=+x -- "${EXECS[@]}" 2>/dev/null || true
 fi
 
 # ...and the --untrack counterpart. Without this the real index still lists the file while

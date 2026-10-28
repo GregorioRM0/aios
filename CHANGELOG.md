@@ -91,6 +91,16 @@
 
 **Action required:** nothing for you to do. It takes effect on your next commit.
 
+## 2026-10-23 — Scripts synced on Windows keep their executable bit
+
+`hash: `
+
+> **What you can now do.** Clone a vault you keep on Windows onto a Linux or macOS machine and have its hooks and by-name tools run, with no mode-only changes showing up after `install-git-hooks.sh`.
+
+**`/aios:update` on Windows now commits scripts as executable.** Git for Windows sets `core.fileMode=false`, so git cannot see the executable bit and records every new file as `100644`. The framework-sync commit therefore stored scripts canonical ships as `755` (`hooks/git/pre-push`, `hooks/clip`, `hooks/resolve-tier`, skill scripts) as non-executable. On a Linux or macOS clone of that vault, git ignored the non-executable `pre-push` hook (leaving only a hint), so its guard never ran, by-name tools failed with *permission denied*, and once `install-git-hooks.sh` ran `chmod +x` the working tree showed those files as modified forever. `aios-commit` gains `--exec <path>`, which commits a path as `100755` without touching the working tree, and `/aios:update` Step 7 passes it for every script canonical stores as `755` that the vault does not. On macOS and Linux nothing changes: `cp` already kept the mode.
+
+**Action required** — none. On a Windows vault the next `/aios:update` also repairs scripts an earlier sync committed as `100644`, as a mode-only change inside its own framework-sync commit. A Linux or macOS clone that set `core.fileMode false` to hide those modifications can unset it after pulling that commit.
+
 ## 2026-10-16 — Find what to offer and who to offer it to, scheduled jobs that report when they go quiet, and safer spawning
 
 `hash: 8c9c79c · 64be205 · ae05331 · 4ecb4ad · 32e3371 · 42d8b6d · 6876ff2 · 0050728 · 9dcf0cf · 9ee28db · d4ae758 · 21966fc · 7fc46b7 · 23ddf9f · 1919f91 · cbd198d` · [#213](https://github.com/The-AIOS/aios/pull/213) · [#215](https://github.com/The-AIOS/aios/pull/215) · [#217](https://github.com/The-AIOS/aios/pull/217) · [#219](https://github.com/The-AIOS/aios/pull/219)

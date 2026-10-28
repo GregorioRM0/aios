@@ -136,6 +136,31 @@ R=$(newrepo); ( cd "$R"; echo t > tracked.txt; git add tracked.txt; git commit -
   || no "--untrack-only swept the tree — `git add --all --` with no pathspec stages EVERYTHING"
 rm -rf "$R"
 
+# core.fileMode=false (the Git for Windows default) makes `git add` record every NEW file as
+# 100644, so /aios:update committed canonical's 755 scripts non-executable and every Linux/macOS
+# clone of that vault inherited them. --exec carries the intended mode. Simulated on any OS by
+# setting the flag, with the file deliberately 644 on disk (what git sees on Windows).
+echo "── aios-commit --exec: records 100755 on a core.fileMode=false checkout ──"
+R=$(newrepo); ( cd "$R"; git config core.fileMode false; echo i > init.txt; git add -A; git commit -qm init
+  printf '#!/bin/sh\necho hi\n' > tool; chmod 644 tool
+  "$AC" -m "new script" --no-push --exec tool >/dev/null 2>&1
+  [ "$(git ls-tree HEAD -- tool | cut -c1-6)" = 100755 ] \
+    && [ "$(git ls-files -s -- tool | cut -c1-6)" = 100755 ] \
+    && [ -z "$(git status --porcelain -- tool)" ] ) \
+  && ok "--exec: new file committed 100755, real index agrees, status clean" \
+  || no "--exec: new file landed 100644 in HEAD or the real index (or shows as modified)"
+rm -rf "$R"
+
+echo "── aios-commit --exec: repairs a 100644 already in HEAD (mode-only, content unchanged) ──"
+R=$(newrepo); ( cd "$R"; git config core.fileMode false; printf '#!/bin/sh\n' > tool; chmod 644 tool
+  git add tool; git commit -qm init; H0=$(git rev-parse HEAD)
+  "$AC" -m "repair mode" --no-push --exec tool >/dev/null 2>&1
+  [ "$H0" != "$(git rev-parse HEAD)" ] && [ "$(git ls-tree HEAD -- tool | cut -c1-6)" = 100755 ] \
+    && [ "$(git diff --name-only HEAD~1 HEAD)" = tool ] && [ -z "$(git status --porcelain)" ] ) \
+  && ok "--exec: mode-only repair commits (the no-op guard does not swallow it)" \
+  || no "--exec: mode-only repair was skipped as a no-op or left the tree dirty"
+rm -rf "$R"
+
 # The real-index sync used ONE `git add --all -- <every path>` call. That form is all-or-nothing:
 # a single pathspec matching nothing (the `git mv old new` case — caller passes both, `old` is
 # gone from worktree AND index) exits 128 and stages NOTHING. The error was swallowed, so commit
