@@ -32,6 +32,8 @@ Claude reads [SETUP.md](./SETUP.md), clones the framework, and then talks you th
 
 **Want the deeper "what is this and why?" before installing?** → keep reading, or read the full **[Operating Manual](https://www.the-aios.com/#manual)** — 21 sections from first principles to 24/7 containment, online or as a PDF.
 
+**🐜 Join the community:** ask, share what you built, meet other operators → [discord.gg/f3rdxBTDMG](https://discord.gg/f3rdxBTDMG)
+
 ---
 
 ## What it is + who it's for
