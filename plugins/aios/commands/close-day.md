@@ -226,7 +226,7 @@ Before writing `### Carries forward`, scan each item crossing into tomorrow. **(
 1. "{task A}" — carrying to ×{N+1}, no reason tagged.
    Pick: strategic-deferral / blocked-on-{who?} / needs-challenge / waiting-on-date / park
 
-2. "{task B}" — carrying to ×{N+1}, current reason "blocked-on-Enrique" is 32 days stale.
+2. "{task B}" — carrying to ×{N+1}, current reason "blocked-on-{name}" is 32 days stale.
    Retag or reaffirm: same-reason-still-valid / new-reason / park
 
 (Reply with the number + choice, e.g. "1 strategic-deferral, 2 park". Untagged carries get ⚠️ in tomorrow's plan; tagged ones don't.)

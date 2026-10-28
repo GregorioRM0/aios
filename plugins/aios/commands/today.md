@@ -391,7 +391,7 @@ If USER.md has no `### Growth routines` section: include one gentle line: "No gr
 - [ ] 🔴 {task} _(carried ×N, reason stale)_ — **DECIDE: retag / park**
 - [ ] ⚠️ {task} _(carried ×N, no reason)_ — **PICK:** `strategic-deferral` / `blocked-on-{who}` / `needs-challenge` / `waiting-on-date` / `park`
 - [ ] {task} _(carried ×N, strategic-deferral)_
-- [ ] {task} _(carried ×N, blocked-on-Enrique)_
+- [ ] {task} _(carried ×N, blocked-on-{name})_
 - [ ] {task} _(new today, overflow)_
 
 **Horizon (this week):**
@@ -556,4 +556,4 @@ One nudge per day — a standalone blockquote placed after the command suggestio
 When displaying tasks in Rhythm sections:
 - **Streaks:** Add `🔥 Day N` after tasks that have been completed consecutively (study, writing, shipping). Count from recent daily notes.
 - **Drift counters:** Add `⚠️ Day N` on Parking lot items that have been carried forward N+ days without being touched. Start showing at day 3+.
-- **Carried items:** Show count AND reason tag: `_(carried ×3, reason: blocked-on-Enrique)_` instead of just `_(carried)_`. Reason tags are set by close-day's triage prompt when crossing ×6 — once tagged, today stops re-asking.
+- **Carried items:** Show count AND reason tag: `_(carried ×3, reason: blocked-on-{name})_` instead of just `_(carried)_`. Reason tags are set by close-day's triage prompt when crossing ×6 — once tagged, today stops re-asking.
