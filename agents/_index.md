@@ -23,11 +23,11 @@ Organized into **7 bundles by purpose**. Install only the bundles you need.
 | **`aios/finance-legal/`** | Accounting, legal review, invoicing, compliance | 4 |
 | **`aios/engineering/`** | Code review, documentation, bug triage, security, building, growth, refactoring | 8 |
 | **`aios/communication/`** | Content, brochures, decks, emails, meeting prep, reports, design systems, animation, explainers, book publishing | 11 |
-| **`aios/personal/`** | Study, journaling, growth, mentoring, decision-making, onboarding, crisis, upstream feedback | 8 |
+| **`aios/personal/`** | Study, journaling, growth and mentoring, decision-making, onboarding, crisis, upstream feedback | 7 |
 | **`aios/commerce/`** | Customer-facing shopping + merchant agents | 1 |
 | **`custom/`** | Your own agents (operator-specific extensions, never synced) | — |
 
-**Total bundled agents: 41.** Each bundle has a `README.md` describing its scope; this file is the master registry.
+**Total bundled agents: 40.** Each bundle has a `README.md` describing its scope; this file is the master registry.
 
 > **Standard:** all agents follow the [Agent Skills open standard](https://github.com/anthropics/skills) (138K⭐ — Anthropic's public canonical repo). Cross-platform compatible with Claude Code, Codex, Gemini CLI, Cursor, Antigravity.
 
@@ -145,8 +145,7 @@ When a fuzzy match is used, the session tells the user which agent was matched a
 |---|---|---|---|
 | [[study-buddy]] | Pre-read chapters, prepare briefs, facilitate study sessions | study, chapter, book, learning session | on-demand |
 | [[journal-prompter]] | Generate reflection prompts from sessions + patterns | reflect, journal, prompts, introspection | on-demand |
-| [[growth-companion]] | Listen + witness + surface growth from observed context. Anti-sycophancy. | vent, frustrated, stuck, heavy day, growth check | on-demand |
-| [[sigmund]] | Standing mentor + philosophical sparring partner — weekly session, living development plan with tracked commitments, silent observer at close-day, coach-of-the-coach on ingested transcripts | mentor, weekly session, development plan, accountability, commitment, sparring, coach the coach, how did I facilitate | weekly (operator-wired) + close-day observer |
+| [[growth-companion]] | Listen + witness + surface growth from observed context, and mentor: a weekly session, a development plan in `growth.md` whose commitments are followed until kept, a close-day observer, coach-of-the-coach on ingested transcripts. Anti-sycophancy. | vent, frustrated, stuck, heavy day, growth check, mentor, weekly session, development plan, commitment, how did I facilitate | on-demand + weekly (operator-wired) |
 | [[onboarding-aios]] | Standing AIOS orientation companion — knows the org/repo/CHEATSHEET/FORTRESS/USER.md map, self-update loop, semantic invocation for "lost" moments | I'm lost, where do I start, what is this, how does this work, what should I try next, what am I missing, onboarding, getting started, day N, compound effect, AIOS guide | on-demand (anytime) |
 | [[aios-feedback]] | Operator-side twin of bug-triager — turns an observation about AIOS into ONE scrubbed, de-duplicated GitHub issue on the right repo; files only after an explicit yes | report a bug, file an issue, this is broken, papercut, upstream, feature request, reportar, abrir un issue, esto no funciona | on-demand |
 | [[decision-journaler]] | Proactive Decision Journal — inversion + pre-mortem + tradeoff scoring | decision, deciding, dilemma, weighing, pre-mortem | on-demand |
