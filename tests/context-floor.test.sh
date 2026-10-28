@@ -90,8 +90,8 @@ echo
 echo " by default the floor goes to a FILE and stdout carries only its map"
 mkvault "$TMP/m" 12 2000
 MAP="$(CLAUDE_CODE_SESSION_ID=t-1 $PYBIN "$H" "$TMP/m")"; RC=$?
-FF="$TMP/aios-floor-$(id -u 2>/dev/null || echo user)/context-floor-t-1.md"
-[ $RC -eq 0 ] && [ -f "$FF" ] && ok "default run exits 0 and writes the floor to the temp dir" \
+FF="$TMP/m/.aios-run/floor/context-floor-t-1.md"
+[ $RC -eq 0 ] && [ -f "$FF" ] && ok "default run exits 0 and writes the floor inside the framework root (.aios-run/floor/), readable under blockReadsOutsideWorkingDirectories" \
   || no "no floor file (rc=$RC)" "the map would point at nothing"
 $PYBIN "$H" --print "$TMP/m" | cmp -s - "$FF" \
   && ok "the file is byte-identical to --print" || no "file and --print differ" "two deliveries of one floor must agree"
@@ -149,12 +149,12 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ;; *)
   # GNU first: on Linux `stat -f` is FILESYSTEM status, exits 0, and the BSD fallback never runs.
   P=$(stat -c '%a' "$FF" 2>/dev/null || stat -f '%Lp' "$FF"); D=$(stat -c '%a' "$(dirname "$FF")" 2>/dev/null || stat -f '%Lp' "$(dirname "$FF")")
   [ "$P" = 600 ] && [ "$D" = 700 ] && ok "the floor is private: file 600, folder 700" || no "file $P / folder $D" "the floor holds INTENT and observed context; a shared /tmp would expose it"
-  rm -rf "$TMP/aios-floor-$(id -u)"; ln -s "$TMP/elsewhere" "$TMP/aios-floor-$(id -u)"; mkdir -p "$TMP/elsewhere"
+  rm -rf "$TMP/m/.aios-run/floor"; ln -s "$TMP/elsewhere" "$TMP/m/.aios-run/floor"; mkdir -p "$TMP/elsewhere"
   CLAUDE_CODE_SESSION_ID=t-2 $PYBIN "$H" "$TMP/m" > "$TMP/sl.out" 2>"$TMP/sl.err"
   { [ ! -e "$TMP/elsewhere/context-floor-t-2.md" ] && grep -q 'not a directory owned by you' "$TMP/sl.err" && tail -n 1 "$TMP/sl.out" | grep '^=== END OF FLOOR' >/dev/null; } \
     && ok "a planted symlink folder is refused, and the floor prints in full instead" \
     || no "the floor wrote through a planted symlink" "another user could redirect it"
-  rm -f "$TMP/aios-floor-$(id -u)" ;;
+  rm -f "$TMP/m/.aios-run/floor" ;;
 esac
 $PYBIN "$H" --out "$TMP/x/y/floor.md" "$TMP/m" > "$TMP/fb.out" 2>"$TMP/fb.err"; RC=$?
 { [ $RC -eq 0 ] && tail -n 1 "$TMP/fb.out" | grep '^=== END OF FLOOR' >/dev/null && grep -q 'could not write' "$TMP/fb.err"; } \

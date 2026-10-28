@@ -3,7 +3,7 @@
 
     python3 hooks/context-floor.py            # write the floor to a file, print its map
     python3 hooks/context-floor.py --recent 8 # widen the recency slice
-    python3 hooks/context-floor.py --out F    # write the floor to F instead of the temp dir
+    python3 hooks/context-floor.py --out F    # write the floor to F instead of .aios-run/floor/
     python3 hooks/context-floor.py --print    # the whole floor on stdout (pipes, tests)
     python3 hooks/context-floor.py --json
 
@@ -432,28 +432,30 @@ def main(argv):
         return 0
 
     # Default: the whole floor to a file, the map on stdout. Per session, so two sessions
-    # never read each other's floor; outside the vault, so it never lands in its git.
+    # never read each other's floor; in `.aios-run/floor/` at the framework root, which is
+    # gitignored and outside vault/, so it never lands in git.
     #
-    # The floor is PRIVATE (INTENT.md, observed context) and the temp dir may be shared by
-    # every user on the machine (Linux /tmp). So it lives in a per-user folder created 0700,
-    # refused if it is a symlink or not ours, and the file is created by mkstemp (O_EXCL,
-    # 0600, random name) and renamed into place -- a predictable name opened for writing is
-    # one another user can pre-plant as a symlink to a file of yours.
+    # Inside the framework root, not the temp folder: a session works in the framework root,
+    # and under `permissions.blockReadsOutsideWorkingDirectories` a file outside it cannot be
+    # read at all -- the floor pointed every session at a file it was refused. The floor is
+    # PRIVATE (INTENT.md, observed context), so the folder is still created 0700 and refused if
+    # it is a symlink or not ours, and the file is created by mkstemp (O_EXCL, 0600, random
+    # name) and renamed into place -- a predictable name opened for writing is one another
+    # account could pre-plant as a symlink to a file of yours.
     try:
         if out_path is None:
             sid = re.sub(r"[^A-Za-z0-9_.-]", "", os.environ.get("CLAUDE_CODE_SESSION_ID", "")) or str(os.getpid())
-            who = str(os.getuid()) if hasattr(os, "getuid") else re.sub(r"[^A-Za-z0-9_.-]", "", os.environ.get("USERNAME", "")) or "user"
-            d = os.path.join(tempfile.gettempdir(), "aios-floor-" + who)
-            try:
-                os.mkdir(d, 0o700)
-            except FileExistsError:
-                pass
-            st = os.lstat(d)
             import stat
-            if not stat.S_ISDIR(st.st_mode) or (hasattr(os, "getuid") and st.st_uid != os.getuid()):
-                raise OSError("%s is not a directory owned by you" % d)
-            if hasattr(os, "getuid") and stat.S_IMODE(st.st_mode) & 0o077:
-                os.chmod(d, 0o700)
+            for d in (os.path.join(root, ".aios-run"), os.path.join(root, ".aios-run", "floor")):
+                try:
+                    os.mkdir(d, 0o700)
+                except FileExistsError:
+                    pass
+                st = os.lstat(d)
+                if not stat.S_ISDIR(st.st_mode) or (hasattr(os, "getuid") and st.st_uid != os.getuid()):
+                    raise OSError("%s is not a directory owned by you" % d)
+                if hasattr(os, "getuid") and stat.S_IMODE(st.st_mode) & 0o077:
+                    os.chmod(d, 0o700)
             out_path = os.path.join(d, "context-floor-%s.md" % sid)
         fd, tmp = tempfile.mkstemp(prefix=".floor-", dir=os.path.dirname(os.path.abspath(out_path)))
         try:
