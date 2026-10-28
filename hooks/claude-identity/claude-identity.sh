@@ -213,8 +213,8 @@ die() { echo "${RED}error:${RESET} $*" >&2; exit 1; }
 # started; and cred_write()'s pre-write blob validation is a pipeline whose
 # failure trips `die`, so a swap can never complete. The tool reported itself as
 # "same file layout as Linux" while nothing in it could run.
-# Probe for a REAL interpreter -- same pattern mcps/setup.sh already uses for the
-# identical stub (see its $PY block). $PY is used UNQUOTED so `py -3` word-splits.
+# Probe for a REAL interpreter -- the same stub check mcps/setup.sh makes (it additionally
+# requires >= 3.10 for its MCP pins; this script only needs any working Python 3). $PY is used UNQUOTED so `py -3` word-splits.
 PY=""
 # launchd (the account watcher's safety net) starts us with PATH=/usr/bin:/bin:/usr/sbin:/sbin,
 # so `python3` there is /usr/bin/python3 -- the Command Line Tools stub, which fails while the

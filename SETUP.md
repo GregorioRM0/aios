@@ -147,7 +147,7 @@ Operator said *"set up my AI-OS from this repo"* or similar. You're the executor
 
 ## Prerequisites
 
-Pick your OS path. Each installs the same toolchain (Node, Git, GitHub CLI, Python, uv, Obsidian, Claude Code CLI) plus one execution surface. After this section the Claude-driven flow is OS-agnostic.
+Pick your OS path. Each installs the same toolchain (Node, Git, GitHub CLI, Python 3.10 or newer, uv, Obsidian, Claude Code CLI) plus one execution surface. The bundled MCP servers need Python 3.10+; macOS ships 3.9 and some Linux releases ship older, and `mcps/setup.sh` fetches a newer one through uv when it can. After this section the Claude-driven flow is OS-agnostic.
 
 > **Already have Claude Code CLI working?** Skip ahead to **[The Setup](#the-setup-claude-driven)** above.
 

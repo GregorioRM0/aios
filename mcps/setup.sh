@@ -74,7 +74,15 @@ vbin() { if [ -d ".venv/Scripts" ]; then echo ".venv/Scripts"; else echo ".venv/
 req_sha() { $PY -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read().replace(b"\r\n",b"\n")).hexdigest())' "$1" 2>/dev/null; }
 needs_install() {
   [ -d "$1/.venv" ] || return 0
-  [ -n "$PY" ] && [ -f "$1/requirements.txt" ] || return 1
+  # A venv but no Python >= 3.10 to check it with: the venv may be the one an older script built
+  # on Python 3.9, which this MCP's pins cannot run on. Skipping it quietly ended in "All MCPs
+  # installed" over an install nobody verified, so it is named as a failure instead.
+  if [ -z "$PY" ]; then
+    echo "→ $(basename "$1")..." >&2
+    echo "  ✗ not checked — its .venv exists, but no Python >= ${PY_MIN:-3.10} is here to verify or update it" >&2
+    FAILED="${FAILED:-} $(basename "$1")"; return 1
+  fi
+  [ -f "$1/requirements.txt" ] || return 1
   [ "$(cat "$1/.venv/.aios-requirements.sha256" 2>/dev/null)" != "$(req_sha "$1/requirements.txt")" ]
 }
 stamp_install() { req_sha requirements.txt > .venv/.aios-requirements.sha256; }
@@ -231,11 +239,18 @@ if want atlassian-mcp && [ -d "$SCRIPT_DIR/atlassian-mcp" ]; then
     echo "  ⚠ neither uvx nor pipx found — install one ($(pkg_hint uv)), then re-run"
   else
     if command -v uvx >/dev/null 2>&1; then
-      uvx 'mcp-atlassian==0.23.1' --help >/dev/null 2>&1 || true
-      echo "  ✓ ready (invoked via uvx mcp-atlassian==0.23.1 at runtime)"
+      if uvx 'mcp-atlassian==0.23.1' --help >/dev/null 2>&1; then
+        echo "  ✓ ready (invoked via uvx mcp-atlassian==0.23.1 at runtime)"
+      else
+        echo "  ✗ uvx could not fetch mcp-atlassian==0.23.1 (offline, or no Python >= $PY_MIN for uv)"
+        FAILED="$FAILED atlassian-mcp"
+      fi
     else
-      pipx install 'mcp-atlassian==0.23.1' --force 2>/dev/null
-      echo "  ✓ installed via pipx"
+      if pipx install 'mcp-atlassian==0.23.1' --force; then
+        echo "  ✓ installed via pipx"
+      else
+        echo "  ✗ pipx install failed — see the error above"; FAILED="$FAILED atlassian-mcp"
+      fi
     fi
   fi
 fi
