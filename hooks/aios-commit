@@ -471,6 +471,14 @@ AIOS-Session: $CLAUDE_CODE_SESSION_ID" ;;
   esac
 fi
 
+# No identity configured: git does not refuse, it guesses one from the account and host name
+# (`you@machine.local`), and every commit goes out under it for good. Say so -- never refuse:
+# a refusal inside a scheduled run leaves the vault uncommitted with nobody reading the error.
+if [ -z "$(git config --get user.email 2>/dev/null)" ] && [ -z "${GIT_AUTHOR_EMAIL:-}${EMAIL:-}" ]; then
+  echo "aios-commit: NOTE — no git identity is set, so this commit is authored as: $(git var GIT_AUTHOR_IDENT 2>/dev/null | sed 's/ [0-9]* [-+][0-9]*$//')" >&2
+  echo "aios-commit:   Set it once:  git config --global user.name \"Your Name\" && git config --global user.email you@example.com" >&2
+fi
+
 # ${PARENTS[@]+"${PARENTS[@]}"} — PARENTS is EMPTY on a root commit (no HEAD yet), and bash 3.2
 # (the macOS system bash) treats "${arr[@]}" on an empty array as unbound under `set -u` → the
 # very first commit in a fresh repo aborts. The +alternate form is empty-safe on 3.2 and 4+.

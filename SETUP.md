@@ -334,7 +334,7 @@ Claude reads this file and walks you through the full onboarding — clone → i
 8. **Your first `/aios:today` — run by the interview, not separately.** It reads everything you just told it and proposes a plan for the rest of your day. Expect some sections to be empty at first: the calendar and tasks are not connected yet, and connecting them is the step immediately after. From there the daily ritual takes over.
 
 **What Claude auto-detects** (saves asking):
-- Git identity from `~/.gitconfig` or local repo config
+- Git identity from `~/.gitconfig` or local repo config. **If neither sets `user.email`, set it now** with the operator's name and the email they gave you: `git config --global user.name "…"` and `git config --global user.email …`. Without it git does not refuse; it signs every vault commit with a guessed `you@machine.local` address that stays in the history (`aios-commit` warns when this happens).
 - GitHub username from `gh auth status`
 - SSH keys from `~/.ssh/`
 - Already-installed MCPs, CLI tools, and plugins
