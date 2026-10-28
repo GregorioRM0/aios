@@ -596,5 +596,16 @@ sys.exit(0 if sys.argv[2] in json.load(open(sys.argv[1])) else 1)' "$TPL" "$k" \
   done
 fi
 
+echo "── the two docs give ONE answer on Publish app (#226) ──"
+# personal-account-setup.md says publishing is what stops the 7-day expiry; TROUBLESHOOTING.md
+# said never to publish. An operator following either was told the other was wrong.
+GT="mcps/google-workspace-mcp/TROUBLESHOOTING.md"
+GP="mcps/google-workspace-mcp/personal-account-setup.md"
+grep -qi "don't click publish app\|leave publishing status as" "$GT" \
+  && no "TROUBLESHOOTING.md still says never to publish" "personal-account-setup.md says publishing stops the 7-day expiry" \
+  || ok "TROUBLESHOOTING.md no longer contradicts the setup guide"
+grep -q "a 7-day clock" "$GT" && grep -q "^### The one trap no script can remove — a 7-day clock" "$GP" \
+  && ok "TROUBLESHOOTING.md points to the setup guide's section, which exists" || no "the pointer or its target is missing"
+
 printf '\n%d passed · %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
