@@ -303,6 +303,14 @@ _claude_with_respawn() {
   while true; do
     add_dir_args=(); _seen="
 "
+    # The handoff folder of the prompt file, computed HERE and not inside $( ... ) in the heredoc
+    # below: bash 3.2 misparses a case pattern's ) inside a command substitution.
+    _f=""
+    if [ -n "$run_dir" ]; then
+      case "$bootstrap" in
+        "Read $run_dir/handoff-"*) _f=${bootstrap#Read }; _f=${_f% and follow the instructions inside.}; _f=${_f%/*} ;;
+      esac
+    fi
     while IFS= read -r _ad; do
       [ -n "$_ad" ] || continue
       case "$_seen" in *"
@@ -312,7 +320,7 @@ $_ad
 "; add_dir_args+=(--add-dir "$_ad")
     done <<ADDDIRS
 ${CLAUDE_ADD_DIRS:-}
-$( [ -n "$run_dir" ] && case "$bootstrap" in "Read $run_dir/handoff-"*) _f=${bootstrap#Read }; _f=${_f% and follow the instructions inside.}; printf '%s' "${_f%/*}" ;; esac )
+$_f
 ADDDIRS
     # `command claude` bypasses function/alias lookup and resolves to the PATH
     # binary directly. Critical for the edge case where the operator NAMES their

@@ -440,8 +440,10 @@ echo "── no git identity: the commit lands and says whose name it went out u
 R=$(mktemp -d); git -C "$R" init -q; echo a > "$R/a.md"
 OUT=$( cd "$R" && env -u GIT_AUTHOR_EMAIL -u EMAIL GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
        "$AC" -m "no identity" --no-push -- a.md 2>&1 >/dev/null )
-[ "$(git -C "$R" log -1 --format=%s 2>/dev/null)" = "no identity" ] && printf '%s' "$OUT" | grep "no git identity is set" >/dev/null \
-  && ok "an unset identity still commits, and the warning says so" || no "an unset identity went unmentioned" ; rm -rf "$R"
+# Whether git can then commit depends on the machine: macOS guesses user@host.local, while a host
+# with no usable domain refuses ("Please tell me who you are"). Either way the warning came first.
+printf '%s' "$OUT" | grep "no git identity is set" >/dev/null \
+  && ok "an unset identity is named before the commit, whether git then guesses or refuses" || no "an unset identity went unmentioned" "$OUT"; rm -rf "$R"
 R=$(newrepo); echo a > "$R/a.md"
 OUT=$( cd "$R" && "$AC" -m "has identity" --no-push -- a.md 2>&1 >/dev/null )
 printf '%s' "$OUT" | grep "no git identity" >/dev/null && no "control: a configured identity was warned about" \
