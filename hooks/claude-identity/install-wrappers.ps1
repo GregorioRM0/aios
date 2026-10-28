@@ -174,8 +174,10 @@ $WRAPPER = @'
 # the App and Glass (handoff-<16 hex>). Folders older than a day are swept first.
 function New-AiosHandoffDir {
     param([Parameter(Mandatory)] [string] $Base)
+    # $Base is %TEMP%, shared with every other program: sweep ONLY names this function makes
+    # (handoff- + 16 hex), never another app's 'handoff-*' folder.
     Get-ChildItem -LiteralPath $Base -Directory -Filter 'handoff-*' -ErrorAction SilentlyContinue |
-        Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
+        Where-Object { $_.Name -match '^handoff-[0-9a-f]{16}$' -and $_.LastWriteTime -lt (Get-Date).AddDays(-1) } |
         ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
     $bytes = New-Object byte[] 8
     [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)

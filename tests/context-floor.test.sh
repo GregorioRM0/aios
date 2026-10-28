@@ -97,6 +97,16 @@ $PYBIN "$H" --print "$TMP/m" | cmp -s - "$FF" \
   && ok "the file is byte-identical to --print" || no "file and --print differ" "two deliveries of one floor must agree"
 tail -n 1 "$FF" | grep '^=== END OF FLOOR -- ' >/dev/null && ok "the file ends on the END marker" || no "file has no END marker" ""
 printf '%s' "$MAP" | grep -F "$FF" >/dev/null && ok "the map names the file" || no "the map does not name the file" ""
+# Floors no longer live in a temp folder that empties itself: a new floor sweeps this folder's
+# floors older than 7 days, and leaves recent ones (other live sessions) alone.
+FD="$TMP/m/.aios-run/floor"
+echo old > "$FD/context-floor-old-session.md"; touch -t 202001010000 "$FD/context-floor-old-session.md"
+echo recent > "$FD/context-floor-recent-session.md"
+echo keep > "$FD/notes.txt"; touch -t 202001010000 "$FD/notes.txt"
+CLAUDE_CODE_SESSION_ID=t-2 $PYBIN "$H" "$TMP/m" >/dev/null 2>&1
+{ [ ! -e "$FD/context-floor-old-session.md" ] && [ -f "$FD/context-floor-recent-session.md" ] && [ -f "$FD/notes.txt" ] && [ -f "$FD/context-floor-t-2.md" ]; } \
+  && ok "a new floor removes floors older than 7 days, keeps recent floors and anything else" \
+  || no "the floor sweep removed the wrong files or none" "$(ls -A "$FD" | tr '\n' ' ')"
 # Sessions piped the map through head or tail, or redirected it, and worked from it as if it were
 # the floor (measured 10-03 -> 10-11). Each END of the map must say it is only the map and name the file.
 FIRST=$(printf '%s\n' "$MAP" | head -n 2); LAST=$(printf '%s\n' "$MAP" | tail -n 1)

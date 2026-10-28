@@ -462,6 +462,21 @@ def main(argv):
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
                 fh.write(floor)
             os.replace(tmp, out_path)
+            # One floor per session, each a private copy of INTENT and the observed files. The
+            # temp folder used to empty itself; .aios-run/ does not. So a new floor removes this
+            # folder's floors older than 7 days (a session resumed later simply runs it again).
+            if os.path.basename(os.path.dirname(os.path.abspath(out_path))) == "floor":
+                import time
+                cutoff = time.time() - 7 * 86400
+                fdir = os.path.dirname(os.path.abspath(out_path))
+                for n in os.listdir(fdir):
+                    pth = os.path.join(fdir, n)
+                    if (n.startswith("context-floor-") and n.endswith(".md") and pth != os.path.abspath(out_path)):
+                        try:
+                            if os.lstat(pth).st_mtime < cutoff:
+                                os.unlink(pth)
+                        except OSError:
+                            pass
         except BaseException:
             try:
                 os.unlink(tmp)

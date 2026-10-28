@@ -133,6 +133,10 @@ rm -f "$tmp/args"; runspawn --add-dir "$tmp/extra" --add-dir "$tmp/extra" worker
 mkdir -p "$RUN/handoff-0000000000000000"; touch -t 202001010000 "$RUN/handoff-0000000000000000"
 rm -f "$tmp/args"; runspawn worker "task"
 [ ! -e "$RUN/handoff-0000000000000000" ] && ok "a handoff folder older than a day is swept" || no "an old handoff folder survived"
+# The Windows twin sweeps %TEMP%, which other programs share: it must match only AIOS's own names.
+grep -q "\$_.Name -match '^handoff-\[0-9a-f\]{16}\$'" "$(dirname "$SRC")/install-wrappers.ps1" \
+  && ok "Windows: the %TEMP% sweep removes only handoff-<16 hex> folders, never another app's" \
+  || no "Windows: the handoff sweep in %TEMP% is not limited to AIOS's own folder names"
 rm -f "$tmp/args"
 env -u CLAUDECODE -u CLAUDE_ADD_DIRS HOME="$tmp" PATH="$tmp/bin:$PATH" bash -c 'eval "$1"; _claude_with_respawn primary ""' _ "$FNS" >/dev/null 2>&1
 [ -f "$tmp/args" ] && [ -z "$(adds)" ] && ok "a launch with no prompt file adds no --add-dir" || no "a plain launch got --add-dir" "$(adds | tr '\n' ' ')"

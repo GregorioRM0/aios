@@ -27,6 +27,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCAN="$ROOT/hooks/git/secret-scan.sh"
+PYBIN=""; for _c in python3 python "py -3"; do $_c -c "import sys" >/dev/null 2>&1 && { PYBIN="$_c"; break; }; done; [ -n "$PYBIN" ] || PYBIN=false
 PASS=0; FAIL=0
 ok(){ PASS=$((PASS+1)); printf '  PASS  %s\n' "$1"; }
 no(){ FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
@@ -160,7 +161,21 @@ bash "$SCAN" "$C/mcps/x/auth/site.json" >/dev/null 2>&1 && no "a saved session u
 echo x > "$C/client_secret.json.template"; echo '{}' > "$C/vault/.obsidian/app.json"; echo x > "$C/notes.md"
 bash "$SCAN" "$C/client_secret.json.template" "$C/notes.md" >/dev/null 2>&1 \
   && ok "control: a *.template and an ordinary note pass" || no "control: a template or plain note was blocked"
-rm -rf "$C"
+# A Keynote deck is a .key too: a zip archive. It must pass; a text .key must not.
+"$PYBIN" -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1],"w"); z.writestr("Index/Document.iwa","x"); z.close()' "$C/Q3 board deck.key" 2>/dev/null \
+  || printf 'PK\003\004rest-of-a-zip' > "$C/Q3 board deck.key"
+bash "$SCAN" "$C/Q3 board deck.key" >/dev/null 2>&1 && ok "a Keynote deck (.key that is a zip) passes" || no "a Keynote deck was blocked as a key"
+# The allowlist: a listed path skips the NAME check only -- a real secret inside still blocks.
+A="$TMP/allow"; mkdir -p "$A/ventures/auth"; git -C "$A" init -q
+echo '{"diagram":"login flow"}' > "$A/ventures/auth/flow.json"
+( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && no "control: an auth/*.json passed with no allowlist" || ok "control: without the allowlist, auth/*.json is blocked"
+printf '# false alarms\nventures/auth/flow.json\n' > "$A/.secret-scan-allow"
+( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && ok "a path in .secret-scan-allow passes the name check" || no "an allowlisted path was still blocked"
+printf '%s\n' "-----BEGIN RSA PRIVATE KEY-----" "MIIEow" > "$A/ventures/auth/flow.json"
+( cd "$A" && bash "$SCAN" ventures/auth/flow.json >/dev/null 2>&1 ) && no "an allowlisted file holding a private key passed" || ok "an allowlisted file is still content-scanned (a private key inside blocks)"
+echo x > "$A/id.key"; msg=$(cd "$A" && bash "$SCAN" id.key 2>&1)
+case "$msg" in *".secret-scan-allow"*) ok "a name block says how to allow a false alarm" ;; *) no "the block message does not mention .secret-scan-allow" "$msg" ;; esac
+rm -rf "$C" "$A"
 
 printf '\n%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

@@ -95,14 +95,14 @@
 
 **Transcripts are kept, and throwaways leave on purpose.** Claude Code deletes transcripts after 30 days, silently. Setup and updates now propose keeping them 10 years when you have no setting of your own, and `/aios:housekeeping` sorts them, proposing to archive only old headless and test runs, never a named session. It archives and verifies before it deletes.
 
-**Your vault's GitHub backup stops billing CI** (#238). Setup creates the private repo with Actions off, never pushing to the framework first. The credential-file check CI made now runs before every commit, so nothing is lost.
+**Your vault's GitHub backup stops billing CI** (#238). Setup creates the private repo with Actions off, never pushing to the framework first. The credential-file check CI made now runs before every commit, so nothing is lost. A Keynote deck (`.key`) is never taken for a key, and any other false alarm can be listed in `.secret-scan-allow`; its contents are still scanned.
 
 **Sessions can read what they are handed** (#231). Under `blockReadsOutsideWorkingDirectories`, the floor was written where a session could not read it, and so was a worker's task file. The floor now lives in `.aios-run/floor/`, and a worker's task (or a resume prompt) gets its own private folder, granted with `--add-dir`: that folder only, never the run folder with every other session's files.
 
 **Locks hold on Ubuntu 26.04.** Its `mkdir` (uutils 0.10) can tell several processes at once that each created the same folder, so two commits, closes or snapshots could run together and lose each other's work. Every lock now claims ownership by creating its pid file exclusively, which bash does itself, so one process holds it whatever `mkdir` the system ships.
 
 **Smaller fixes.**
-- The startup identity check is one command, `hooks/whoami`, so it no longer prompts (#230).
+- The startup identity check is one command, `hooks/whoami`. The old one asked at every session start even when allowed; this one stays allowed once you allow it (#230).
 - Calendar and Tasks written below an *EXAMPLE ONLY* block in `USER.md` are read (#233).
 - A fresh vault's buffer check no longer reports "cannot measure" (#227).
 - The two Google setup docs give one answer on *Publish app* (#226).
