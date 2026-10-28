@@ -90,6 +90,27 @@ fi
 [ ${#files[@]} -eq 0 ] && exit 0
 
 hit=0
+# Credential-shaped FILE NAMES, whatever they contain: a key, a certificate, a token or cookie
+# store, a saved browser session. CI's Vault guards job checks the same names, but a private
+# vault runs with Actions off, so this commit-time check is the one that holds. *.template is
+# what ships in their place; Obsidian's own config is never a credential.
+names=""
+for f in ${files[@]+"${files[@]}"}; do
+  case "$f" in *.template|vault/.obsidian/*|./vault/.obsidian/*) continue ;; esac
+  case "${f##*/}" in
+    *.key|*.pem|*.pfx|*.p12|*.cer|*.crt|token.json|credentials.json|.env|.env.local|\
+    storage_state.json|cookies.json|auth_link.html|*-tokens.json|spotify-cache.json|\
+    *oauth*.json|*secret*.json|*credentials*.json) names="${names}  $f
+" ;;
+    *.json) case "/$f" in */auth/*) names="${names}  $f
+" ;; esac ;;
+  esac
+done
+if [ -n "$names" ]; then
+  printf 'secret-scan: BLOCKED — credential-shaped file name(s):\n%s' "$names" >&2
+  echo "secret-scan: real credentials stay gitignored; only a *.template copy ships." >&2
+  hit=1
+fi
 # ONE pass with every pattern (`-e` each). The old loop read every file once per pattern, and
 # `-a` (below) makes a binary a full read — measured 11 passes over a 200 MB attachment at ~12 s.
 # -e is load-bearing: a pattern beginning with '-' (the private-key header) is otherwise parsed

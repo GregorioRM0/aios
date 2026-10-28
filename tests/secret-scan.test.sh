@@ -148,5 +148,19 @@ out=$(bash "$SCAN" "$C/many.md" 2>&1); rc=$?
 printf '%s' "$out" | grep -c 'BLOCKED' >/dev/null && ! printf '%s' "$out" | grep -c 'FAILED to scan' >/dev/null && ok "~1.3 MB of hits → BLOCKED, not 'FAILED to scan' (grep SIGPIPE)" || no "many hits misreported" "$out"
 rm -rf "$C"
 
+echo "── credential-shaped file NAMES are blocked whatever they contain ──"
+# The half of CI's Vault guards job a private vault loses when Actions are off.
+C="$TMP/names"; mkdir -p "$C/mcps/x/auth" "$C/vault/.obsidian"
+for n in server.pem id.key my-tokens.json client_secret.json google-oauth.json cookies.json .env; do
+  echo "nothing secret inside" > "$C/$n"
+  bash "$SCAN" "$C/$n" >/dev/null 2>&1 && no "a file named $n passed" || ok "a file named $n is blocked"
+done
+echo '{}' > "$C/mcps/x/auth/site.json"
+bash "$SCAN" "$C/mcps/x/auth/site.json" >/dev/null 2>&1 && no "a saved session under auth/ passed" || ok "a saved session under auth/*.json is blocked"
+echo x > "$C/client_secret.json.template"; echo '{}' > "$C/vault/.obsidian/app.json"; echo x > "$C/notes.md"
+bash "$SCAN" "$C/client_secret.json.template" "$C/notes.md" >/dev/null 2>&1 \
+  && ok "control: a *.template and an ordinary note pass" || no "control: a template or plain note was blocked"
+rm -rf "$C"
+
 printf '\n%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
