@@ -116,10 +116,19 @@ def mb(n):
 
 def archive(cands, to):
     """Archive, verify by name AND size, then delete. Returns (archive_path, deleted, kept)."""
-    os.makedirs(to, exist_ok=True)
+    # Transcripts are whole sessions: private. The folder is 0700 and refused if it is a symlink or
+    # not ours; the archive is created exclusively at 0600, never with the default umask.
+    os.makedirs(to, mode=0o700, exist_ok=True)
+    st = os.lstat(to)
+    import stat
+    if not stat.S_ISDIR(st.st_mode) or (hasattr(os, "getuid") and st.st_uid != os.getuid()):
+        raise OSError("%s is not a folder owned by you" % to)
+    if hasattr(os, "getuid") and stat.S_IMODE(st.st_mode) & 0o077:
+        os.chmod(to, 0o700)
     out = os.path.join(to, "transcripts-%s.tar.gz" % dt.datetime.now().strftime("%Y-%m-%d-%H%M%S"))
     root = config_dir()
-    with tarfile.open(out, "w:gz") as tar:
+    fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+    with os.fdopen(fd, "wb") as fh, tarfile.open(fileobj=fh, mode="w:gz") as tar:
         for r in cands:
             tar.add(r["path"], arcname=os.path.relpath(r["path"], root))
     with tarfile.open(out, "r:gz") as tar:

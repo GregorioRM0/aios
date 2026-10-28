@@ -40,6 +40,10 @@ A=$(ls "$T/arch"/transcripts-*.tar.gz 2>/dev/null | head -1)
 [ -n "$A" ] && tar -tzf "$A" | grep -q headless-old.jsonl && tar -tzf "$A" | grep -q temprun-old.jsonl \
   && ok "both candidates are in the archive" || no "the archive is missing a candidate"
 [ ! -e "$P/headless-old.jsonl" ] && [ ! -e "$P/temprun-old.jsonl" ] && ok "and were deleted after it was written" || no "a candidate was not removed"
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) ;; *)
+  FP=$(stat -c '%a' "$A" 2>/dev/null || stat -f '%Lp' "$A"); DP=$(stat -c '%a' "$T/arch" 2>/dev/null || stat -f '%Lp' "$T/arch")
+  [ "$FP" = 600 ] && [ "$DP" = 700 ] && ok "the archive is private: file 600, folder 700" || no "archive file $FP / folder $DP" "transcripts are whole sessions" ;;
+esac
 [ -e "$P/named-old.jsonl" ] && [ -e "$P/unnamed-old.jsonl" ] && [ -e "$P/headless-new.jsonl" ] \
   && ok "named, unnamed and recent transcripts are untouched" || no "a non-candidate was deleted"
 
