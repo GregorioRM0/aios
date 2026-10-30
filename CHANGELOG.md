@@ -83,7 +83,7 @@
 
 `hash: `
 
-> **What you can now do.** Ask your vault what it has learned about a concept and get the lessons whose body says it, even when no title does. Nothing for you to do: it runs only when you or a session calls it.
+> **What you can now do.** Ask your vault what it has learned about a concept and get the lessons whose body says it, even when no title does. Action required — none: it runs only when you or a session calls it.
 
 **`hooks/recall.py` searches the bodies of `observed/`.** The context floor names every title and prints the newest few entries of each file, so an old lesson whose title does not name the concept was invisible to a session looking for the concept. `recall.py "build cache stale credentials"` returns the best matches as `path:line :: title` with a short excerpt, and the session opens the entry it points to. The floor is unchanged; this is the other half of index-then-open.
 
